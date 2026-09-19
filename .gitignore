@@ -1,0 +1,14 @@
+# Secretos: ninguna credencial entra al repositorio (ADR-002).
+# El archivo de ejemplo con valores ficticios sí se versiona (tarea 60).
+.env
+.env.*
+!.env.example
+
+# IDE, cuando el proyecto se abre desde la raíz del repositorio
+.idea/
+*.iml
+.vscode/
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
