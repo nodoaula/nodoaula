@@ -1,0 +1,95 @@
+# Mantenimiento de actividad de la base de datos (ADR-004 §4).
+#
+# Supabase pausa los proyectos gratuitos tras siete días sin actividad, y
+# restaurarlos exige entrar al panel del proveedor a mano. Esta llamada diaria
+# consulta la base y genera actividad real sobre el proyecto.
+#
+# NO busca mantener despierta la instancia de Render, que se suspende a los
+# quince minutos sin tráfico. Eso es otro problema y no se resuelve aquí.
+
+name: Mantener activa la base de datos
+
+on:
+  schedule:
+    # Minuto, hora, día del mes, mes, día de la semana. Siempre en UTC:
+    # 11:17 UTC son las 6:17 en Colombia. El minuto no es redondo a propósito,
+    # porque a las horas en punto GitHub acumula carga y retrasa las
+    # ejecuciones programadas.
+    #
+    # GitHub solo ejecuta esto desde la rama por defecto, que es `develop`, y
+    # lo desactiva tras 60 días sin actividad en el repositorio.
+    - cron: '17 11 * * *'
+
+  # Permite lanzarlo a mano desde la pestaña Actions. Hace falta para
+  # verificarlo sin esperar un día.
+  workflow_dispatch:
+
+jobs:
+  check-database:
+    name: Consultar la base de datos
+    runs-on: ubuntu-latest
+
+    permissions:
+      # Lo mínimo para abrir la incidencia del paso siguiente. Sin esto, el
+      # token de la ejecución no puede escribir en el repositorio.
+      issues: write
+
+    steps:
+      # Se llama directamente al servicio web y no a través del sitio estático,
+      # para no depender del tiempo de espera de la reescritura.
+      #
+      # --fail  : sin esto curl termina con éxito aunque reciba un 503 y el
+      #           fallo pasaría inadvertido. El endpoint responde 503 cuando la
+      #           base no está disponible.
+      # --max-time 180 : es por intento, no por operación completa. El arranque
+      #           en frío medido el 19 de septiembre de 2026 fue de 114,8 s,
+      #           porque esta llamada normalmente despierta al backend dormido.
+      # --retry 1 --retry-all-errors : un reintento, que tiene sentido porque el
+      #           primer intento despierta el contenedor aunque él mismo no
+      #           llegue a completarse.
+      - name: Consultar la salud de la base de datos
+        run: |
+          curl --fail --silent --show-error \
+            --max-time 180 --retry 1 --retry-all-errors \
+            https://nodoaula-backend.onrender.com/actuator/health/database
+
+      # La incidencia queda visible para los tres integrantes. El aviso por
+      # correo que GitHub envía por defecto solo llega a quien editó el workflow
+      # por última vez, que es justo lo que la tarea descarta.
+      #
+      # Se usa la CLI `gh`, preinstalada en los ejecutores de GitHub, en lugar
+      # de una acción de terceros: una dependencia menos que revisar y fijar.
+      # Como el workflow no clona el repositorio, `gh` no puede deducir sobre
+      # cuál actúa y se le indica con GH_REPO.
+      #
+      # Los valores de ${{ }} se pasan por `env` y no se interpolan dentro del
+      # script: interpolarlos permite inyectar comandos en el ejecutor.
+      - name: Abrir incidencia si la comprobación falló
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          cat > cuerpo-incidencia.md <<CUERPO
+          La comprobación diaria de la base de datos no pasó.
+
+          Ruta consultada:
+          https://nodoaula-backend.onrender.com/actuator/health/database
+
+          Por qué importa: Supabase pausa los proyectos gratuitos tras siete
+          días sin actividad (ADR-004 §4). Si esto se repite varios días
+          seguidos, el proyecto puede quedar suspendido y habrá que restaurarlo
+          a mano desde el panel del proveedor.
+
+          Qué comprobar, en este orden:
+          1. Que el servicio web de Render esté desplegado y arranque.
+          2. Que el proyecto de Supabase no esté ya pausado.
+          3. Los registros de la ejecución que abrió esta incidencia.
+
+          Ejecución: $RUN_URL
+          CUERPO
+
+          gh issue create \
+            --title "Falló el mantenimiento de actividad de la base de datos ($(date -u +%F))" \
+            --body-file cuerpo-incidencia.md
