@@ -33,7 +33,42 @@ cd frontend && npm run dev             # interfaz en :5173
 
 El servidor de desarrollo de Vite reenvía `/api` al backend local, igual que hace en producción la regla de reescritura del sitio estático. Por eso el código llama a la API con rutas relativas y nunca contiene la dirección del backend (ADR-006 §5).
 
-Si al cambiar de rama Flyway rechaza una migración, se borra el contenedor y el esquema se reconstruye desde cero:
+## Migraciones de base de datos
+
+Las migraciones viven en `backend/src/main/resources/db/migration/`, que es donde Flyway las busca. Ninguna tabla del entorno desplegado se crea ni se modifica desde el panel de Supabase.
+
+### Convención de nombres
+
+```
+V<AAAAMMDDhhmm>__<descripcion_en_ingles>.sql
+```
+
+Ejemplo: `V202609181430__create_resource_table.sql`
+
+| Parte | Regla |
+|---|---|
+| `V` | Prefijo de migración versionada |
+| `AAAAMMDDhhmm` | Fecha y hora de creación **en UTC**, doce dígitos seguidos, sin separadores |
+| `__` | Doble guion bajo, separa la versión de la descripción |
+| descripción | En inglés y en `snake_case`, igual que las tablas y las columnas |
+
+Para obtener la versión:
+
+```bash
+date -u +V%Y%m%d%H%M
+```
+
+**Sin separadores dentro de la versión.** Flyway convierte en puntos los guiones bajos que encuentra en ella: `V2026_09_18__crear.sql` se interpreta como la versión `2026.9.18` y no como una fecha. Los doce dígitos seguidos se comparan como un único número.
+
+### Lo que impide arrancar la aplicación
+
+| Si… | Qué ocurre |
+|---|---|
+| Una migración nueva tiene una versión **menor** que la última aplicada | Flyway la rechaza. Se renombra con la fecha y hora actuales, válido mientras no se haya aplicado en el entorno desplegado |
+| Se **modifica** una migración ya aplicada | Flyway detecta el cambio y la rechaza. Toda corrección entra como una migración nueva |
+| Dos migraciones comparten **versión** | `Found more than one migration with version…` |
+
+Si la base local queda en un estado que no arranca, se borra el contenedor y el esquema se reconstruye desde cero:
 
 ```bash
 sudo docker compose down -v && sudo docker compose up -d
