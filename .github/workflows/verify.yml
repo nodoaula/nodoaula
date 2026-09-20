@@ -1,0 +1,104 @@
+name: Verificación
+
+# Sin filtros de ruta a propósito: un check obligatorio que se omite por un
+# filtro se queda en pendiente y bloquea la integración para siempre.
+on:
+  pull_request:
+    branches: [develop]
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # Mismos valores que los de application.properties, para que el
+        # workflow no tenga que declarar variables de entorno.
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: nodoaula
+          POSTGRES_USER: nodoaula
+          POSTGRES_PASSWORD: nodoaula
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nodoaula -d nodoaula"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Hace falta el historial completo para comparar contra develop.
+          fetch-depth: 0
+
+      - name: Comprobar el orden de las migraciones
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin develop
+          DIR="backend/src/main/resources/db/migration"
+
+          ultima=$(git ls-tree -r --name-only origin/develop -- "$DIR" \
+            | sed -n 's|.*/V\([0-9]\{1,\}\)__.*\.sql$|\1|p' | sort -n | tail -1)
+          ultima=${ultima:-0}
+
+          # Tres puntos compara contra el punto en que la rama se separó, y
+          # --diff-filter=A deja solo los archivos añadidos: una migración que
+          # ya estaba en develop no se vuelve a comprobar.
+          nuevas=$(git diff --name-only --diff-filter=A origin/develop...HEAD -- "$DIR" || true)
+          [ -n "$nuevas" ] || { echo "Sin migraciones nuevas."; exit 0; }
+
+          fallo=0
+          for archivo in $nuevas; do
+            version=$(basename "$archivo" | sed -n 's|^V\([0-9]\{1,\}\)__.*\.sql$|\1|p')
+            if [ -z "$version" ]; then
+              # Flyway ignora en silencio los archivos que no encajan en el
+              # patrón: se integrarían y la tabla nunca se crearía.
+              echo "FALLO  $archivo no sigue el formato V<version>__<descripcion>.sql"
+              fallo=1
+            elif [ "$version" -le "$ultima" ]; then
+              # -le y no -lt: una versión repetida también impide arrancar.
+              echo "FALLO  $archivo tiene versión $version y en develop ya hay $ultima"
+              fallo=1
+            else
+              echo "OK     $archivo"
+            fi
+          done
+
+          [ "$fallo" -eq 0 ] || { echo "Renómbrala con: date -u +V%Y%m%d%H%M"; exit 1; }
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: maven
+
+      # El test levanta el contexto completo de Spring, de modo que Flyway
+      # aplica las migraciones e Hibernate valida las entidades contra las
+      # tablas. Si la aplicación no arrancaría, esto falla.
+      - name: Arrancar la aplicación contra PostgreSQL
+        working-directory: backend
+        run: ./mvnw -B test
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias
+        working-directory: frontend
+        run: npm ci
+
+      - name: Compilar
+        working-directory: frontend
+        run: npm run build
