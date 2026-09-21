@@ -1,7 +1,12 @@
+import ResourceCatalogPage from '../features/catalog/ResourceCatalogPage.jsx'
 import { SERVER_STATUS, useServerStatus } from './serverStatus.js'
 
 export default function App() {
   const serverStatus = useServerStatus()
+
+  if (serverStatus === SERVER_STATUS.READY) {
+    return <ResourceCatalogPage />
+  }
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -17,8 +22,6 @@ export default function App() {
 // Los atributos role avisan a un lector de pantalla de que el texto cambió:
 // "status" espera a que termine de leer lo anterior, "alert" interrumpe.
 function ServerNotice({ status }) {
-  if (status === SERVER_STATUS.READY) return null
-
   if (status === SERVER_STATUS.STARTING) {
     return (
       <p className="mt-6 text-sm text-slate-500" role="status">
