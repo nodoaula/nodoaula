@@ -78,11 +78,11 @@ Se elige el **modo sesión** porque el backend es un proceso persistente que uti
 
 Se descarta el acceso mediante el cliente HTTP de Supabase para las operaciones sobre datos estructurados, porque la aplicación ya accede directamente a PostgreSQL mediante JDBC. Utilizar JDBC mantiene el acceso basado en PostgreSQL y el cambio a otro proveedor compatible con PostgreSQL se reduce principalmente a modificar la configuración de conexión.
 
-Esta sección cubre únicamente el acceso a **datos estructurados en PostgreSQL**. La forma en que el backend accede al almacenamiento de archivos no se decide aquí; se resuelve junto con la US-17.
+Esta sección cubre únicamente el acceso a **datos estructurados en PostgreSQL**. La forma en que el backend accede al almacenamiento de archivos no se decide aquí; se resuelve junto con la HU301.
 
 ### 6. Los datos iniciales entran como migración
 
-Los recursos del catálogo mínimo de US-07 se cargan mediante una migración de datos de Flyway. Al no existir panel de administración, es el camino que deja registro versionado de qué se cargó y cuándo. Las correcciones posteriores a esos datos entran como migraciones nuevas.
+Los recursos del catálogo mínimo de HU106 se cargan mediante una migración de datos de Flyway. Al no existir panel de administración, es el camino que deja registro versionado de qué se cargó y cuándo. Las correcciones posteriores a esos datos entran como migraciones nuevas.
 
 ## Consecuencias
 
@@ -95,8 +95,8 @@ Los recursos del catálogo mínimo de US-07 se cargan mediante una migración de
 
 **Negativas**
 
-- **Algunas capacidades que el Sprint 1 necesita deben implementarse o configurarse explícitamente.** No se adopta un panel de administración, de modo que US-07 exige escribir la carga inicial; y la autenticación, tratada en el ADR-007, requiere configuración adicional en el backend.
-- **Mayor consumo de memoria y arranque en frío más lento.** Sobre los 512 MB de la capa gratuita de Render, la espera de la primera visita tras la suspensión puede superar el minuto de referencia del ADR-004, lo que afecta al cronometraje del OE5 y al tiempo de espera de la tarea de mantenimiento de actividad. Si el proceso excede la memoria disponible, Render lo reinicia. Se limita la memoria de la JVM y el tamaño del pool de conexiones, y la duración real del arranque se mide tras el primer despliegue de US-02.
+- **Algunas capacidades que el Sprint 1 necesita deben implementarse o configurarse explícitamente.** No se adopta un panel de administración, de modo que HU106 exige escribir la carga inicial; y la autenticación, tratada en el ADR-007, requiere configuración adicional en el backend.
+- **Mayor consumo de memoria y arranque en frío más lento.** Sobre los 512 MB de la capa gratuita de Render, la espera de la primera visita tras la suspensión puede superar el minuto de referencia del ADR-004, lo que afecta al cronometraje del OE5 y al tiempo de espera de la tarea de mantenimiento de actividad. Si el proceso excede la memoria disponible, Render lo reinicia. Se limita la memoria de la JVM y el tamaño del pool de conexiones, y la duración real del arranque se mide tras el primer despliegue de HU001.
 - **Separar frontend y backend añade trabajo de integración.** Son dos proyectos con despliegue propio que se coordinan mediante una API, cuyo contrato hay que mantener. Cómo ve el navegador ambas unidades se decide en el ADR-006, y la sesión del usuario, en el ADR-007.
 - **Una migración que falle impide arrancar la aplicación entera.** El check del Pull Request lo detecta sobre una base vacía, pero no detecta los fallos que dependen de datos existentes, como agregar una columna `NOT NULL` sin valor por defecto a una tabla con filas. Quien escribe la migración y quien la revisa deben considerar ese caso.
 - **Una base local puede quedar en un estado que no arranca**. Al cambiar de rama, una base local puede tener aplicada una migración con versión posterior a otra que todavía está pendiente, y Flyway rechazará esa migración anterior. Se resuelve borrando el contenedor y dejando que Flyway reconstruya el esquema desde cero.
@@ -107,13 +107,13 @@ Los recursos del catálogo mínimo de US-07 se cargan mediante una migración de
 
 **Compromisos asumidos**
 
-- Los criterios de aceptación de US-05 se precisan por Pull Request: el esquema se crea o modifica mediante una migración de Flyway, y las entidades Java se validan contra él al arrancar.
-- Los criterios de aceptación de US-02 se amplían con: la conexión a la base de datos por variable de entorno a través de Supavisor en modo sesión; la ejecución automática de migraciones en el despliegue; el límite de memoria de la JVM en el Dockerfile; un tamaño de pool acorde al límite del pooler; el workflow que en cada Pull Request comprueba el orden de versiones de las migraciones y el arranque de la aplicación, y la regla de protección de `develop` que lo hace obligatorio con la rama actualizada; la medición del arranque en frío tras el primer despliegue; el entorno local con Docker Compose; y la desactivación de la Data API de Supabase. El trabajo adicional se considera en la estimación de US-02, que se revisa en el Sprint Planning.
+- Los criterios de aceptación de HU104 se precisan por Pull Request: el esquema se crea o modifica mediante una migración de Flyway, y las entidades Java se validan contra él al arrancar.
+- Los criterios de aceptación de HU001 se amplían con: la conexión a la base de datos por variable de entorno a través de Supavisor en modo sesión; la ejecución automática de migraciones en el despliegue; el límite de memoria de la JVM en el Dockerfile; un tamaño de pool acorde al límite del pooler; el workflow que en cada Pull Request comprueba el orden de versiones de las migraciones y el arranque de la aplicación, y la regla de protección de `develop` que lo hace obligatorio con la rama actualizada; la medición del arranque en frío tras el primer despliegue; el entorno local con Docker Compose; y la desactivación de la Data API de Supabase. El trabajo adicional se considera en la estimación de HU001, que se revisa en el Sprint Planning.
 - El compromiso del Sprint 1 se revisa en el Sprint Planning a la luz de esta decisión y de la del ADR-006.
 - Ninguna tabla del entorno desplegado se crea ni se modifica desde el panel del proveedor. Todo cambio de esquema entra por migración.
-- La verificación empírica de esta decisión es US-02. Si el primer despliegue revela que el proveedor no levanta la aplicación en las condiciones previstas, el cambio se hace dentro del Sprint 1, con margen.
+- La verificación empírica de esta decisión es HU001. Si el primer despliegue revela que el proveedor no levanta la aplicación en las condiciones previstas, el cambio se hace dentro del Sprint 1, con margen.
 - El desarrollo local usa una base PostgreSQL propia de cada integrante, levantada con Docker Compose y en la misma versión mayor que la de Supabase, nunca la base de Supabase. Una aplicación arrancada en local contra el entorno desplegado aplicaría en él las migraciones de una rama no integrada, y un renombrado posterior de esas migraciones impediría arrancar. Las credenciales de Supabase existen únicamente como variables de entorno en Render.
-- La Data API de Supabase, su capa REST y GraphQL sobre el esquema público, se desactiva en el proyecto. El backend accede por JDBC y no la usa, y las tablas creadas por Flyway no llevan políticas de seguridad a nivel de fila. Se verifica como parte de US-02.
+- La Data API de Supabase, su capa REST y GraphQL sobre el esquema público, se desactiva en el proyecto. El backend accede por JDBC y no la usa, y las tablas creadas por Flyway no llevan políticas de seguridad a nivel de fila. Se verifica como parte de HU001.
 
 ## Referencias
 
