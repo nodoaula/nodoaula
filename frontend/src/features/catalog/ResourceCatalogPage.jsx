@@ -43,10 +43,18 @@ export default function ResourceCatalogPage() {
     }
   }, [])
 
-  useEffect(() => {
-    let active = true
+  // El filtro cambió: reiniciamos loading/error durante el render (patrón oficial de
+  // React para "ajustar estado cuando cambia una prop"), en vez de hacerlo de forma
+  // síncrona dentro del efecto. Ver https://react.dev/learn/you-might-not-need-an-effect
+  const [lastRequestedCourseId, setLastRequestedCourseId] = useState(selectedCourseId)
+  if (lastRequestedCourseId !== selectedCourseId) {
+    setLastRequestedCourseId(selectedCourseId)
     setLoading(true)
     setError(null)
+  }
+
+  useEffect(() => {
+    let active = true
 
     listResources(selectedCourseId || undefined)
       .then((data) => {
