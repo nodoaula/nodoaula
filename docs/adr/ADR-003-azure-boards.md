@@ -59,7 +59,7 @@ Una feature suele extenderse a lo largo de varios sprints, así que no se puede 
 
 ### 8. Identificador HUXXX en el título de las historias
 
-Cada historia de usuario recibe un identificador `HUXXX` antepuesto a su título, con el formato `HUXXX - <título>`. El primer dígito indica el sprint en el que se trabaja la historia y los dos dígitos siguientes son su secuencia dentro de ese sprint, en el orden del ID interno de Azure Boards (`HU101`, `HU102`, ... para el Sprint 1; `HU201` para el Sprint 2; y así sucesivamente).
+Cada historia de usuario recibe un identificador `HUXXX` antepuesto a su título, con el formato `HUXXX - <título>`. El primer dígito indica la iteración en la que se trabaja la historia: `0` para la iteración previa al Sprint 1 y `1` en adelante para los sprints de construcción; los dos dígitos siguientes son su secuencia dentro de esa iteración, en el orden del ID interno de Azure Boards (`HU001`, `HU002`, ... para la iteración 0; `HU101`, `HU102`, ... para el Sprint 1; `HU201` para el Sprint 2; y así sucesivamente).
 
 A diferencia de la épica y la feature, una historia vive en un único sprint, y anclar su identificador al sprint permite leer de un vistazo en qué iteración se trabajó sin abrir el elemento. Numerar en dos dígitos por sprint —en vez de sobre el total de historias— también deja margen para agregar o dividir historias dentro de un sprint ya numerado sin desplazar la numeración de los sprints siguientes; no se esperan más de cien historias por sprint, así que el esquema es holgado.
 
