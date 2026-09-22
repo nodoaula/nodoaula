@@ -5,14 +5,14 @@
 
 ## Contexto
 
-El registro de decisiones aplazaba esta decisión hasta después del Sprint 1, con el supuesto de que la primera iteración usaría el mecanismo nativo del framework que resultara del ADR-005. El equipo optó por cerrarla ahora, junto con el backend y el frontend, para no construir US-03 y US-04 sobre un supuesto.
+El registro de decisiones aplazaba esta decisión hasta después del Sprint 1, con el supuesto de que la primera iteración usaría el mecanismo nativo del framework que resultara del ADR-005. El equipo optó por cerrarla ahora, junto con el backend y el frontend, para no construir HU102 y HU103 sobre un supuesto.
 
 Seis condiciones acotan la elección:
 
 1. **El ADR-005 fijó el backend en Spring Boot**, que incluye un módulo de seguridad propio, y los datos en PostgreSQL gobernado por migraciones de Flyway.
 2. **El ADR-006 separó la interfaz en una aplicación de una sola página que consume la API**, y dispuso que el navegador vea frontend y backend como un solo sitio. La autenticación no se resuelve con formularios renderizados por el servidor, sino entre una interfaz en el navegador y una API; eso la convierte en una decisión de arquitectura y no en una tarea de configuración.
 3. **El proceso del backend se reinicia con frecuencia.** Por el ADR-004, cada integración a `develop` dispara un despliegue, y la capa gratuita de Render suspende el servicio tras quince minutos sin tráfico. Todo lo que viva solo en la memoria del proceso se pierde en cada uno de esos eventos.
-4. **US-03 y US-04 se construyen en el Sprint 1**, un sprint de diez días, sin velocidad histórica y con la capacidad ya comprometida por el resto de historias habilitadoras.
+4. **HU102 y HU103 se construyen en el Sprint 1**, un sprint de diez días, sin velocidad histórica y con la capacidad ya comprometida por el resto de historias habilitadoras.
 5. **El alcance del acceso está definido.** La consulta del catálogo es pública y no requiere cuenta; la cuenta se necesita para aportar. No hay rol de administrador: cualquier usuario registrado puede catalogar. El registro no restringe el dominio del correo.
 6. **No hay pruebas automatizadas de funcionalidad**, conforme al ADR-005, de modo que un error en el mecanismo de sesión no se detecta solo. La verificación es humana y ocurre sobre el entorno desplegado.
 
@@ -84,7 +84,7 @@ La recuperación de contraseña por correo queda **pendiente de decidir antes de
 
 **Positivas**
 
-- US-03 y US-04 se resuelven mayoritariamente con configuración del framework, incluido el inicio de sesión, que conserva las protecciones del filtro de login.
+- HU102 y HU103 se resuelven mayoritariamente con configuración del framework, incluido el inicio de sesión, que conserva las protecciones del filtro de login.
 - La marca HttpOnly impide que un script de la página extraiga el identificador de sesión, la vía de robo de credenciales más común en interfaces separadas. No impide que un script malicioso haga peticiones en nombre del usuario mientras la página está abierta; esa vía se cierra evitando la inyección de scripts, no con la cookie.
 - Las sesiones sobreviven a despliegues, reinicios y suspensiones por inactividad, de modo que ni el desarrollo ni el piloto dependen de que el proceso siga vivo.
 - Las cuentas y las sesiones viven en el mismo modelo de datos que el resto del sistema y se versionan con las mismas migraciones; ninguna parte del estado existe solo en el panel de un proveedor.
@@ -92,8 +92,8 @@ La recuperación de contraseña por correo queda **pendiente de decidir antes de
 **Negativas**
 
 - **Cada petición con sesión consulta la base de datos.** Leer y actualizar la sesión añade una operación contra PostgreSQL, a través del pooler, en cada petición autenticada, y la librería elimina periódicamente las sesiones expiradas. A la escala del proyecto el costo es menor, pero existe.
-- **La protección CSRF añade una condición al frontend.** Una petición que modifica datos sin el token es rechazada con un error 403, que puede confundirse con un problema de permisos. Es el fallo más probable de US-03 y US-04, empezando por el primer intento de inicio de sesión si el frontend no obtuvo el token al cargar.
-- **La sesión depende de una verificación pendiente.** Si la reescritura del ADR-006 no propaga las cookies, el mecanismo de la sección 2 se reabre, con el costo de un ADR nuevo y de rehacer US-03 y US-04 dentro del Sprint 1.
+- **La protección CSRF añade una condición al frontend.** Una petición que modifica datos sin el token es rechazada con un error 403, que puede confundirse con un problema de permisos. Es el fallo más probable de HU102 y HU103, empezando por el primer intento de inicio de sesión si el frontend no obtuvo el token al cargar.
+- **La sesión depende de una verificación pendiente.** Si la reescritura del ADR-006 no propaga las cookies, el mecanismo de la sección 2 se reabre, con el costo de un ADR nuevo y de rehacer HU102 y HU103 dentro del Sprint 1.
 - **El registro abierto, sin verificación de correo, permite crear cuentas falsas.** Como no hay administrador y solo el autor puede modificar o eliminar un recurso, el contenido indebido de una cuenta falsa solo puede retirarlo el equipo mediante una migración de datos, conforme al ADR-005. Esas migraciones contienen identificadores que solo existen en la base desplegada: en las bases locales y en la del workflow de verificación no tienen efecto, pero quedan en el historial de migraciones. Queda como materia del informe final.
 - **Mientras la recuperación de contraseña esté pendiente, quien olvida su contraseña debe crear una cuenta nueva con otro correo**, porque el registro rechaza un correo ya en uso. No hay panel de administración, y restablecerla mediante una migración expondría en el repositorio el hash de una contraseña temporal. Los recursos de la cuenta anterior quedan sin posibilidad de edición, porque solo su autor puede modificarlos.
 - **Hasta el Sprint 4 no se limitan los intentos fallidos de inicio de sesión.** Se acepta el riesgo de ataques de fuerza bruta mientras los únicos usuarios son el equipo; el costo de cálculo de bcrypt los ralentiza, pero no los impide.
@@ -102,8 +102,8 @@ La recuperación de contraseña por correo queda **pendiente de decidir antes de
 
 **Compromisos asumidos**
 
-- Los criterios de aceptación de US-03 y US-04 se amplían: el inicio de sesión usa el filtro del framework y responde 200 o 401 sin redirecciones; una operación protegida sin sesión responde 401; las tablas de sesión se crean mediante migración de Flyway; las sesiones expiran tras dos horas de inactividad; el cierre de sesión invalida la sesión en el servidor; el frontend obtiene el token CSRF al cargar, lee el token vigente en cada petición y lo envía en las que modifican datos, incluido el inicio de sesión; las contraseñas exigen entre ocho y sesenta y cuatro caracteres; y el error de inicio de sesión no distingue la causa. El trabajo adicional se refleja en su estimación.
-- Como parte de US-04 se verifica en el entorno desplegado, no solo en local: que la cookie llega al navegador a través de la reescritura del ADR-006 con las marcas HttpOnly, Secure y SameSite=Lax; que el backend reconoce que opera detrás del proxy de Render, condición para emitir la cookie como Secure; y que una sesión abierta sigue activa tras un nuevo despliegue y tras una suspensión por inactividad. Si la cookie no llega a través de la reescritura, se aplica lo previsto al final de la sección 2 dentro del Sprint 1.
+- Los criterios de aceptación de HU102 y HU103 se amplían: el inicio de sesión usa el filtro del framework y responde 200 o 401 sin redirecciones; una operación protegida sin sesión responde 401; las tablas de sesión se crean mediante migración de Flyway; las sesiones expiran tras dos horas de inactividad; el cierre de sesión invalida la sesión en el servidor; el frontend obtiene el token CSRF al cargar, lee el token vigente en cada petición y lo envía en las que modifican datos, incluido el inicio de sesión; las contraseñas exigen entre ocho y sesenta y cuatro caracteres; y el error de inicio de sesión no distingue la causa. El trabajo adicional se refleja en su estimación.
+- Como parte de HU103 se verifica en el entorno desplegado, no solo en local: que la cookie llega al navegador a través de la reescritura del ADR-006 con las marcas HttpOnly, Secure y SameSite=Lax; que el backend reconoce que opera detrás del proxy de Render, condición para emitir la cookie como Secure; y que una sesión abierta sigue activa tras un nuevo despliegue y tras una suspensión por inactividad. Si la cookie no llega a través de la reescritura, se aplica lo previsto al final de la sección 2 dentro del Sprint 1.
 - Las historias que modifiquen o eliminen recursos del catálogo incorporan la regla de autoría como criterio de aceptación.
 - El cambio de contraseña con sesión iniciada se incorpora como criterio de aceptación de la historia que el equipo designe, sin exigirlo en el Sprint 1.
 - El retraso creciente ante intentos fallidos se incorpora al backlog como tarea técnica planificada para el Sprint 4, antes del piloto.

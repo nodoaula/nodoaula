@@ -45,7 +45,7 @@ Los proyectos gratuitos de Supabase pueden pausarse cuando presentan actividad i
 
 **La tarea debe notificar sus fallos**, no solo ejecutarse. Si falla y nadie recibe una notificación, el equipo puede creer que el mantenimiento está funcionando cuando en realidad el proyecto sigue expuesto a la suspensión por inactividad.
 
-Se implementa en el Sprint 1 como tarea de US-02, no más tarde. La tarea no busca mantener activa la instancia de Render.
+Se implementa en el Sprint 1 como tarea de HU109, no más tarde. La tarea no busca mantener activa la instancia de Render.
 
 ### 5. El backend se despliega desde un contenedor
 
@@ -67,7 +67,7 @@ Las cadenas de conexión, claves y cualquier configuración sensible que necesit
 
 **Negativas**
 
-- **El servicio gratuito de Render se suspende temporalmente tras quince minutos sin tráfico**, y la primera visita posterior puede experimentar un tiempo de espera de arranque adicional de alrededor de un minuto. Durante los sprints 1 a 4 el efecto es irrelevante, pero contaminaría el cronometraje del OE5 en el piloto. Se calienta la instancia manualmente antes de cada sesión; la medida se incorpora al guion de US-28.
+- **El servicio gratuito de Render se suspende temporalmente tras quince minutos sin tráfico**, y la primera visita posterior puede experimentar un tiempo de espera de arranque adicional de alrededor de un minuto. Durante los sprints 1 a 4 el efecto es irrelevante, pero contaminaría el cronometraje del OE5 en el piloto. Se calienta la instancia manualmente antes de cada sesión; la medida se incorpora al guion HU406.
 - **Lo que está en la URL pública es trabajo en curso**, no una versión estabilizada. Se acepta porque hasta el Sprint 5 no hay usuarios ajenos al equipo. Para presentar el incremento se utiliza el tag correspondiente en `main`.
 - **Las cuentas de ambos proveedores son personales.** Es una condición común a las capas gratuitas y no discrimina entre alternativas. No afecta al despliegue, que se dispara desde el repositorio, pero sí la administración según los permisos disponibles: determinadas acciones, como consultar registros de error de un despliegue fallido, modificar variables de entorno, reiniciar el servicio o restaurar un proyecto pausado, requieren la cuenta del dueño; en Render, además, un espacio de trabajo gratuito no admite miembros. La consecuencia práctica es que una incidencia que requiera permisos que solo tenga uno de los integrantes puede bloquear a los demás hasta que este la atienda. Bajo una Definition of Done que ata el cierre de cada historia al despliegue, esto puede detener el sprint.
 - **Parte de la configuración de despliegue queda ligada al proveedor**. El Dockerfile del backend es portable, pero la configuración de cada servicio —variables de entorno y rama de despliegue— se declara en Render y habría que rehacerla al mudarse.
@@ -77,9 +77,9 @@ Las cadenas de conexión, claves y cualquier configuración sensible que necesit
 
 **Compromisos asumidos**
 
-- Los criterios de aceptación de US-02 se ajustan a esta decisión: el despliegue se dispara automáticamente al integrar en `develop`, el backend se construye desde un Dockerfile incluido en el repositorio, las variables de entorno y credenciales se declaran en el proveedor y no en el repositorio, y la tarea de mantenimiento de actividad, con notificación de fallos, se incorpora como trabajo de la historia. Tras el primer despliegue se mide la duración de la construcción y se proyecta el consumo mensual de minutos contra el cupo del plan gratuito. El ajuste está aplicado en el backlog.
-- US-17 deja de investigar dónde se almacenan los archivos: esa pregunta la resuelve este ADR. La historia conserva la comprobación de que un archivo subido sobrevive a un nuevo despliegue, que es verificación empírica y no elección de proveedor, y se le añade la definición de formatos admitidos y tamaño máximo por archivo. El ajuste está aplicado en el backlog.
-- La verificación empírica de esta decisión es US-02 misma. Si el primer despliegue revela que algún proveedor no cumple, el cambio de proveedor se hace dentro del Sprint 1, cuando todavía no hay funcionalidad construida encima y el costo se limita a rehacer la configuración de despliegue.
+- Los criterios de aceptación de HU001 se ajustan a esta decisión: el despliegue se dispara automáticamente al integrar en `develop`, el backend se construye desde un Dockerfile incluido en el repositorio, las variables de entorno y credenciales se declaran en el proveedor y no en el repositorio, y la tarea de mantenimiento de actividad, con notificación de fallos, se incorpora como trabajo de la historia. Tras el primer despliegue se mide la duración de la construcción y se proyecta el consumo mensual de minutos contra el cupo del plan gratuito. El ajuste está aplicado en el backlog.
+- HU301 deja de investigar dónde se almacenan los archivos: esa pregunta la resuelve este ADR. La historia conserva la comprobación de que un archivo subido sobrevive a un nuevo despliegue, que es verificación empírica y no elección de proveedor, y se le añade la definición de formatos admitidos y tamaño máximo por archivo. El ajuste está aplicado en el backlog.
+- La verificación empírica de esta decisión es HU001 misma. Si el primer despliegue revela que algún proveedor no cumple, el cambio de proveedor se hace dentro del Sprint 1, cuando todavía no hay funcionalidad construida encima y el costo se limita a rehacer la configuración de despliegue.
 
 ## Referencias
 

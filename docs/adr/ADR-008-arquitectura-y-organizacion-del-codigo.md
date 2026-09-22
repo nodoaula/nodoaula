@@ -51,15 +51,15 @@ backend/src/main/java/.../nodoaula/
 
 | Feature del tablero | Módulo |
 |---|---|
-| F2.1 Registro e inicio de sesión | `account` |
-| F3.1 Modelo de recurso y carga manual | `catalog` |
-| F3.2 Indexación semiautomática | `catalog` |
-| F3.3 Apuntes como recurso | `catalog` |
-| F3.4 Catálogo semilla | `catalog` |
-| F4.1 Listado y filtrado, F4.2 Búsqueda por texto y tema, F4.3 Ficha de recurso | `catalog` |
-| F5.1 Foro de preguntas y respuestas | `forum` |
-| F5.2 Grupos de estudio | `studygroup` |
-| F1.1 Stack y despliegue, F1.2 Operación y mantenimiento | `shared` o configuración del proyecto |
+| FE201 - Registro e inicio de sesión | `account` |
+| FE301 - Modelo de recurso y carga manual | `catalog` |
+| FE302 - Indexación semiautomática | `catalog` |
+| FE303 - Apuntes como recurso | `catalog` |
+| FE304 - Catálogo semilla | `catalog` |
+| FE401 - Listado y filtrado, FE402 - Búsqueda por texto y tema, FE403 - Ficha de recurso | `catalog` |
+| FE501 - Foro de preguntas y respuestas | `forum` |
+| FE502 - Grupos de estudio | `studygroup` |
+| FE101 - Stack y despliegue, FE102 Operación y mantenimiento | `shared` o configuración del proyecto |
 
 Se usa la feature y no el área del tablero porque las áreas no coinciden con los módulos: las cuentas están en el área Plataforma, y el foro y los grupos comparten el área Colaboración.
 

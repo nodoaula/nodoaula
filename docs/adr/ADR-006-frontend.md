@@ -12,7 +12,7 @@ Cuatro condiciones acotan la elección:
 1. **El ADR-005 separó frontend y backend.** El backend expone una API REST y no renderiza vistas; la interfaz es un proyecto aparte que la consume. Este ADR no reabre esa separación: decide con qué se construye la interfaz, dónde vive y cómo se publica.
 2. **El ADR-004 fijó Render como proveedor**, con un solo entorno servido desde `develop` y despliegue automático en cada integración. Lo que se decida aquí tiene que caber en ese entorno sin reabrir aquella decisión.
 3. **El ADR-002 protege un único repositorio**, `nodoaula/nodoaula`, con Pull Request obligatorio y una aprobación sobre ambas ramas primarias. Bajo Gitflow, una historia se integra en un solo Pull Request.
-4. **El Sprint 1 tiene diez días y no hay velocidad histórica.** Cinco de sus ocho historias tienen interfaz: US-03, US-04, US-06, US-08 y US-09.
+4. **El Sprint 1 tiene diez días y no hay velocidad histórica.** Cinco de sus ocho historias tienen interfaz: HU102, HU103, HU105, HU107 y HU108.
 
 ## Decisión
 
@@ -42,7 +42,7 @@ Se descartan **CSS tradicional** y **CSS Modules** porque requieren mantener hoj
 
 El frontend vive en su propia carpeta dentro de `nodoaula/nodoaula`, junto a la del backend. No se crea un segundo repositorio.
 
-Se descarta separarlos. Bajo el ADR-002 obligaría a crear y proteger un repositorio nuevo, y bajo el ADR-001 a mantener dos historiales con sus propias ramas de release y sus propios tags por sprint. Además, historias como US-03 o US-06 tocan las dos partes, de modo que su integración exigiría dos Pull Requests coordinados para un solo elemento del tablero. Con una única raíz, lo establecido en los ADR-001 y 002 sigue funcionando sin modificación.
+Se descarta separarlos. Bajo el ADR-002 obligaría a crear y proteger un repositorio nuevo, y bajo el ADR-001 a mantener dos historiales con sus propias ramas de release y sus propios tags por sprint. Además, historias como HU102 o HU105 tocan las dos partes, de modo que su integración exigiría dos Pull Requests coordinados para un solo elemento del tablero. Con una única raíz, lo establecido en los ADR-001 y 002 sigue funcionando sin modificación.
 
 Esta decisión amplía el workflow de verificación del ADR-005. Además de arrancar el backend, el workflow instala las dependencias del frontend y lo compila. Se ejecuta completo en todos los Pull Requests hacia `develop`, toquen una carpeta o ambas, porque un check obligatorio que se omite por un filtro de rutas queda pendiente y bloquea la integración. Con un solo entorno, un frontend que no compila impediría el despliegue del Static Site y, bajo la Definition of Done, el cierre de cualquier historia.
 
@@ -63,7 +63,7 @@ El **Static Site** no se suspende por inactividad, como sí ocurre con el Web Se
 
 **Esto no reabre el ADR-004.** Sigue habiendo un solo entorno, servido desde una sola rama, con despliegue automático en cada integración y bajo el mismo presupuesto de cero. Lo que cambia es que ese entorno está compuesto por dos unidades de despliegue en lugar de una, y esta decisión se registra aquí.
 
-**Si la reescritura no cumple.** El proveedor documenta que el destino de una reescritura puede ser una URL externa, pero no su comportamiento como proxy: métodos, cuerpos, cookies, cabeceras y tiempo de espera ante un backend suspendido. Ese comportamiento se verifica en US-02 antes de construir funcionalidad sobre él. Si no cumple, el frontend llama directamente al backend, este configura CORS y la dirección del backend pasa a una variable de construcción de Vite. Como todas las llamadas a la API pasan por el módulo único de la sección 5, el cambio no toca los componentes. Lo que ocurre con la sesión en ese escenario lo declara el ADR-007.
+**Si la reescritura no cumple.** El proveedor documenta que el destino de una reescritura puede ser una URL externa, pero no su comportamiento como proxy: métodos, cuerpos, cookies, cabeceras y tiempo de espera ante un backend suspendido. Ese comportamiento se verifica en HU001 antes de construir funcionalidad sobre él. Si no cumple, el frontend llama directamente al backend, este configura CORS y la dirección del backend pasa a una variable de construcción de Vite. Como todas las llamadas a la API pasan por el módulo único de la sección 5, el cambio no toca los componentes. Lo que ocurre con la sesión en ese escenario lo declara el ADR-007.
 
 ### 5. La dirección del backend es configuración, no código
 
@@ -83,9 +83,9 @@ Todas las llamadas a la API se hacen desde un único módulo del frontend; ning�
 
 **Negativas**
 
-- **Cada historia con interfaz toca dos proyectos**, de modo que sus Pull Requests son mayores y su revisión más lenta, en un equipo donde la revisión ya es el cuello de botella previsto por los límites de trabajo en curso del tablero del ADR-003. US-02 debe dejar desplegadas dos unidades en lugar de una.
+- **Cada historia con interfaz toca dos proyectos**, de modo que sus Pull Requests son mayores y su revisión más lenta, en un equipo donde la revisión ya es el cuello de botella previsto por los límites de trabajo en curso del tablero del ADR-003. HU001 debe dejar desplegadas dos unidades en lugar de una.
 - **Hay dos despliegues que pueden fallar o terminar por separado.** Una integración puede dejar el backend publicado y el frontend no, o al revés; y aun cuando ambos se despliegan bien, el Static Site termina en segundos y el backend en minutos. Los cambios aditivos en la API, como un endpoint o un campo nuevo, se integran junto con la pantalla que los usa en un solo Pull Request, y se acepta que esa pantalla falle durante los minutos que tarda el backend en desplegarse. Los cambios que rompen el contrato, como eliminar o renombrar un campo o un endpoint que el frontend desplegado ya usa, se hacen en dos integraciones: primero se agrega lo nuevo y el frontend pasa a usarlo; después se elimina lo anterior. Durante el piloto del Sprint 5 esa ventana de minutos deja de ser aceptable y se revisa junto con la estrategia de despliegue.
-- **Las peticiones a la API dependen del arranque del backend.** Tras la suspensión del Web Service, la primera petición que atraviesa la reescritura espera a que el backend arranque. Si la verificación de US-02 muestra que la reescritura no tolera esa espera, se aplica lo previsto al final de la sección 4; en cualquier caso, el módulo único de la sección 5 es el lugar donde el frontend trata esa espera.
+- **Las peticiones a la API dependen del arranque del backend.** Tras la suspensión del Web Service, la primera petición que atraviesa la reescritura espera a que el backend arranque. Si la verificación de HU001 muestra que la reescritura no tolera esa espera, se aplica lo previsto al final de la sección 4; en cualquier caso, el módulo único de la sección 5 es el lugar donde el frontend trata esa espera.
 - **Las dos unidades comparten los cupos del plan gratuito.** El Static Site también consume minutos de construcción y ancho de banda de salida, que el ADR-004 dimensionó pensando en el backend. Si cada unidad no se limita a construirse cuando cambia su carpeta, cada integración reconstruye ambas.
 - **Sin tipos, los desajustes con la API aparecen al ejecutar.** Un nombre de campo mal escrito o un cambio en la forma de una respuesta no se detecta al escribir el código, sino al usar la pantalla. Solo lo previenen la revisión del Pull Request y la verificación en la URL pública.
 - **Las reglas de reescritura son configuración del proveedor.** Se suman a la configuración que el ADR-004 ya declaró ligada a Render y habría que rehacerlas al mudarse.
@@ -93,8 +93,8 @@ Todas las llamadas a la API se hacen desde un único módulo del frontend; ning�
 
 **Compromisos asumidos**
 
-- Los criterios de aceptación de US-02 se amplían: el Static Site se despliega automáticamente al integrar en `develop`; cada unidad se construye solo cuando cambian los archivos de su carpeta; las reglas de reescritura de `/api/*` y `/*` están declaradas en ese orden; las rutas del backend se exponen bajo `/api`; el servidor de desarrollo de Vite reenvía `/api` al backend local; el workflow del Pull Request compila el frontend; y se verifica, a través de la reescritura, el comportamiento de una petición con el backend suspendido, la propagación de cookies en ambos sentidos, el paso de todos los métodos HTTP y las cabeceras que recibe el backend.
-- Los criterios de aceptación de US-06, US-08 y US-09 se revisan para reflejar que la interfaz consume la API y no páginas del servidor. El comportamiento exigido no cambia.
+- Los criterios de aceptación de HU001 se amplían: el Static Site se despliega automáticamente al integrar en `develop`; cada unidad se construye solo cuando cambian los archivos de su carpeta; las reglas de reescritura de `/api/*` y `/*` están declaradas en ese orden; las rutas del backend se exponen bajo `/api`; el servidor de desarrollo de Vite reenvía `/api` al backend local; el workflow del Pull Request compila el frontend; y se verifica, a través de la reescritura, el comportamiento de una petición con el backend suspendido, la propagación de cookies en ambos sentidos, el paso de todos los métodos HTTP y las cabeceras que recibe el backend.
+- Los criterios de aceptación de HU105, HU107 y HU108 se revisan para reflejar que la interfaz consume la API y no páginas del servidor. El comportamiento exigido no cambia.
 
 ## Referencias
 
