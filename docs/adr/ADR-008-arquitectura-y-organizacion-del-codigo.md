@@ -56,7 +56,7 @@ backend/src/main/java/.../nodoaula/
 | FE302 - Indexación semiautomática | `catalog` |
 | FE303 - Apuntes como recurso | `catalog` |
 | FE304 - Catálogo semilla | `catalog` |
-| FE401 - Listado y filtrado, FE402 Búsqueda por texto y tema, FE403 Ficha de recurso | `catalog` |
+| FE401 - Listado y filtrado, FE402 - Búsqueda por texto y tema, FE403 - Ficha de recurso | `catalog` |
 | FE501 - Foro de preguntas y respuestas | `forum` |
 | FE502 - Grupos de estudio | `studygroup` |
 | FE101 - Stack y despliegue, FE102 Operación y mantenimiento | `shared` o configuración del proyecto |
