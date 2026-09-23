@@ -39,6 +39,18 @@ export function validatePassword(password) {
   return null
 }
 
+/**
+ * Al iniciar sesión solo se exige que los campos no estén vacíos. Las reglas
+ * de formato son del registro: aplicarlas aquí dejaría fuera a una cuenta
+ * creada antes de que cambiaran, y las credenciales las juzga el backend.
+ */
+export function validateLogin({ email, password }) {
+  const errors = {}
+  if (email === '') errors.email = 'Escribe tu correo.'
+  if (password === '') errors.password = 'Escribe tu contraseña.'
+  return errors
+}
+
 /** Devuelve un objeto con el error de cada campo inválido; vacío si todo es válido. */
 export function validateRegistration({ email, password }) {
   const errors = {}

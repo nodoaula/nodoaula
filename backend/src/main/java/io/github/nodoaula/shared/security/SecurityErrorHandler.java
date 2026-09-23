@@ -8,16 +8,18 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 /**
  * Los rechazos de Spring Security ocurren en sus filtros, antes de llegar a un
  * controlador, y no pasan por el manejador global de errores. Aquí se le
- * entregan, para que respondan con el mismo ProblemDetail que el resto.
+ * entregan, para que respondan con el mismo ProblemDetail que el resto. Eso
+ * incluye las credenciales incorrectas del filtro de login.
  */
 @Component
-class SecurityErrorHandler implements AuthenticationEntryPoint, AccessDeniedHandler {
+class SecurityErrorHandler implements AuthenticationEntryPoint, AccessDeniedHandler, AuthenticationFailureHandler {
 
 	private final HandlerExceptionResolver resolver;
 
@@ -34,6 +36,12 @@ class SecurityErrorHandler implements AuthenticationEntryPoint, AccessDeniedHand
 	@Override
 	public void handle(HttpServletRequest request, HttpServletResponse response,
 			AccessDeniedException exception) {
+		resolver.resolveException(request, response, null, exception);
+	}
+
+	@Override
+	public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,
+			AuthenticationException exception) {
 		resolver.resolveException(request, response, null, exception);
 	}
 

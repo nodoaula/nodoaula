@@ -9,6 +9,8 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.InternalAuthenticationServiceException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -60,6 +62,26 @@ class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	@ExceptionHandler(ConflictException.class)
 	ProblemDetail handleConflict(ConflictException exception) {
 		return problem(HttpStatus.CONFLICT, exception.getCode(), "Conflicto", exception.getMessage());
+	}
+
+	// El mismo mensaje para un correo sin cuenta y para una contraseña
+	// incorrecta: distinguirlos revelaría qué correos están registrados
+	// (ADR-007). Spring Security ya entrega los dos casos como esta excepción.
+	@ExceptionHandler(BadCredentialsException.class)
+	ProblemDetail handleBadCredentials(BadCredentialsException exception) {
+		return problem(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS",
+				"Credenciales incorrectas", "El correo o la contraseña no son correctos.");
+	}
+
+	// Un fallo al buscar la cuenta, como la base de datos caída, llega al
+	// filtro de login envuelto en esta excepción. No es culpa del usuario, y
+	// responderle 401 le haría creer que se equivocó de contraseña.
+	@ExceptionHandler(InternalAuthenticationServiceException.class)
+	ProblemDetail handleAuthenticationServiceFailure(InternalAuthenticationServiceException exception) {
+		logger.error("No se pudo comprobar las credenciales", exception);
+		return problem(HttpStatus.INTERNAL_SERVER_ERROR, "AUTHENTICATION_UNAVAILABLE",
+				"Inicio de sesión no disponible",
+				"No se pudo iniciar sesión por un error del servidor. Inténtalo de nuevo en unos minutos.");
 	}
 
 	@ExceptionHandler(AuthenticationException.class)

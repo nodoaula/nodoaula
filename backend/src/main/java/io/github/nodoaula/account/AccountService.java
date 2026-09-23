@@ -3,13 +3,20 @@ package io.github.nodoaula.account;
 import java.util.Locale;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Único punto público del módulo account, conforme al ADR-008. */
+/**
+ * Único punto público del módulo account, conforme al ADR-008. Es también el
+ * UserDetailsService con el que el filtro de login de Spring Security busca la
+ * cuenta, de modo que el repositorio solo se llama desde aquí.
+ */
 @Service
-public class AccountService {
+public class AccountService implements UserDetailsService {
 
 	private final AccountRepository accountRepository;
 	private final PasswordEncoder passwordEncoder;
@@ -46,6 +53,23 @@ public class AccountService {
 		}
 
 		return toDto(account);
+	}
+
+	/**
+	 * Busca la cuenta con la que se intenta iniciar sesión. El correo se
+	 * normaliza igual que al registrarse, para que Ana@Ejemplo.com entre en la
+	 * cuenta de ana@ejemplo.com.
+	 *
+	 * La excepción no llega al usuario: Spring Security la convierte en el
+	 * mismo error que una contraseña incorrecta, y aun así compara un hash
+	 * para que el tiempo de respuesta tampoco delate si el correo existe.
+	 */
+	@Override
+	@Transactional(readOnly = true)
+	public UserDetails loadUserByUsername(String email) {
+		return accountRepository.findByEmail(normalizeEmail(email))
+				.map(account -> new AccountPrincipal(account.getId(), account.getEmail(), account.getPasswordHash()))
+				.orElseThrow(() -> new UsernameNotFoundException("No hay cuenta con ese correo"));
 	}
 
 	// En minúsculas para que Ana@Ejemplo.com y ana@ejemplo.com sean la misma

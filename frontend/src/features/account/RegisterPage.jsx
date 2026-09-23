@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, Navigate, useNavigate } from 'react-router'
 
 import TextField from '../../components/ui/TextField.jsx'
 import { CSRF_ERROR_CODE } from '../../lib/apiClient.js'
+import { useSession } from '../../session/useSession.js'
 import { registerAccount } from './api.js'
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, validateRegistration } from './validation.js'
 
@@ -57,6 +58,12 @@ export default function RegisterPage() {
   const [emailInUse, setEmailInUse] = useState(false)
   const [formError, setFormError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const { account } = useSession()
+
+  // Con la sesión iniciada, crear otra cuenta no tiene sentido desde aquí.
+  if (account !== null) {
+    return <Navigate to="/" replace />
+  }
 
   // Al editar un campo su error deja de aplicar; los de los demás se quedan.
   function clearFieldError(field) {
