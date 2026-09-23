@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import { get } from '../lib/apiClient.js'
+import { get, loadCsrfToken } from '../lib/apiClient.js'
 
 // El plan gratuito suspende el backend tras quince minutos sin tráfico y
 // volver a arrancarlo lleva cerca de dos minutos. Sin aviso, esa espera se ve
@@ -21,7 +21,10 @@ export function useServerStatus() {
     // evita que una comprobación ya descartada escriba el estado.
     let active = true
 
+    // El token CSRF se pide aquí, al cargar, para que ya exista cuando el
+    // usuario envíe el primer formulario.
     get('/health', { totalTimeoutMs: SERVER_WAKE_TIMEOUT_MS })
+      .then(() => loadCsrfToken())
       .then(() => {
         if (active) setStatus(SERVER_STATUS.READY)
       })

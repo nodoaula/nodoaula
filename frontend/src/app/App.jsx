@@ -1,11 +1,27 @@
+import { BrowserRouter, Link, Route, Routes } from 'react-router'
+
+import LoginPage from '../features/account/LoginPage.jsx'
+import RegisterPage from '../features/account/RegisterPage.jsx'
 import ResourceCatalogPage from '../features/catalog/ResourceCatalogPage.jsx'
+import AppLayout from './AppLayout.jsx'
 import { SERVER_STATUS, useServerStatus } from './serverStatus.js'
 
 export default function App() {
   const serverStatus = useServerStatus()
 
   if (serverStatus === SERVER_STATUS.READY) {
-    return <ResourceCatalogPage />
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route element={<AppLayout />}>
+            <Route index element={<ResourceCatalogPage />} />
+            <Route path="registro" element={<RegisterPage />} />
+            <Route path="iniciar-sesion" element={<LoginPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    )
   }
 
   return (
@@ -14,6 +30,22 @@ export default function App() {
         <h1 className="text-3xl font-semibold text-slate-900">NodoAula</h1>
         <p className="mt-2 text-slate-600">Plataforma en construcción</p>
         <ServerNotice status={serverStatus} />
+      </div>
+    </main>
+  )
+}
+
+function NotFoundPage() {
+  return (
+    <main className="px-4 py-10">
+      <div className="mx-auto max-w-3xl">
+        <h1 className="text-2xl font-semibold text-slate-900">Página no encontrada</h1>
+        <p className="mt-2 text-sm text-slate-600">
+          La dirección no corresponde a ninguna página.{' '}
+          <Link to="/" className="font-medium text-slate-900 underline">
+            Volver al catálogo
+          </Link>
+        </p>
       </div>
     </main>
   )

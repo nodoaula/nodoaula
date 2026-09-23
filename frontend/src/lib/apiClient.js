@@ -1,7 +1,7 @@
 /**
  * Cliente único de la API: ninguna pantalla llama a `fetch` por su cuenta, de
- * modo que la forma de llegar al backend, los reintentos y el tratamiento de
- * errores viven en un solo sitio. El token CSRF se añadirá también aquí.
+ * modo que la forma de llegar al backend, los reintentos, el token CSRF y el
+ * tratamiento de errores viven en un solo sitio.
  *
  * Las rutas son relativas bajo /api y el código nunca contiene la dirección
  * del backend: en producción la resuelve la reescritura del sitio estático y
@@ -23,6 +23,16 @@ const MAX_BACKOFF_MS = 15_000
 // se reintenta nunca: repetir una petición mal formada da el mismo error.
 const RETRYABLE_STATUSES = new Set([502, 503, 504])
 
+// El backend deja el token en esta cookie, legible a propósito, y lo exige en
+// este encabezado en toda petición que modifica datos. La cookie de sesión es
+// otra y el código no puede leerla.
+const CSRF_COOKIE = 'XSRF-TOKEN'
+const CSRF_HEADER = 'X-XSRF-TOKEN'
+const SAFE_METHODS = new Set(['GET', 'HEAD'])
+
+/** Código con que el backend distingue un rechazo por CSRF de uno por permisos. */
+export const CSRF_ERROR_CODE = 'CSRF_TOKEN_INVALID'
+
 /** Error de una petición a la API. */
 export class ApiError extends Error {
   constructor(message, { status = null, body = null, timedOut = false, cause } = {}) {
@@ -38,6 +48,12 @@ export class ApiError extends Error {
     this.body = body
 
     /**
+     * Causa del error según el backend, como EMAIL_ALREADY_IN_USE. Es lo que
+     * se compara; el título y el detalle son texto y pueden cambiar.
+     */
+    this.code = body?.code ?? null
+
+    /**
      * Cierto cuando se agotó el tiempo de espera. Importa porque entonces no
      * puede saberse si el backend llegó a procesar la petición: quien muestre
      * el error debe invitar a comprobar antes de repetir, no a repetir sin más.
@@ -50,7 +66,15 @@ function wait(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds))
 }
 
-function sendOnce(path, method, body, attemptTimeoutMs) {
+// Se lee en cada petición y no se guarda: el backend renueva el token al
+// iniciar y al cerrar sesión, y uno guardado dejaría de valer.
+function readCsrfToken() {
+  const prefix = `${CSRF_COOKIE}=`
+  const cookie = document.cookie.split('; ').find((entry) => entry.startsWith(prefix))
+  return cookie === undefined ? null : decodeURIComponent(cookie.slice(prefix.length))
+}
+
+function sendOnce(path, method, body, csrfToken, attemptTimeoutMs) {
   // `fetch` no tiene tiempo de espera propio: sin esto, una petición que el
   // servidor nunca contesta deja la promesa pendiente para siempre.
   const controller = new AbortController()
@@ -67,6 +91,7 @@ function sendOnce(path, method, body, attemptTimeoutMs) {
     headers: {
       Accept: 'application/json',
       ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...(csrfToken === null ? {} : { [CSRF_HEADER]: csrfToken }),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   }).finally(() => clearTimeout(timer))
@@ -136,12 +161,20 @@ async function request(path, {
   const deadline = Date.now() + totalTimeoutMs
   let backoff = FIRST_BACKOFF_MS
 
+  // La aplicación pide el token al cargar, pero la cookie pudo borrarse
+  // después; sin ella, la petición se rechazaría con un 403.
+  const needsCsrf = !SAFE_METHODS.has(method)
+  if (needsCsrf && readCsrfToken() === null) {
+    await loadCsrfToken()
+  }
+
   for (;;) {
     let response = null
     let failure = null
 
     try {
-      response = await sendOnce(path, method, body, attemptTimeoutMs)
+      const csrfToken = needsCsrf ? readCsrfToken() : null
+      response = await sendOnce(path, method, body, csrfToken, attemptTimeoutMs)
     } catch (error) {
       failure = error
     }
@@ -173,6 +206,14 @@ async function request(path, {
       body: await readBodyQuietly(response),
     })
   }
+}
+
+/**
+ * Hace que el backend deje el token CSRF en su cookie. Se llama al cargar la
+ * aplicación, antes de cualquier petición que modifique datos (ADR-007).
+ */
+export function loadCsrfToken() {
+  return get('/csrf')
 }
 
 export function get(path, options) {

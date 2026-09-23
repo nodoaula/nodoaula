@@ -1,0 +1,9 @@
+package io.github.nodoaula.account;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+interface AccountRepository extends JpaRepository<Account, Long> {
+
+	boolean existsByEmail(String email);
+
+}
