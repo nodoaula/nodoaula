@@ -71,6 +71,9 @@ function SessionNav() {
           No se pudo cerrar la sesión.
         </span>
       )}
+      <NavLink to="/registrar-recurso" className={navLinkClass}>
+        Registrar recurso
+      </NavLink>
       <span className="truncate text-slate-600" title={account.email}>
         {account.email}
       </span>

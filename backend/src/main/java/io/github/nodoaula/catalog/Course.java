@@ -19,6 +19,12 @@ class Course {
 	protected Course() {
 	}
 
+	// Para crear un curso nuevo cuando se registra un recurso con uno que no
+	// existe en el vocabulario controlado (historia HU105).
+	Course(String name) {
+		this.name = name;
+	}
+
 	Long getId() {
 		return id;
 	}
