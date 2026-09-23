@@ -2,6 +2,7 @@ import { BrowserRouter, Link, Route, Routes } from 'react-router'
 
 import LoginPage from '../features/account/LoginPage.jsx'
 import RegisterPage from '../features/account/RegisterPage.jsx'
+import CreateResourcePage from '../features/catalog/CreateResourcePage.jsx'
 import ResourceCatalogPage from '../features/catalog/ResourceCatalogPage.jsx'
 import SessionProvider from '../session/SessionProvider.jsx'
 import AppLayout from './AppLayout.jsx'
@@ -19,6 +20,7 @@ export default function App() {
           <Routes>
             <Route element={<AppLayout />}>
               <Route index element={<ResourceCatalogPage />} />
+              <Route path="registrar-recurso" element={<CreateResourcePage />} />
               <Route path="registro" element={<RegisterPage />} />
               <Route path="iniciar-sesion" element={<LoginPage />} />
               <Route path="*" element={<NotFoundPage />} />

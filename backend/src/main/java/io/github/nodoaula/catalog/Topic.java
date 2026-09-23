@@ -26,6 +26,13 @@ class Topic {
 	protected Topic() {
 	}
 
+	// Para crear un tema nuevo cuando se registra un recurso con uno que no
+	// existe en el vocabulario controlado del curso (historia HU105).
+	Topic(Course course, String name) {
+		this.course = course;
+		this.name = name;
+	}
+
 	Long getId() {
 		return id;
 	}

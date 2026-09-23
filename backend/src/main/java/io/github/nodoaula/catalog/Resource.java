@@ -58,6 +58,26 @@ class Resource {
 	protected Resource() {
 	}
 
+	// Para crear un recurso nuevo al registrarlo manualmente (historia
+	// HU105). Los temas se añaden después con addTopic, porque son una
+	// colección de tamaño variable.
+	Resource(String title, String description, LocalDate publishedAt, Integer durationSeconds,
+			String channel, String url, ResourceType resourceType, Course course, Long authorId) {
+		this.title = title;
+		this.description = description;
+		this.publishedAt = publishedAt;
+		this.durationSeconds = durationSeconds;
+		this.channel = channel;
+		this.url = url;
+		this.resourceType = resourceType;
+		this.course = course;
+		this.authorId = authorId;
+	}
+
+	void addTopic(Topic topic) {
+		topics.add(topic);
+	}
+
 	Long getId() {
 		return id;
 	}

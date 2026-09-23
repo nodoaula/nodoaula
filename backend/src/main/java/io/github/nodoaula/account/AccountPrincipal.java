@@ -27,7 +27,11 @@ final class AccountPrincipal extends User {
 		this.id = id;
 	}
 
-	Long getId() {
+	// Público a propósito aunque la clase no lo sea: así
+	// @AuthenticationPrincipal(expression = "id") puede leerlo por reflexión
+	// desde otro módulo (catalog, para asociar un recurso a su autor) sin que
+	// ese módulo dependa de este tipo, que es interno de account (ADR-008).
+	public Long getId() {
 		return id;
 	}
 
