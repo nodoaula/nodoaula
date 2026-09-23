@@ -80,6 +80,10 @@ function sendOnce(path, method, body, csrfToken, attemptTimeoutMs) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), attemptTimeoutMs)
 
+  // Un formulario lo codifica el propio navegador, con su Content-Type; el
+  // resto de cuerpos van como JSON.
+  const isForm = body instanceof URLSearchParams
+
   return fetch(`${API_PREFIX}${path}`, {
     method,
     signal: controller.signal,
@@ -90,10 +94,10 @@ function sendOnce(path, method, body, csrfToken, attemptTimeoutMs) {
 
     headers: {
       Accept: 'application/json',
-      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      ...(body === undefined || isForm ? {} : { 'Content-Type': 'application/json' }),
       ...(csrfToken === null ? {} : { [CSRF_HEADER]: csrfToken }),
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined || isForm ? body : JSON.stringify(body),
   }).finally(() => clearTimeout(timer))
 }
 
@@ -222,6 +226,15 @@ export function get(path, options) {
 
 export function post(path, body, options) {
   return request(path, { ...options, method: 'POST', body })
+}
+
+/**
+ * Como `post`, pero envía los campos como formulario y no como JSON. Lo
+ * necesita el inicio de sesión: el filtro de login de Spring Security lee
+ * parámetros de formulario.
+ */
+export function postForm(path, fields, options) {
+  return request(path, { ...options, method: 'POST', body: new URLSearchParams(fields) })
 }
 
 export function put(path, body, options) {

@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Debe seguir accesible sin sesión iniciada: el catálogo se puede consultar
- * antes de que exista la funcionalidad de inicio de sesión (ADR-007).
+ * Debe seguir accesible sin sesión iniciada: el catálogo se consulta sin
+ * cuenta, y la sesión solo hace falta para aportar (ADR-007).
  */
 @RestController
 @RequestMapping("/api/resources")
