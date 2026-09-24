@@ -2,6 +2,7 @@ package io.github.nodoaula.shared.error;
 
 import java.util.List;
 
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -59,9 +60,27 @@ class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 				"Petición mal formada", "El cuerpo de la petición no es un JSON válido."));
 	}
 
+	// Un identificador que no es un número, como /api/resources/abc. Sin esto
+	// el 400 saldría sin la propiedad code que compara el frontend.
+	@Override
+	protected ResponseEntity<Object> handleTypeMismatch(
+			TypeMismatchException exception,
+			HttpHeaders headers,
+			HttpStatusCode status,
+			WebRequest request) {
+
+		return ResponseEntity.badRequest().body(problem(HttpStatus.BAD_REQUEST, "INVALID_PARAMETER",
+				"Parámetro no válido", "Algún dato de la dirección no tiene el formato esperado."));
+	}
+
 	@ExceptionHandler(ConflictException.class)
 	ProblemDetail handleConflict(ConflictException exception) {
 		return problem(HttpStatus.CONFLICT, exception.getCode(), "Conflicto", exception.getMessage());
+	}
+
+	@ExceptionHandler(NotFoundException.class)
+	ProblemDetail handleNotFound(NotFoundException exception) {
+		return problem(HttpStatus.NOT_FOUND, exception.getCode(), "No encontrado", exception.getMessage());
 	}
 
 	// El mismo mensaje para un correo sin cuenta y para una contraseña

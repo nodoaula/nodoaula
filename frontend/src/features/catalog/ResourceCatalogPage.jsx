@@ -1,23 +1,8 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router'
 
 import { listCoursesWithResources, listResources } from './api.js'
-
-const RESOURCE_TYPE_LABELS = {
-  VIDEO: 'Video',
-  DOCUMENT: 'Documento',
-}
-
-function formatDuration(totalSeconds) {
-  if (totalSeconds == null) return '—'
-
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
-  const paddedMinutes = String(minutes).padStart(2, '0')
-  const paddedSeconds = String(seconds).padStart(2, '0')
-
-  return hours > 0 ? `${hours}:${paddedMinutes}:${paddedSeconds}` : `${minutes}:${paddedSeconds}`
-}
+import { formatDuration, formatResourceType } from './format.js'
 
 /** Pantalla de listado y filtro del catálogo. Accesible sin sesión iniciada. */
 export default function ResourceCatalogPage() {
@@ -117,11 +102,16 @@ export default function ResourceCatalogPage() {
 
           {!error && !loading && resources.length > 0 && (
             <ul className="mt-2 divide-y divide-slate-200">
-              {resources.map((resource, index) => (
-                <li key={index} className="py-4">
-                  <p className="font-medium text-slate-900">{resource.title}</p>
+              {resources.map((resource) => (
+                <li key={resource.id} className="py-4">
+                  <Link
+                    to={`/recursos/${resource.id}`}
+                    className="font-medium text-slate-900 hover:underline"
+                  >
+                    {resource.title}
+                  </Link>
                   <p className="text-sm text-slate-600">
-                    {resource.course} · {RESOURCE_TYPE_LABELS[resource.resourceType] ?? resource.resourceType} ·{' '}
+                    {resource.course} · {formatResourceType(resource.resourceType)} ·{' '}
                     {formatDuration(resource.durationSeconds)}
                   </p>
                 </li>

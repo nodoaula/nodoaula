@@ -7,6 +7,11 @@ export function listResources(courseId) {
   return get(`/resources${query}`)
 }
 
+/** Ficha de un recurso. Pública, como el listado. */
+export function getResource(resourceId) {
+  return get(`/resources/${encodeURIComponent(resourceId)}`)
+}
+
 export function listCoursesWithResources() {
   return get('/resources/courses')
 }

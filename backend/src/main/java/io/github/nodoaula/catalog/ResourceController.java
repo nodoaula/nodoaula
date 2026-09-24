@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,7 +16,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * El listado debe seguir accesible sin sesión iniciada: el catálogo se
+ * El listado y la ficha deben seguir accesibles sin sesión iniciada: el catálogo se
  * consulta sin cuenta, y la sesión solo hace falta para aportar (ADR-007).
  * Registrar un recurso sí la exige, sin regla propia en SecurityConfig porque
  * ya la cubre anyRequest().authenticated().
@@ -38,6 +39,13 @@ class ResourceController {
 	@GetMapping("/courses")
 	List<CourseDto> listCoursesWithResources() {
 		return resourceService.listCoursesWithResources();
+	}
+
+	// La ruta literal /courses gana a esta por ser más específica, así que un
+	// curso nunca se interpreta como identificador de recurso.
+	@GetMapping("/{id}")
+	ResourceDetailDto getResource(@PathVariable Long id) {
+		return resourceService.getResource(id);
 	}
 
 	/**
