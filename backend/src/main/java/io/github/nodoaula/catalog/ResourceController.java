@@ -41,8 +41,13 @@ class ResourceController {
 		return resourceService.listCoursesWithResources();
 	}
 
-	// La ruta literal /courses gana a esta por ser más específica, así que un
-	// curso nunca se interpreta como identificador de recurso.
+	@GetMapping("/topics")
+	List<TopicDto> listTopicsWithResources(@RequestParam Long courseId) {
+		return resourceService.listTopicsWithResources(courseId);
+	}
+
+	// Las rutas literales /courses y /topics ganan a esta por ser más
+	// específicas, así que ninguna se interpreta como identificador de recurso.
 	@GetMapping("/{id}")
 	ResourceDetailDto getResource(@PathVariable Long id) {
 		return resourceService.getResource(id);

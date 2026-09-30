@@ -73,6 +73,14 @@ public class ResourceService {
 				.toList();
 	}
 
+	/** Lista los temas de un curso que tienen al menos un recurso, para poblar el selector de temas. */
+	@Transactional(readOnly = true)
+	public List<TopicDto> listTopicsWithResources(Long courseId) {
+		return topicRepository.findTopicsWithAtLeastOneResource(courseId).stream()
+				.map(topic -> new TopicDto(topic.getId(), topic.getName()))
+				.toList();
+	}
+
 	/**
 	 * Registra un recurso manualmente (historia HU105). El curso y cada tema se
 	 * reutilizan si ya existen en el vocabulario controlado, o se crean en la
