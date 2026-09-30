@@ -22,17 +22,21 @@ public class ResourceService {
 	}
 
 	/**
-	 * Lista los recursos del catálogo, opcionalmente filtrados por curso.
-	 * El filtro es una comparación exacta por identificador de curso, nunca una
-	 * búsqueda de texto.
+	 * Lista los recursos del catálogo, filtrados por curso, tema y tipo de
+	 * recurso (historia HU206). Los tres filtros son opcionales y se combinan
+	 * entre sí con AND: cada uno en null (o la lista de tipos vacía o con
+	 * ambos tipos) no restringe nada. Son comparaciones exactas por
+	 * identificador, nunca una búsqueda de texto.
 	 */
 	@Transactional(readOnly = true)
-	public List<ResourceDto> listResources(Long courseId) {
-		List<Resource> resources = courseId != null
-				? resourceRepository.findByCourseId(courseId)
-				: resourceRepository.findAll();
+	public List<ResourceDto> listResources(Long courseId, Long topicId, List<ResourceType> resourceTypes) {
+		// Marcar ambos tipos, o ninguno, equivale a no filtrar por tipo.
+		List<ResourceType> effectiveTypes = (resourceTypes == null || resourceTypes.isEmpty()
+				|| resourceTypes.size() >= ResourceType.values().length)
+				? null
+				: resourceTypes;
 
-		return resources.stream()
+		return resourceRepository.search(courseId, topicId, effectiveTypes).stream()
 				.map(this::toDto)
 				.toList();
 	}
@@ -73,7 +77,11 @@ public class ResourceService {
 				.toList();
 	}
 
-	/** Lista los temas de un curso que tienen al menos un recurso, para poblar el selector de temas. */
+	/**
+	 * Lista los temas con al menos un recurso, para poblar el selector de
+	 * temas del catálogo (HU206) y las sugerencias al registrar un recurso
+	 * (HU105). Sin courseId lista los de todos los cursos.
+	 */
 	@Transactional(readOnly = true)
 	public List<TopicDto> listTopicsWithResources(Long courseId) {
 		return topicRepository.findTopicsWithAtLeastOneResource(courseId).stream()
