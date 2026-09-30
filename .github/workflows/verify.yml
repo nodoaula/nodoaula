@@ -4,7 +4,7 @@ name: Verificación
 # filtro se queda en pendiente y bloquea la integración para siempre.
 on:
   pull_request:
-    branches: [develop]
+    branches: [develop, main]
 
 jobs:
   backend:
