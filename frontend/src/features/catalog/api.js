@@ -3,13 +3,15 @@ import { get, post } from '../../lib/apiClient.js'
 /** Llamadas del módulo catalog: todas pasan por el cliente único de la API. */
 
 /**
- * Lista el catálogo. Los tres filtros son opcionales y se combinan entre sí
- * (historia HU206): un objeto vacío o sin alguno de ellos no restringe nada.
+ * Lista el catálogo. Los cuatro filtros son opcionales y se combinan entre sí
+ * (historias HU206 y HU207): un objeto vacío o sin alguno de ellos no
+ * restringe nada.
  */
-export function listResources({ courseId, topicId, resourceTypes } = {}) {
+export function listResources({ courseId, topicId, resourceTypes, q } = {}) {
   const params = new URLSearchParams()
   if (courseId) params.set('courseId', courseId)
   if (topicId) params.set('topicId', topicId)
+  if (q) params.set('q', q)
   for (const type of resourceTypes ?? []) {
     params.append('resourceType', type)
   }

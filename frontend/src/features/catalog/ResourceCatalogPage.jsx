@@ -4,11 +4,15 @@ import { Link } from 'react-router'
 import { listCoursesWithResources, listResources, listTopicsWithResources } from './api.js'
 import { formatDuration, formatResourceType } from './format.js'
 
+// Historia HU207: espera esto sin teclear antes de disparar la búsqueda, para
+// no mandar una petición por cada tecla.
+const SEARCH_DEBOUNCE_MS = 400
+
 /**
- * Pantalla de listado y filtro del catálogo (historias HU105, HU206).
- * Accesible sin sesión iniciada. Los tres filtros —curso, tema y tipo— se
- * combinan entre sí con AND, y sus valores activos se muestran como chips
- * removibles debajo de los selectores.
+ * Pantalla de listado y filtro del catálogo (historias HU105, HU206, HU207).
+ * Accesible sin sesión iniciada. La búsqueda de texto y los tres filtros
+ * —curso, tema y tipo— se combinan entre sí con AND, y los filtros activos
+ * se muestran como chips removibles debajo de los selectores.
  */
 export default function ResourceCatalogPage() {
   const [courses, setCourses] = useState([])
@@ -19,6 +23,9 @@ export default function ResourceCatalogPage() {
 
   const [videoSelected, setVideoSelected] = useState(false)
   const [documentSelected, setDocumentSelected] = useState(false)
+
+  const [searchText, setSearchText] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
 
   const [resources, setResources] = useState([])
   const [loading, setLoading] = useState(true)
@@ -62,10 +69,17 @@ export default function ResourceCatalogPage() {
     }
   }, [selectedCourseId])
 
+  // La búsqueda se dispara sola mientras se escribe, sin Enter ni botón: se
+  // espera a que el usuario deje de teclear antes de pedir resultados.
+  useEffect(() => {
+    const timeoutId = setTimeout(() => setDebouncedSearch(searchText.trim()), SEARCH_DEBOUNCE_MS)
+    return () => clearTimeout(timeoutId)
+  }, [searchText])
+
   // El filtro cambió: reiniciamos loading/error durante el render (patrón oficial de
   // React para "ajustar estado cuando cambia una prop"), en vez de hacerlo de forma
   // síncrona dentro del efecto. Ver https://react.dev/learn/you-might-not-need-an-effect
-  const filterKey = `${selectedCourseId}|${selectedTopicId}|${videoSelected}|${documentSelected}`
+  const filterKey = `${selectedCourseId}|${selectedTopicId}|${videoSelected}|${documentSelected}|${debouncedSearch}`
   const [lastRequestedFilterKey, setLastRequestedFilterKey] = useState(filterKey)
   if (lastRequestedFilterKey !== filterKey) {
     setLastRequestedFilterKey(filterKey)
@@ -84,6 +98,7 @@ export default function ResourceCatalogPage() {
       courseId: selectedCourseId || undefined,
       topicId: selectedTopicId || undefined,
       resourceTypes,
+      q: debouncedSearch || undefined,
     })
       .then((data) => {
         if (active) setResources(data)
@@ -98,9 +113,11 @@ export default function ResourceCatalogPage() {
     return () => {
       active = false
     }
-  }, [selectedCourseId, selectedTopicId, videoSelected, documentSelected])
+  }, [selectedCourseId, selectedTopicId, videoSelected, documentSelected, debouncedSearch])
 
-  // Un chip por filtro activo, cada uno con su propia forma de quitarse.
+  // Un chip por filtro activo, cada uno con su propia forma de quitarse. La
+  // búsqueda de texto no suma chip: se quita borrando el cuadro, que siempre
+  // está a la vista.
   const activeFilters = []
   const selectedCourse = courses.find((course) => String(course.id) === selectedCourseId)
   if (selectedCourse) {
@@ -132,7 +149,33 @@ export default function ResourceCatalogPage() {
   return (
     <main className="px-4 py-10">
       <div className="mx-auto max-w-3xl">
-        <h1 className="text-2xl font-semibold text-slate-900">Catálogo de recursos</h1>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-2xl font-semibold text-slate-900">Catálogo de recursos</h1>
+
+          <div className="relative sm:w-72">
+            <label htmlFor="resource-search" className="sr-only">
+              Buscar recursos
+            </label>
+            <input
+              id="resource-search"
+              type="search"
+              placeholder="Buscar por título, descripción o tema…"
+              className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+            />
+            {searchText !== '' && (
+              <button
+                type="button"
+                onClick={() => setSearchText('')}
+                aria-label="Borrar búsqueda"
+                className="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <div>
