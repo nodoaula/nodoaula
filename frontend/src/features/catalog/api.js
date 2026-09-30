@@ -2,14 +2,25 @@ import { get, post } from '../../lib/apiClient.js'
 
 /** Llamadas del módulo catalog: todas pasan por el cliente único de la API. */
 
+// Normaliza un filtro a lista: acepta un solo id (uso histórico, p. ej. desde
+// el formulario de alta de recurso) o varios (selección múltiple del
+// catálogo, historia HU206); undefined/null/'' se queda en lista vacía.
+function toIdList(value) {
+  if (value === undefined || value === null || value === '') return []
+  return Array.isArray(value) ? value : [value]
+}
+
 /**
- * Lista el catálogo. Los tres filtros son opcionales y se combinan entre sí
- * (historia HU206): un objeto vacío o sin alguno de ellos no restringe nada.
+ * Lista el catálogo. Los cuatro filtros son opcionales y se combinan entre sí
+ * (historias HU206 y HU207): un objeto vacío o sin alguno de ellos no
+ * restringe nada. courseIds, topicIds y resourceTypes admiten varios valores
+ * a la vez.
  */
-export function listResources({ courseId, topicId, resourceTypes } = {}) {
+export function listResources({ courseIds, topicIds, resourceTypes, q } = {}) {
   const params = new URLSearchParams()
-  if (courseId) params.set('courseId', courseId)
-  if (topicId) params.set('topicId', topicId)
+  for (const id of toIdList(courseIds)) params.append('courseId', id)
+  for (const id of toIdList(topicIds)) params.append('topicId', id)
+  if (q) params.set('q', q)
   for (const type of resourceTypes ?? []) {
     params.append('resourceType', type)
   }
@@ -28,12 +39,15 @@ export function listCoursesWithResources() {
 }
 
 /**
- * Temas con al menos un recurso, para poblar un selector. Con courseId,
- * solo los de ese curso; sin él, los de todos (historia HU206).
+ * Temas con al menos un recurso, para poblar un selector. Con courseIds,
+ * solo los de esos cursos; sin ellos, los de todos (historia HU206). Admite
+ * un único id (formulario de alta, historia HU105) o varios (catálogo).
  */
-export function listTopicsWithResources(courseId) {
-  const query = courseId ? `?courseId=${encodeURIComponent(courseId)}` : ''
-  return get(`/resources/topics${query}`)
+export function listTopicsWithResources(courseIds) {
+  const params = new URLSearchParams()
+  for (const id of toIdList(courseIds)) params.append('courseId', id)
+  const query = params.toString()
+  return get(`/resources/topics${query ? `?${query}` : ''}`)
 }
 
 /**

@@ -12,19 +12,21 @@ interface ResourceRepository extends JpaRepository<Resource, Long> {
 
 	/**
 	 * Filtra el catálogo por curso, tema y tipo de recurso, combinados con AND
-	 * (historia HU206). Cada filtro es opcional: un parámetro en null no
-	 * restringe nada. El left join a temas no duplica filas porque topicId,
-	 * cuando se usa, ya iguala un único tema.
+	 * (historia HU206). Cada filtro es opcional y admite varios valores a la
+	 * vez (por ejemplo, dos cursos): una lista en null no restringe nada, y
+	 * dentro de cada filtro los valores se combinan con OR. El left join a
+	 * temas puede duplicar filas cuando un recurso tiene varios temas que
+	 * coinciden con la lista elegida; distinct() lo evita.
 	 */
 	@Query("select distinct r from Resource r "
 			+ "left join r.topics t "
-			+ "where (:courseId is null or r.course.id = :courseId) "
-			+ "and (:topicId is null or t.id = :topicId) "
+			+ "where (:courseIds is null or r.course.id in :courseIds) "
+			+ "and (:topicIds is null or t.id in :topicIds) "
 			+ "and (:resourceTypes is null or r.resourceType in :resourceTypes) "
 			+ "order by r.title")
 	List<Resource> search(
-			@Param("courseId") Long courseId,
-			@Param("topicId") Long topicId,
+			@Param("courseIds") List<Long> courseIds,
+			@Param("topicIds") List<Long> topicIds,
 			@Param("resourceTypes") List<ResourceType> resourceTypes);
 
 }

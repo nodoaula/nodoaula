@@ -31,13 +31,16 @@ class ResourceController {
 		this.resourceService = resourceService;
 	}
 
-	// Los tres filtros son opcionales y se combinan con AND (historia HU206).
+	// Los cuatro filtros son opcionales y se combinan con AND (historias
+	// HU206 y HU207); curso, tema y tipo admiten además varios valores a la
+	// vez (varios courseId/topicId/resourceType en la query string).
 	@GetMapping
 	List<ResourceDto> listResources(
-			@RequestParam(required = false) Long courseId,
-			@RequestParam(required = false) Long topicId,
-			@RequestParam(required = false) List<ResourceType> resourceType) {
-		return resourceService.listResources(courseId, topicId, resourceType);
+			@RequestParam(required = false) List<Long> courseId,
+			@RequestParam(required = false) List<Long> topicId,
+			@RequestParam(required = false) List<ResourceType> resourceType,
+			@RequestParam(required = false) String q) {
+		return resourceService.listResources(courseId, topicId, resourceType, q);
 	}
 
 	@GetMapping("/courses")
@@ -46,10 +49,10 @@ class ResourceController {
 	}
 
 	// Sin courseId lista los temas de todos los cursos (historia HU206); con
-	// courseId, solo los de ese curso (uso original: sugerirlos al registrar
-	// un recurso, historia HU105).
+	// uno o varios courseId, solo los de esos cursos (uso original: sugerirlos
+	// al registrar un recurso con un único curso, historia HU105).
 	@GetMapping("/topics")
-	List<TopicDto> listTopicsWithResources(@RequestParam(required = false) Long courseId) {
+	List<TopicDto> listTopicsWithResources(@RequestParam(required = false) List<Long> courseId) {
 		return resourceService.listTopicsWithResources(courseId);
 	}
 
