@@ -8,18 +8,25 @@ import { formatDuration, formatResourceType } from './format.js'
 // no mandar una petición por cada tecla.
 const SEARCH_DEBOUNCE_MS = 400
 
+function toggleId(ids, id) {
+  return ids.includes(id) ? ids.filter((current) => current !== id) : [...ids, id]
+}
+
 /**
  * Pantalla de listado y filtro del catálogo (historias HU105, HU206, HU207).
  * Accesible sin sesión iniciada. La búsqueda de texto y los tres filtros
- * —curso, tema y tipo— se combinan entre sí con AND, y los filtros activos
- * se muestran como chips removibles debajo de los selectores.
+ * —curso, tema y tipo— se combinan entre sí con AND; dentro de cada filtro
+ * se puede elegir uno o varios valores a la vez (por ejemplo, dos cursos),
+ * combinados entre sí con OR. Cada valor elegido, de cualquier filtro, se
+ * muestra como un chip removible en una única barra debajo de los
+ * selectores.
  */
 export default function ResourceCatalogPage() {
   const [courses, setCourses] = useState([])
-  const [selectedCourseId, setSelectedCourseId] = useState('')
+  const [selectedCourseIds, setSelectedCourseIds] = useState([])
 
   const [topics, setTopics] = useState([])
-  const [selectedTopicId, setSelectedTopicId] = useState('')
+  const [selectedTopicIds, setSelectedTopicIds] = useState([])
 
   const [videoSelected, setVideoSelected] = useState(false)
   const [documentSelected, setDocumentSelected] = useState(false)
@@ -48,18 +55,21 @@ export default function ResourceCatalogPage() {
     }
   }, [])
 
-  // Los temas disponibles dependen del curso elegido. Si el tema activo ya
-  // no pertenece a la lista que llega (porque el curso cambió), se limpia
-  // solo, sin que el usuario tenga que quitarlo a mano.
+  const courseFilterKey = selectedCourseIds.join(',')
+
+  // Los temas disponibles dependen de los cursos elegidos (uno, varios o
+  // ninguno). Los temas ya elegidos que dejan de pertenecer a la lista que
+  // llega (porque cambió el curso) se quitan solos, sin que el usuario tenga
+  // que quitarlos a mano.
   useEffect(() => {
     let active = true
 
-    listTopicsWithResources(selectedCourseId || undefined)
+    listTopicsWithResources(selectedCourseIds.length > 0 ? selectedCourseIds : undefined)
       .then((data) => {
         if (!active) return
         setTopics(data)
-        setSelectedTopicId((current) =>
-          current !== '' && !data.some((topic) => String(topic.id) === current) ? '' : current,
+        setSelectedTopicIds((current) =>
+          current.filter((id) => data.some((topic) => String(topic.id) === id)),
         )
       })
       .catch((err) => console.error('No se pudo cargar la lista de temas', err))
@@ -67,7 +77,8 @@ export default function ResourceCatalogPage() {
     return () => {
       active = false
     }
-  }, [selectedCourseId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se recalcula con courseFilterKey, equivalente a selectedCourseIds pero estable entre renders.
+  }, [courseFilterKey])
 
   // La búsqueda se dispara sola mientras se escribe, sin Enter ni botón: se
   // espera a que el usuario deje de teclear antes de pedir resultados.
@@ -76,10 +87,12 @@ export default function ResourceCatalogPage() {
     return () => clearTimeout(timeoutId)
   }, [searchText])
 
+  const topicFilterKey = selectedTopicIds.join(',')
+
   // El filtro cambió: reiniciamos loading/error durante el render (patrón oficial de
   // React para "ajustar estado cuando cambia una prop"), en vez de hacerlo de forma
   // síncrona dentro del efecto. Ver https://react.dev/learn/you-might-not-need-an-effect
-  const filterKey = `${selectedCourseId}|${selectedTopicId}|${videoSelected}|${documentSelected}|${debouncedSearch}`
+  const filterKey = `${courseFilterKey}|${topicFilterKey}|${videoSelected}|${documentSelected}|${debouncedSearch}`
   const [lastRequestedFilterKey, setLastRequestedFilterKey] = useState(filterKey)
   if (lastRequestedFilterKey !== filterKey) {
     setLastRequestedFilterKey(filterKey)
@@ -95,8 +108,8 @@ export default function ResourceCatalogPage() {
     if (documentSelected) resourceTypes.push('DOCUMENT')
 
     listResources({
-      courseId: selectedCourseId || undefined,
-      topicId: selectedTopicId || undefined,
+      courseIds: selectedCourseIds,
+      topicIds: selectedTopicIds,
       resourceTypes,
       q: debouncedSearch || undefined,
     })
@@ -113,27 +126,30 @@ export default function ResourceCatalogPage() {
     return () => {
       active = false
     }
-  }, [selectedCourseId, selectedTopicId, videoSelected, documentSelected, debouncedSearch])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- courseFilterKey/topicFilterKey son formas estables de selectedCourseIds/selectedTopicIds.
+  }, [courseFilterKey, topicFilterKey, videoSelected, documentSelected, debouncedSearch])
 
-  // Un chip por filtro activo, cada uno con su propia forma de quitarse. La
-  // búsqueda de texto no suma chip: se quita borrando el cuadro, que siempre
-  // está a la vista.
+  // Un chip por cada valor elegido, en cualquier filtro, cada uno con su
+  // propia forma de quitarse sin afectar a los demás. La búsqueda de texto no
+  // suma chip: se quita borrando el cuadro, que siempre está a la vista.
   const activeFilters = []
-  const selectedCourse = courses.find((course) => String(course.id) === selectedCourseId)
-  if (selectedCourse) {
-    activeFilters.push({
-      key: 'course',
-      label: `Curso: ${selectedCourse.name}`,
-      onRemove: () => setSelectedCourseId(''),
-    })
+  for (const course of courses) {
+    if (selectedCourseIds.includes(String(course.id))) {
+      activeFilters.push({
+        key: `course-${course.id}`,
+        label: `Curso: ${course.name}`,
+        onRemove: () => setSelectedCourseIds((current) => toggleId(current, String(course.id))),
+      })
+    }
   }
-  const selectedTopic = topics.find((topic) => String(topic.id) === selectedTopicId)
-  if (selectedTopic) {
-    activeFilters.push({
-      key: 'topic',
-      label: `Tema: ${selectedTopic.name}`,
-      onRemove: () => setSelectedTopicId(''),
-    })
+  for (const topic of topics) {
+    if (selectedTopicIds.includes(String(topic.id))) {
+      activeFilters.push({
+        key: `topic-${topic.id}`,
+        label: `Tema: ${topic.name}`,
+        onRemove: () => setSelectedTopicIds((current) => toggleId(current, String(topic.id))),
+      })
+    }
   }
   if (videoSelected) {
     activeFilters.push({ key: 'type-video', label: 'Tipo: Video', onRemove: () => setVideoSelected(false) })
@@ -185,15 +201,22 @@ export default function ResourceCatalogPage() {
             <select
               id="course-filter"
               className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-              value={selectedCourseId}
-              onChange={(event) => setSelectedCourseId(event.target.value)}
+              value=""
+              onChange={(event) => {
+                const { value } = event.target
+                if (value) setSelectedCourseIds((current) => toggleId(current, value))
+              }}
             >
-              <option value="">Todos los cursos</option>
-              {courses.map((course) => (
-                <option key={course.id} value={course.id}>
-                  {course.name}
-                </option>
-              ))}
+              <option value="">
+                {selectedCourseIds.length === 0 ? 'Todos los cursos' : 'Elegir otro curso…'}
+              </option>
+              {courses
+                .filter((course) => !selectedCourseIds.includes(String(course.id)))
+                .map((course) => (
+                  <option key={course.id} value={course.id}>
+                    {course.name}
+                  </option>
+                ))}
             </select>
           </div>
 
@@ -204,15 +227,20 @@ export default function ResourceCatalogPage() {
             <select
               id="topic-filter"
               className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
-              value={selectedTopicId}
-              onChange={(event) => setSelectedTopicId(event.target.value)}
+              value=""
+              onChange={(event) => {
+                const { value } = event.target
+                if (value) setSelectedTopicIds((current) => toggleId(current, value))
+              }}
             >
-              <option value="">Todos los temas</option>
-              {topics.map((topic) => (
-                <option key={topic.id} value={topic.id}>
-                  {topic.name}
-                </option>
-              ))}
+              <option value="">{selectedTopicIds.length === 0 ? 'Todos los temas' : 'Elegir otro tema…'}</option>
+              {topics
+                .filter((topic) => !selectedTopicIds.includes(String(topic.id)))
+                .map((topic) => (
+                  <option key={topic.id} value={topic.id}>
+                    {topic.name}
+                  </option>
+                ))}
             </select>
           </div>
         </div>

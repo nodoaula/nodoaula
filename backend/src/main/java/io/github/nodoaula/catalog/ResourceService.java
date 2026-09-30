@@ -27,20 +27,24 @@ public class ResourceService {
 	 * Lista los recursos del catálogo, filtrados por curso, tema, tipo de
 	 * recurso (historia HU206) y un texto de búsqueda libre sobre título,
 	 * descripción y temas (historia HU207). Los cuatro filtros son opcionales
-	 * y se combinan entre sí con AND: cada uno en null (o la lista de tipos
-	 * vacía o con ambos tipos) no restringe nada. Curso, tema y tipo son
+	 * y cada uno admite uno o varios valores a la vez: una lista vacía o en
+	 * null (o, para tipo, una lista con ambos valores) no restringe nada.
+	 * Entre los cuatro filtros se combinan con AND; dentro de cada uno, los
+	 * valores elegidos se combinan con OR. Curso, tema y tipo son
 	 * comparaciones exactas por identificador; la búsqueda de texto es
 	 * insensible a mayúsculas y tildes.
 	 */
 	@Transactional(readOnly = true)
-	public List<ResourceDto> listResources(Long courseId, Long topicId, List<ResourceType> resourceTypes, String query) {
+	public List<ResourceDto> listResources(
+			List<Long> courseIds, List<Long> topicIds, List<ResourceType> resourceTypes, String query) {
 		// Marcar ambos tipos, o ninguno, equivale a no filtrar por tipo.
 		List<ResourceType> effectiveTypes = (resourceTypes == null || resourceTypes.isEmpty()
 				|| resourceTypes.size() >= ResourceType.values().length)
 				? null
 				: resourceTypes;
 
-		List<Resource> resources = resourceRepository.search(courseId, topicId, effectiveTypes);
+		List<Resource> resources = resourceRepository.search(
+				normalizeIds(courseIds), normalizeIds(topicIds), effectiveTypes);
 
 		// La búsqueda de texto (historia HU207) se aplica en memoria y no en la
 		// consulta: normalizar mayúsculas y tildes es más simple en Java que en
@@ -75,6 +79,13 @@ public class ResourceService {
 		if (value == null) return null;
 		String withoutAccents = Normalizer.normalize(value, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
 		return withoutAccents.toLowerCase(Locale.ROOT);
+	}
+
+	// Una lista vacía de ids equivale a no elegir ninguno, y eso significa "no
+	// filtrar por este campo" (igual que con el tipo de recurso), no "no
+	// mostrar nada".
+	private static List<Long> normalizeIds(List<Long> ids) {
+		return (ids == null || ids.isEmpty()) ? null : ids;
 	}
 
 	/**
@@ -116,11 +127,11 @@ public class ResourceService {
 	/**
 	 * Lista los temas con al menos un recurso, para poblar el selector de
 	 * temas del catálogo (HU206) y las sugerencias al registrar un recurso
-	 * (HU105). Sin courseId lista los de todos los cursos.
+	 * (HU105, con un único curso). Sin cursos elegidos lista los de todos.
 	 */
 	@Transactional(readOnly = true)
-	public List<TopicDto> listTopicsWithResources(Long courseId) {
-		return topicRepository.findTopicsWithAtLeastOneResource(courseId).stream()
+	public List<TopicDto> listTopicsWithResources(List<Long> courseIds) {
+		return topicRepository.findTopicsWithAtLeastOneResource(normalizeIds(courseIds)).stream()
 				.map(topic -> new TopicDto(topic.getId(), topic.getName()))
 				.toList();
 	}
