@@ -1,0 +1,82 @@
+# Supabase pausa los proyectos gratuitos tras siete días sin actividad, y
+# restaurarlos exige entrar al panel del proveedor a mano. Esta llamada diaria
+# consulta la base y genera actividad real sobre el proyecto.
+#
+# NO mantiene despierta la instancia de Render, que se suspende a los quince
+# minutos sin tráfico. Eso es otro problema y no se resuelve aquí.
+
+name: Mantener activa la base de datos
+
+on:
+  schedule:
+    # El minuto no es redondo a propósito: a las horas en punto GitHub acumula
+    # carga y retrasa las ejecuciones programadas. Las 11:17 UTC son las 6:17
+    # en Colombia.
+    #
+    # GitHub solo ejecuta los cron desde la rama por defecto, y los desactiva
+    # tras 60 días sin actividad en el repositorio.
+    - cron: '17 11 * * *'
+
+  workflow_dispatch:
+
+# Se llama directamente al servicio web y no a través del sitio estático, para
+# no depender del tiempo de espera de la reescritura.
+env:
+  HEALTH_URL: https://nodoaula-backend.onrender.com/actuator/health/database
+
+jobs:
+  check-database:
+    name: Consultar la base de datos
+    runs-on: ubuntu-latest
+
+    permissions:
+      # Sin esto, el token de la ejecución no puede abrir la incidencia.
+      issues: write
+
+    steps:
+      # --fail: sin esto curl termina con éxito ante un 503 y el fallo pasaría
+      # inadvertido. El plazo es amplio porque esta llamada normalmente
+      # despierta al backend dormido, y el reintento tiene sentido porque el
+      # primer intento puede despertarlo sin llegar a completarse.
+      - name: Consultar la salud de la base de datos
+        run: |
+          curl --fail --silent --show-error \
+            --max-time 180 --retry 1 --retry-all-errors \
+            "$HEALTH_URL"
+
+      # La incidencia queda visible para los tres integrantes; el aviso por
+      # correo que GitHub envía por defecto solo llega a quien editó el
+      # workflow. Se usa la CLI `gh`, preinstalada en los ejecutores, y como
+      # este workflow no clona el repositorio se le indica con GH_REPO sobre
+      # cuál actúa.
+      #
+      # Los valores de ${{ }} se pasan por `env` y no se interpolan dentro del
+      # script: interpolarlos permite inyectar comandos en el ejecutor.
+      - name: Abrir incidencia si la comprobación falló
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          cat > cuerpo-incidencia.md <<CUERPO
+          La comprobación diaria de la base de datos no pasó.
+
+          Ruta consultada: $HEALTH_URL
+
+          Por qué importa: Supabase pausa los proyectos gratuitos tras siete
+          días sin actividad. Si esto se repite varios días seguidos, el
+          proyecto puede quedar suspendido y habrá que restaurarlo a mano
+          desde el panel del proveedor.
+
+          Qué comprobar, en este orden:
+          1. Que el servicio web de Render esté desplegado y arranque.
+          2. Que el proyecto de Supabase no esté ya pausado.
+          3. Los registros de la ejecución que abrió esta incidencia.
+
+          Ejecución: $RUN_URL
+          CUERPO
+
+          gh issue create \
+            --title "Falló el mantenimiento de actividad de la base de datos ($(date -u +%F))" \
+            --body-file cuerpo-incidencia.md
