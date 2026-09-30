@@ -2,9 +2,20 @@ import { get, post } from '../../lib/apiClient.js'
 
 /** Llamadas del módulo catalog: todas pasan por el cliente único de la API. */
 
-export function listResources(courseId) {
-  const query = courseId ? `?courseId=${encodeURIComponent(courseId)}` : ''
-  return get(`/resources${query}`)
+/**
+ * Lista el catálogo. Los tres filtros son opcionales y se combinan entre sí
+ * (historia HU206): un objeto vacío o sin alguno de ellos no restringe nada.
+ */
+export function listResources({ courseId, topicId, resourceTypes } = {}) {
+  const params = new URLSearchParams()
+  if (courseId) params.set('courseId', courseId)
+  if (topicId) params.set('topicId', topicId)
+  for (const type of resourceTypes ?? []) {
+    params.append('resourceType', type)
+  }
+
+  const query = params.toString()
+  return get(`/resources${query ? `?${query}` : ''}`)
 }
 
 /** Ficha de un recurso. Pública, como el listado. */
@@ -16,9 +27,13 @@ export function listCoursesWithResources() {
   return get('/resources/courses')
 }
 
-/** Temas de un curso que ya tienen algún recurso, para sugerirlos al catalogar. */
+/**
+ * Temas con al menos un recurso, para poblar un selector. Con courseId,
+ * solo los de ese curso; sin él, los de todos (historia HU206).
+ */
 export function listTopicsWithResources(courseId) {
-  return get(`/resources/topics?courseId=${encodeURIComponent(courseId)}`)
+  const query = courseId ? `?courseId=${encodeURIComponent(courseId)}` : ''
+  return get(`/resources/topics${query}`)
 }
 
 /**
