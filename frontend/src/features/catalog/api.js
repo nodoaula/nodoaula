@@ -16,6 +16,11 @@ export function listCoursesWithResources() {
   return get('/resources/courses')
 }
 
+/** Temas de un curso que ya tienen algún recurso, para sugerirlos al catalogar. */
+export function listTopicsWithResources(courseId) {
+  return get(`/resources/topics?courseId=${encodeURIComponent(courseId)}`)
+}
+
 /**
  * Registra un recurso. Exige sesión iniciada; el backend toma el autor de
  * ella. Devuelve el recurso creado, con la misma forma que el listado.

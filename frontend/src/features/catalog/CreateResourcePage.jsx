@@ -5,7 +5,7 @@ import TextField from '../../components/ui/TextField.jsx'
 import { CSRF_ERROR_CODE } from '../../lib/apiClient.js'
 import { SESSION_STATUS } from '../../session/SessionContext.js'
 import { useSession } from '../../session/useSession.js'
-import { createResource, listCoursesWithResources } from './api.js'
+import { createResource, listCoursesWithResources, listTopicsWithResources } from './api.js'
 import { parseTopics, validateCreateResource } from './validation.js'
 
 const VALIDATION_FAILED = 'VALIDATION_FAILED'
@@ -75,6 +75,7 @@ export default function CreateResourcePage() {
   const navigate = useNavigate()
   const { status, account } = useSession()
   const [courses, setCourses] = useState([])
+  const [loadedTopics, setLoadedTopics] = useState({ courseId: null, items: [] })
   const [form, setForm] = useState(EMPTY_FORM)
   const [fieldErrors, setFieldErrors] = useState({})
   const [formError, setFormError] = useState(null)
@@ -96,6 +97,32 @@ export default function CreateResourcePage() {
     }
   }, [])
 
+  // El formulario guarda el nombre del curso, pero los temas se piden por su
+  // identificador, así que hay que buscarlo en la lista ya cargada. Un curso
+  // que todavía no existe no tiene identificador ni temas que sugerir.
+  const selectedCourseId = courses.find((course) => course.name === form.course.trim())?.id ?? null
+
+  useEffect(() => {
+    if (selectedCourseId === null) return
+
+    let active = true
+
+    listTopicsWithResources(selectedCourseId)
+      .then((data) => {
+        if (active) setLoadedTopics({ courseId: selectedCourseId, items: data })
+      })
+      .catch((error) => console.error('No se pudo cargar la lista de temas', error))
+
+    return () => {
+      active = false
+    }
+  }, [selectedCourseId])
+
+  // Solo se sugieren si la lista cargada es la del curso elegido ahora mismo.
+  // Sin esta comprobación, al cambiar de curso seguirían viéndose los temas del
+  // anterior hasta que llegara la respuesta del nuevo.
+  const suggestedTopics = loadedTopics.courseId === selectedCourseId ? loadedTopics.items : []
+
   // Mientras no se sabe si hay sesión no se decide nada; sin ella, no hay
   // nada que hacer aquí.
   if (status === SESSION_STATUS.LOADING) return null
@@ -106,6 +133,13 @@ export default function CreateResourcePage() {
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }))
     setFieldErrors((errors) => ({ ...errors, [field]: undefined }))
+  }
+
+  // Añade el tema al campo si no está ya, respetando lo que el usuario lleve escrito.
+  function addTopic(name) {
+    const current = parseTopics(form.topicsText)
+    if (current.includes(name)) return
+    updateField('topicsText', [...current, name].join(', '))
   }
 
   async function handleSubmit(event) {
@@ -275,11 +309,28 @@ export default function CreateResourcePage() {
             id="resource-topics"
             label="Temas"
             hint="Sepáralos con comas. Los que no existan en el curso se crean al registrar el recurso."
-            placeholder="Spring Boot, Control de versiones"
             value={form.topicsText}
             onChange={(event) => updateField('topicsText', event.target.value)}
             error={fieldErrors.topics}
           />
+
+          {suggestedTopics.length > 0 && (
+            <div>
+              <p className="text-xs text-slate-500">Temas ya usados en este curso:</p>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {suggestedTopics.map((topic) => (
+                  <button
+                    key={topic.id}
+                    type="button"
+                    onClick={() => addTopic(topic.name)}
+                    className="rounded-full border border-slate-300 px-3 py-1 text-xs text-slate-700 hover:border-slate-500 hover:bg-slate-50"
+                  >
+                    {topic.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {formError && (
             <p className="text-sm text-red-700" role="alert">
