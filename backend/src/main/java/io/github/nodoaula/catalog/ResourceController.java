@@ -31,13 +31,15 @@ class ResourceController {
 		this.resourceService = resourceService;
 	}
 
-	// Los tres filtros son opcionales y se combinan con AND (historia HU206).
+	// Los cuatro filtros son opcionales y se combinan con AND (historias
+	// HU206 y HU207).
 	@GetMapping
 	List<ResourceDto> listResources(
 			@RequestParam(required = false) Long courseId,
 			@RequestParam(required = false) Long topicId,
-			@RequestParam(required = false) List<ResourceType> resourceType) {
-		return resourceService.listResources(courseId, topicId, resourceType);
+			@RequestParam(required = false) List<ResourceType> resourceType,
+			@RequestParam(required = false) String q) {
+		return resourceService.listResources(courseId, topicId, resourceType, q);
 	}
 
 	@GetMapping("/courses")

@@ -1,6 +1,8 @@
 package io.github.nodoaula.catalog;
 
+import java.text.Normalizer;
 import java.util.List;
+import java.util.Locale;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -22,23 +24,57 @@ public class ResourceService {
 	}
 
 	/**
-	 * Lista los recursos del catálogo, filtrados por curso, tema y tipo de
-	 * recurso (historia HU206). Los tres filtros son opcionales y se combinan
-	 * entre sí con AND: cada uno en null (o la lista de tipos vacía o con
-	 * ambos tipos) no restringe nada. Son comparaciones exactas por
-	 * identificador, nunca una búsqueda de texto.
+	 * Lista los recursos del catálogo, filtrados por curso, tema, tipo de
+	 * recurso (historia HU206) y un texto de búsqueda libre sobre título,
+	 * descripción y temas (historia HU207). Los cuatro filtros son opcionales
+	 * y se combinan entre sí con AND: cada uno en null (o la lista de tipos
+	 * vacía o con ambos tipos) no restringe nada. Curso, tema y tipo son
+	 * comparaciones exactas por identificador; la búsqueda de texto es
+	 * insensible a mayúsculas y tildes.
 	 */
 	@Transactional(readOnly = true)
-	public List<ResourceDto> listResources(Long courseId, Long topicId, List<ResourceType> resourceTypes) {
+	public List<ResourceDto> listResources(Long courseId, Long topicId, List<ResourceType> resourceTypes, String query) {
 		// Marcar ambos tipos, o ninguno, equivale a no filtrar por tipo.
 		List<ResourceType> effectiveTypes = (resourceTypes == null || resourceTypes.isEmpty()
 				|| resourceTypes.size() >= ResourceType.values().length)
 				? null
 				: resourceTypes;
 
-		return resourceRepository.search(courseId, topicId, effectiveTypes).stream()
+		List<Resource> resources = resourceRepository.search(courseId, topicId, effectiveTypes);
+
+		// La búsqueda de texto (historia HU207) se aplica en memoria y no en la
+		// consulta: normalizar mayúsculas y tildes es más simple en Java que en
+		// SQL portable, y el catálogo no es lo bastante grande para que importe.
+		String normalizedQuery = normalize(query);
+		if (normalizedQuery != null && !normalizedQuery.isBlank()) {
+			resources = resources.stream().filter(resource -> matches(resource, normalizedQuery)).toList();
+		}
+
+		return resources.stream()
 				.map(this::toDto)
 				.toList();
+	}
+
+	// Compara título, descripción y temas: coincide si el texto buscado
+	// aparece en cualquiera de los tres.
+	private static boolean matches(Resource resource, String normalizedQuery) {
+		if (contains(resource.getTitle(), normalizedQuery)) return true;
+		if (contains(resource.getDescription(), normalizedQuery)) return true;
+		return resource.getTopics().stream().anyMatch(topic -> contains(topic.getName(), normalizedQuery));
+	}
+
+	private static boolean contains(String value, String normalizedQuery) {
+		String normalizedValue = normalize(value);
+		return normalizedValue != null && normalizedValue.contains(normalizedQuery);
+	}
+
+	// Quita tildes (forma NFD: separa cada letra de su diacrítico, y \p{M}
+	// borra el diacrítico) y pasa a minúsculas, para comparar sin distinguir
+	// mayúsculas ni acentos.
+	private static String normalize(String value) {
+		if (value == null) return null;
+		String withoutAccents = Normalizer.normalize(value, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
+		return withoutAccents.toLowerCase(Locale.ROOT);
 	}
 
 	/**
