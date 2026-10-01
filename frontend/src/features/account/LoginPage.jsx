@@ -53,7 +53,7 @@ export default function LoginPage() {
   // Cubre tanto a quien llega con la sesión iniciada como el final de un
   // inicio de sesión correcto: al guardarse la cuenta, esta pantalla se va.
   if (account !== null) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/catalogo" replace />
   }
 
   function changeEmail(value) {

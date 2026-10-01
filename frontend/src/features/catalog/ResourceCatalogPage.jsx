@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 
 import { listCoursesWithResources, listResources, listTopicsWithResources } from './api.js'
 import { formatDuration, formatResourceType } from './format.js'
@@ -22,8 +22,16 @@ function toggleId(ids, id) {
  * selectores.
  */
 export default function ResourceCatalogPage() {
+  // La dirección puede traer una búsqueda y cursos iniciales (?q= y
+  // ?courseId=), para llegar al catálogo ya filtrado desde un enlace. Solo se
+  // leen al abrir la página: después mandan los controles.
+  const [searchParams] = useSearchParams()
+  const initialSearch = searchParams.get('q') ?? ''
+
   const [courses, setCourses] = useState([])
-  const [selectedCourseIds, setSelectedCourseIds] = useState([])
+  const [selectedCourseIds, setSelectedCourseIds] = useState(() =>
+    searchParams.getAll('courseId').filter((id) => /^\d+$/.test(id)),
+  )
 
   const [topics, setTopics] = useState([])
   const [selectedTopicIds, setSelectedTopicIds] = useState([])
@@ -31,8 +39,8 @@ export default function ResourceCatalogPage() {
   const [videoSelected, setVideoSelected] = useState(false)
   const [documentSelected, setDocumentSelected] = useState(false)
 
-  const [searchText, setSearchText] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [searchText, setSearchText] = useState(initialSearch)
+  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch.trim())
 
   const [resources, setResources] = useState([])
   const [loading, setLoading] = useState(true)

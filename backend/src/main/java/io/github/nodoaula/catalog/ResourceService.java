@@ -88,20 +88,11 @@ public class ResourceService {
 		return (ids == null || ids.isEmpty()) ? null : ids;
 	}
 
-	/**
-	 * Devuelve la ficha de un recurso (historia HU108). Los temas salen
-	 * ordenados por nombre: la tabla intermedia no guarda ningún orden, y sin
-	 * esto la ficha podría mostrarlos distinto en cada visita.
-	 */
+	/** Devuelve la ficha de un recurso (historia HU108). */
 	@Transactional(readOnly = true)
 	public ResourceDetailDto getResource(Long id) {
 		Resource resource = resourceRepository.findById(id)
 				.orElseThrow(ResourceNotFoundException::new);
-
-		List<String> topics = resource.getTopics().stream()
-				.map(Topic::getName)
-				.sorted()
-				.toList();
 
 		return new ResourceDetailDto(
 				resource.getId(),
@@ -113,7 +104,7 @@ public class ResourceService {
 				resource.getUrl(),
 				resource.getResourceType(),
 				resource.getCourse().getName(),
-				topics);
+				topicNames(resource));
 	}
 
 	/** Lista los cursos que tienen al menos un recurso, para poblar el selector de filtro. */
@@ -206,7 +197,18 @@ public class ResourceService {
 				resource.getTitle(),
 				resource.getCourse().getName(),
 				resource.getResourceType(),
-				resource.getDurationSeconds());
+				resource.getDurationSeconds(),
+				resource.getUrl(),
+				topicNames(resource));
+	}
+
+	// Ordenados por nombre: la tabla intermedia no guarda ningún orden, y sin
+	// esto el listado y la ficha podrían mostrarlos distinto en cada visita.
+	private static List<String> topicNames(Resource resource) {
+		return resource.getTopics().stream()
+				.map(Topic::getName)
+				.sorted()
+				.toList();
 	}
 
 }
