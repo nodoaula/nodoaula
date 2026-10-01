@@ -5,6 +5,7 @@ import RegisterPage from '../features/account/RegisterPage.jsx'
 import CreateResourcePage from '../features/catalog/CreateResourcePage.jsx'
 import ResourceCatalogPage from '../features/catalog/ResourceCatalogPage.jsx'
 import ResourceDetailPage from '../features/catalog/ResourceDetailPage.jsx'
+import LandingPage from '../features/landing/LandingPage.jsx'
 import SessionProvider from '../session/SessionProvider.jsx'
 import AppLayout from './AppLayout.jsx'
 import { SERVER_STATUS, useServerStatus } from './serverStatus.js'
@@ -19,8 +20,8 @@ export default function App() {
       <SessionProvider>
         <BrowserRouter>
           <Routes>
+            <Route index element={<LandingPage />} />
             <Route element={<AppLayout />}>
-              <Route index element={<ResourceCatalogPage />} />
               <Route path="catalogo" element={<ResourceCatalogPage />} />
               <Route path="recursos/:resourceId" element={<ResourceDetailPage />} />
               <Route path="registrar-recurso" element={<CreateResourcePage />} />

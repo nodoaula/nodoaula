@@ -13,4 +13,12 @@
   --color-content-muted: #98a1b5;
   --color-content-faint: #7c859b;
   --color-accent: #4fd1c5;
+
+  --animate-dash-flow: dash-flow 1.6s linear infinite;
+
+  @keyframes dash-flow {
+    to {
+      stroke-dashoffset: -22;
+    }
+  }
 }
