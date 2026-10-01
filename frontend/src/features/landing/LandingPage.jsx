@@ -1,6 +1,7 @@
 import { Link } from 'react-router'
 
 import { SESSION_STATUS } from '../../session/SessionContext.js'
+import { useLogout } from '../../session/useLogout.js'
 import { useSession } from '../../session/useSession.js'
 import CatalogPreview from './CatalogPreview.jsx'
 import NodeGraph from './NodeGraph.jsx'
@@ -33,6 +34,7 @@ const STEPS = [
  */
 export default function LandingPage() {
   const { status, account } = useSession()
+  const { loggingOut, logoutFailed, handleLogout } = useLogout()
   // Mientras no se sabe si hay sesión no se ofrece crear cuenta ni iniciarla,
   // para no enseñárselo a quien ya la tiene.
   const signedOut = status !== SESSION_STATUS.LOADING && account === null
@@ -65,9 +67,27 @@ export default function LandingPage() {
               </>
             )}
             {account !== null && (
-              <Link to="/registrar-recurso" className={`${PRIMARY_BUTTON} px-4 py-2`}>
-                Registrar recurso
-              </Link>
+              <>
+                {logoutFailed && (
+                  <span className="text-red-400" role="alert">
+                    No se pudo cerrar la sesión.
+                  </span>
+                )}
+                <span className="hidden max-w-56 truncate md:block" title={account.email}>
+                  {account.email}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  className="hover:text-content disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {loggingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
+                </button>
+                <Link to="/registrar-recurso" className={`${PRIMARY_BUTTON} px-4 py-2`}>
+                  Registrar recurso
+                </Link>
+              </>
             )}
           </nav>
         </header>

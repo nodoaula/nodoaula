@@ -1,7 +1,7 @@
-import { useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router'
 
 import { SESSION_STATUS } from '../session/SessionContext.js'
+import { useLogout } from '../session/useLogout.js'
 import { useSession } from '../session/useSession.js'
 
 function navLinkClass({ isActive }) {
@@ -26,9 +26,8 @@ export default function AppLayout() {
 }
 
 function SessionNav() {
-  const { status, account, logout } = useSession()
-  const [loggingOut, setLoggingOut] = useState(false)
-  const [logoutFailed, setLogoutFailed] = useState(false)
+  const { status, account } = useSession()
+  const { loggingOut, logoutFailed, handleLogout } = useLogout()
 
   // Mientras no se sabe si hay sesión no se muestra ni una opción ni la otra,
   // para no enseñar "Iniciar sesión" a quien ya la tiene.
@@ -45,23 +44,6 @@ function SessionNav() {
         </NavLink>
       </div>
     )
-  }
-
-  async function handleLogout() {
-    if (loggingOut) return
-
-    setLoggingOut(true)
-    setLogoutFailed(false)
-    try {
-      await logout()
-    } catch (error) {
-      // Sin respuesta del servidor no se sabe si la sesión se cerró; se deja
-      // como estaba para que el usuario pueda reintentar.
-      console.error('No se pudo cerrar la sesión', error)
-      setLogoutFailed(true)
-    } finally {
-      setLoggingOut(false)
-    }
   }
 
   return (
