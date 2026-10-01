@@ -105,6 +105,10 @@ jobs:
         working-directory: frontend
         run: npm run lint
 
+      - name: Ejecutar pruebas unitarias
+        working-directory: frontend
+        run: npm run test
+
       - name: Compilar
         working-directory: frontend
         run: npm run build
