@@ -1,1 +1,16 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+
+  --color-surface: #090c15;
+  --color-surface-raised: #10141f;
+  --color-surface-hover: #161b29;
+  --color-border: #222838;
+  --color-border-strong: #2d3447;
+  --color-content: #edf0f7;
+  --color-content-muted: #98a1b5;
+  --color-content-faint: #7c859b;
+  --color-accent: #4fd1c5;
+}
