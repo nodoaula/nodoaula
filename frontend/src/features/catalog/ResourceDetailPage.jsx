@@ -51,7 +51,7 @@ function ResourceDetail({ resourceId }) {
   return (
     <main className="px-4 py-10">
       <div className="mx-auto max-w-3xl">
-        <Link to="/" className="text-sm text-slate-600 hover:text-slate-900">
+        <Link to="/catalogo" className="text-sm text-slate-600 hover:text-slate-900">
           ← Volver al catálogo
         </Link>
 

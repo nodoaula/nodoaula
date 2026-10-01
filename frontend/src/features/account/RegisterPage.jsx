@@ -62,7 +62,7 @@ export default function RegisterPage() {
 
   // Con la sesión iniciada, crear otra cuenta no tiene sentido desde aquí.
   if (account !== null) {
-    return <Navigate to="/" replace />
+    return <Navigate to="/catalogo" replace />
   }
 
   // Al editar un campo su error deja de aplicar; los de los demás se quedan.

@@ -179,7 +179,7 @@ export default function CreateResourcePage() {
 
       // Vuelve al catálogo, que se vuelve a cargar al montarse y así muestra
       // el recurso recién creado sin necesidad de refrescar nada a mano.
-      navigate('/', { state: { resourceCreated: true } })
+      navigate('/catalogo', { state: { resourceCreated: true } })
     } catch (error) {
       console.error('No se pudo registrar el recurso', error)
       const failure = describeFailure(error)
