@@ -14,16 +14,16 @@ const CARD = 'rounded-2xl border border-border bg-surface-raised p-7'
 
 const STEPS = [
   {
-    title: 'Busca por curso o por tema',
-    text: 'Filtra por asignatura, tema o tipo de recurso, o escribe lo que recuerdas del título.',
+    title: 'Busca en el catálogo',
+    text: 'Filtra por curso, tema o tipo de recurso, o escribe una palabra del título.',
   },
   {
-    title: 'Mírala sin salir',
-    text: 'Cada recurso tiene su ficha con el video, la duración, el canal y los temas que cubre.',
+    title: 'Abre el recurso',
+    text: 'Cada recurso tiene su página: los videos se ven ahí mismo y los apuntes se abren desde su enlace.',
   },
   {
-    title: 'Aporta el que te sirvió',
-    text: 'Pega el enlace, elige el curso y el tema. Queda para quien venga después.',
+    title: 'Aporta lo tuyo',
+    text: 'Con una cuenta puedes registrar un video o tus apuntes: pegas el enlace e indicas el curso y los temas.',
   },
 ]
 
@@ -100,11 +100,11 @@ export default function LandingPage() {
                 Hecho por estudiantes de la UdeA
               </p>
               <h1 className="mt-5 text-[40px] leading-[1.02] font-semibold tracking-tighter text-balance sm:text-6xl lg:text-7xl">
-                Cada tema, conectado con <span className="text-accent">su mejor clase</span>
+                Encuentra qué estudiar, <span className="text-accent">por curso y por tema</span>
               </h1>
               <p className="mt-5 max-w-[44ch] text-lg text-pretty text-content-muted">
-                NodoAula es un catálogo de recursos de estudio organizado por curso y por tema. Llegas
-                al video que necesitas en dos clics, no en veinte búsquedas.
+                NodoAula reúne video-clases y apuntes que comparten los mismos estudiantes,
+                organizados por curso y por tema. Para consultar el catálogo no necesitas cuenta.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link to="/catalogo" className={`${PRIMARY_BUTTON} px-5 py-3 text-[15px]`}>
@@ -129,7 +129,7 @@ export default function LandingPage() {
 
           <section className="mx-auto max-w-6xl px-4 pt-16 sm:px-6 sm:pt-24">
             <p className={EYEBROW}>Cómo funciona</p>
-            <h2 className={SECTION_TITLE}>De la duda a la clase en tres pasos</h2>
+            <h2 className={SECTION_TITLE}>Buscar, abrir y aportar</h2>
             <ol className="mt-10 grid gap-4 md:grid-cols-3">
               {STEPS.map((step, index) => (
                 <li key={step.title} className={CARD}>
@@ -148,13 +148,12 @@ export default function LandingPage() {
 
           <section className="mx-auto max-w-6xl px-4 pt-16 sm:px-6 sm:pt-24">
             <p className={EYEBROW}>Para quién es</p>
-            <h2 className={SECTION_TITLE}>Para el que busca y para el que ya encontró</h2>
+            <h2 className={SECTION_TITLE}>Para quien estudia y para quien quiere aportar</h2>
             <div className="mt-10 grid gap-4 md:grid-cols-2">
               <div className={CARD}>
-                <h3 className="text-2xl font-semibold tracking-tight">Si estás estudiando</h3>
+                <h3 className="text-2xl font-semibold tracking-tight">Si buscas material</h3>
                 <p className="mt-2 text-[15px] text-content-muted">
-                  Consulta el catálogo sin crear cuenta. Todo está clasificado con los cursos y temas
-                  de la carrera, no con los del algoritmo.
+                  Entra al catálogo y filtra por tu curso. No necesitas crear una cuenta.
                 </p>
                 <Link to="/catalogo" className="mt-5 inline-block font-medium text-accent hover:underline">
                   Ir al catálogo →
@@ -163,10 +162,10 @@ export default function LandingPage() {
               <div
                 className={`${CARD} border-accent/40 bg-[linear-gradient(140deg,color-mix(in_srgb,var(--color-accent)_20%,var(--color-surface-raised)),var(--color-surface-raised)_75%)]`}
               >
-                <h3 className="text-2xl font-semibold tracking-tight">Si encontraste algo bueno</h3>
+                <h3 className="text-2xl font-semibold tracking-tight">Si quieres compartir un video o tus apuntes</h3>
                 <p className="mt-2 text-[15px] text-content-muted">
-                  Crea una cuenta y regístralo. Un recurso bien catalogado le ahorra la búsqueda a todo
-                  el semestre siguiente.
+                  Crea una cuenta y regístralos. Quedan en el catálogo para los demás estudiantes del
+                  curso.
                 </p>
                 <Link
                   to={account === null ? '/registro' : '/registrar-recurso'}
