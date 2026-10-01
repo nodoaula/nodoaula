@@ -10,19 +10,26 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Verifica que el catálogo semilla cargado por Flyway (historia HU106,
  * AB#30/AB#85) sigue cumpliendo sus criterios de aceptación: cinco recursos
  * reales de al menos dos asignaturas distintas, cada uno con curso y al
  * menos un tema. No crea datos propios: solo lee lo que la migración
- * V202609202323__catalogo_semilla.sql dejó en la base, así que no necesita
- * @Transactional.
+ * V202609202323__catalogo_semilla.sql dejó en la base.
+ *
+ * @Transactional mantiene abierta la sesión de Hibernate mientras se leen
+ * curso y temas de cada recurso (son relaciones perezosas): sin ella,
+ * acceder a resource.getCourse().getId() fuera de la transacción de
+ * creación falla con LazyInitializationException. No hace falta deshacer
+ * nada al terminar porque la prueba no escribe.
  *
  * Si cambia esta migración (por ejemplo, se agregan o reemplazan recursos),
  * esta prueba es la que avisa que hay que revisarla también aquí.
  */
 @SpringBootTest
+@Transactional
 class CatalogSeedDataTests {
 
 	// Las cinco URLs reales que carga la migración de catálogo semilla.
