@@ -4,9 +4,10 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Vista pública de la ficha de un recurso (historia HU108): los diez campos
- * vigentes del esquema de metadatos. Los opcionales (descripción, fecha de
- * publicación, duración y canal) llegan como null cuando no se registraron.
+ * Vista pública de la ficha de un recurso (historia HU108): los nueve campos
+ * vigentes del esquema de metadatos, más su identificador. Los opcionales
+ * (descripción, fecha de publicación, duración y canal) llegan como null
+ * cuando no se registraron.
  * Nunca la entidad, según ADR-008.
  */
 public record ResourceDetailDto(
