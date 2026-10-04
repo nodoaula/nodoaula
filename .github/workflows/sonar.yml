@@ -29,14 +29,15 @@ jobs:
           java-version: 25
           cache: maven
 
-      # Solo compila: no ejecuta pruebas, de modo que no necesita PostgreSQL ni
-      # puede generar un informe de cobertura que llegue al análisis (ADR-009).
+      # Solo compila: no ejecuta pruebas, de modo que no necesita PostgreSQL.
       - name: Compilar el backend
         working-directory: backend
         run: ./mvnw -B test-compile dependency:copy-dependencies
 
       - name: Analizar con SonarQube Cloud
-        uses: SonarSource/sonarqube-scan-action@v8
+        # Fijada por SHA y no por etiqueta: una etiqueta se puede mover y esta
+        # acción recibe el token.
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
