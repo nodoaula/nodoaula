@@ -50,6 +50,24 @@ export function listTopicsWithResources(courseIds) {
   return get(`/resources/topics${query ? `?${query}` : ''}`)
 }
 
+// El intento y el plazo total coinciden para que el cliente no reintente: un
+// 503 de esta consulta es la respuesta del backend cuando YouTube no está
+// disponible, no un backend que todavía arranca, y repetirla solo haría
+// esperar al usuario y gastar cuota.
+const YOUTUBE_LOOKUP_TIMEOUT_MS = 15_000
+
+/**
+ * Datos de un video de YouTube para autocompletar el registro (historia
+ * HU202). Exige sesión iniciada. `link` es un enlace o el identificador suelto.
+ */
+export function getYouTubeMetadata(link) {
+  const params = new URLSearchParams({ url: link })
+  return get(`/resources/youtube-metadata?${params}`, {
+    attemptTimeoutMs: YOUTUBE_LOOKUP_TIMEOUT_MS,
+    totalTimeoutMs: YOUTUBE_LOOKUP_TIMEOUT_MS,
+  })
+}
+
 /**
  * Registra un recurso. Exige sesión iniciada; el backend toma el autor de
  * ella. Devuelve el recurso creado, con la misma forma que el listado.

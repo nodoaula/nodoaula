@@ -1,12 +1,15 @@
 package io.github.nodoaula.catalog;
 
 import java.text.Normalizer;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import io.github.nodoaula.shared.error.FieldValidationException;
 
 /** Único punto público del módulo catalog, conforme al ADR-008. */
 @Service
@@ -15,12 +18,14 @@ public class ResourceService {
 	private final ResourceRepository resourceRepository;
 	private final CourseRepository courseRepository;
 	private final TopicRepository topicRepository;
+	private final VideoMetadataProvider videoMetadataProvider;
 
 	ResourceService(ResourceRepository resourceRepository, CourseRepository courseRepository,
-			TopicRepository topicRepository) {
+			TopicRepository topicRepository, VideoMetadataProvider videoMetadataProvider) {
 		this.resourceRepository = resourceRepository;
 		this.courseRepository = courseRepository;
 		this.topicRepository = topicRepository;
+		this.videoMetadataProvider = videoMetadataProvider;
 	}
 
 	/**
@@ -128,12 +133,50 @@ public class ResourceService {
 	}
 
 	/**
-	 * Registra un recurso manualmente (historia HU105). El curso y cada tema se
+	 * Consulta en YouTube los datos de un video para autocompletar el
+	 * formulario de registro (historia HU202). No persiste nada: el recurso
+	 * solo se crea al publicar, con createResource, que exige curso y temas.
+	 * Sin transacción, porque no toca la base y no debe retener una conexión
+	 * mientras espera a YouTube.
+	 */
+	public VideoMetadataDto getYouTubeMetadata(String link) {
+		String videoId = YouTubeVideoIds.extract(link).orElseThrow(InvalidVideoLinkException::new);
+		VideoMetadata metadata = videoMetadataProvider.fetch(videoId);
+
+		List<String> missingFields = new ArrayList<>();
+		if (metadata.title() == null) missingFields.add("title");
+		if (metadata.description() == null) missingFields.add("description");
+		if (metadata.publishedAt() == null) missingFields.add("publishedAt");
+		if (metadata.durationSeconds() == null) missingFields.add("durationSeconds");
+		if (metadata.channel() == null) missingFields.add("channel");
+
+		return new VideoMetadataDto(
+				videoId,
+				YouTubeVideoIds.canonicalUrl(videoId),
+				metadata.title(),
+				metadata.description(),
+				metadata.publishedAt(),
+				metadata.durationSeconds(),
+				metadata.channel(),
+				List.copyOf(missingFields));
+	}
+
+	/**
+	 * Registra un recurso (historias HU105 y HU202). El curso y cada tema se
 	 * reutilizan si ya existen en el vocabulario controlado, o se crean en la
-	 * misma operación si no (AB#93).
+	 * misma operación si no (AB#93). Sin vía de ingreso se toma la manual, de
+	 * modo que los clientes que no la envían no cambian.
 	 */
 	@Transactional
 	public ResourceDto createResource(CreateResourceRequest request, Long authorId) {
+		EntryMethod entryMethod = request.entryMethod() == null ? EntryMethod.MANUAL : request.entryMethod();
+
+		// Solo un video de YouTube puede haberse indexado automáticamente.
+		if (entryMethod == EntryMethod.AUTOMATIC && YouTubeVideoIds.extract(request.url()).isEmpty()) {
+			throw new FieldValidationException("entryMethod",
+					"Solo un recurso con enlace de YouTube puede registrarse como indexado automáticamente.");
+		}
+
 		Course course = findOrCreateCourse(request.course().strip());
 
 		Resource resource = new Resource(
@@ -145,7 +188,8 @@ public class ResourceService {
 				request.url().strip(),
 				request.resourceType(),
 				course,
-				authorId);
+				authorId,
+				entryMethod);
 
 		// distinct() para que escribir el mismo tema dos veces en el formulario
 		// no intente insertarlo dos veces en la tabla intermedia.
