@@ -9,7 +9,7 @@ import NodeGraph from './NodeGraph.jsx'
 const PRIMARY_BUTTON =
   'inline-flex items-center rounded-full bg-accent font-semibold text-surface transition hover:-translate-y-px hover:shadow-[0_10px_30px_-10px_var(--color-accent)]'
 const EYEBROW = 'font-mono text-xs text-accent'
-const SECTION_TITLE = 'mt-3 max-w-[18ch] text-3xl leading-[1.1] font-semibold tracking-tight text-balance sm:text-[42px]'
+const SECTION_TITLE = 'mt-3 max-w-[18ch] text-3xl leading-[1.1] font-semibold tracking-tight text-balance sm:text-heading'
 const CARD = 'rounded-2xl border border-border bg-surface-raised p-7'
 
 const STEPS = [
@@ -44,10 +44,10 @@ export default function LandingPage() {
       <div className="relative overflow-hidden">
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 -top-64 h-[760px] bg-[radial-gradient(ellipse_60%_55%_at_70%_30%,color-mix(in_srgb,var(--color-accent)_20%,transparent),transparent_70%)]"
+          className="pointer-events-none absolute inset-x-0 -top-64 h-190 bg-[radial-gradient(ellipse_60%_55%_at_70%_30%,color-mix(in_srgb,var(--color-accent)_20%,transparent),transparent_70%)]"
         />
 
-        <header className="relative mx-auto flex h-[72px] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+        <header className="relative mx-auto flex h-18 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <Link to="/" className="flex items-center gap-2.5 text-lg font-semibold tracking-tight">
             <Logo />
             NodoAula
@@ -99,7 +99,7 @@ export default function LandingPage() {
                 <span aria-hidden="true" className="size-1.5 rounded-full bg-accent" />
                 Hecho por estudiantes de la UdeA
               </p>
-              <h1 className="mt-5 text-[40px] leading-[1.02] font-semibold tracking-tighter text-balance sm:text-6xl lg:text-7xl">
+              <h1 className="mt-5 text-display leading-[1.02] font-semibold tracking-tighter text-balance sm:text-6xl lg:text-7xl">
                 Encuentra qué estudiar, <span className="text-accent">por curso y por tema</span>
               </h1>
               <p className="mt-5 max-w-[44ch] text-lg text-pretty text-content-muted">
@@ -107,13 +107,13 @@ export default function LandingPage() {
                 organizados por curso y por tema. Para consultar el catálogo no necesitas cuenta.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
-                <Link to="/catalogo" className={`${PRIMARY_BUTTON} px-5 py-3 text-[15px]`}>
+                <Link to="/catalogo" className={`${PRIMARY_BUTTON} px-5 py-3 text-body`}>
                   Explorar el catálogo →
                 </Link>
                 {signedOut && (
                   <Link
                     to="/registro"
-                    className="inline-flex items-center rounded-full border border-border-strong px-5 py-3 text-[15px] font-medium hover:border-content-muted"
+                    className="inline-flex items-center rounded-full border border-border-strong px-5 py-3 text-body font-medium hover:border-content-muted"
                   >
                     Crear cuenta
                   </Link>
@@ -139,8 +139,8 @@ export default function LandingPage() {
                   >
                     {index + 1}
                   </span>
-                  <h3 className="mt-7 text-[19px] font-semibold tracking-tight">{step.title}</h3>
-                  <p className="mt-2 text-[15px] text-content-muted">{step.text}</p>
+                  <h3 className="mt-7 text-lead font-semibold tracking-tight">{step.title}</h3>
+                  <p className="mt-2 text-body text-content-muted">{step.text}</p>
                 </li>
               ))}
             </ol>
@@ -152,7 +152,7 @@ export default function LandingPage() {
             <div className="mt-10 grid gap-4 md:grid-cols-2">
               <div className={CARD}>
                 <h3 className="text-2xl font-semibold tracking-tight">Si buscas material</h3>
-                <p className="mt-2 text-[15px] text-content-muted">
+                <p className="mt-2 text-body text-content-muted">
                   Entra al catálogo y filtra por tu curso. No necesitas crear una cuenta.
                 </p>
                 <Link to="/catalogo" className="mt-5 inline-block font-medium text-accent hover:underline">
@@ -163,7 +163,7 @@ export default function LandingPage() {
                 className={`${CARD} border-accent/40 bg-[linear-gradient(140deg,color-mix(in_srgb,var(--color-accent)_20%,var(--color-surface-raised)),var(--color-surface-raised)_75%)]`}
               >
                 <h3 className="text-2xl font-semibold tracking-tight">Si quieres compartir un video o tus apuntes</h3>
-                <p className="mt-2 text-[15px] text-content-muted">
+                <p className="mt-2 text-body text-content-muted">
                   Crea una cuenta y regístralos. Quedan en el catálogo para los demás estudiantes del
                   curso.
                 </p>
