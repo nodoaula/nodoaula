@@ -28,11 +28,13 @@ El análisis corre en un workflow dedicado, `.github/workflows/sonar.yml`, en ca
 
 1. **Obtiene el repositorio con su historial completo**, para que SonarQube Cloud atribuya cada línea a su commit y no tome por nuevo el código que ya existía.
 2. **Compila el backend sin ejecutar pruebas** con `./mvnw -B test-compile dependency:copy-dependencies`. El analizador de Java exige el bytecode y las dependencias para resolver tipos; sin ellos, el análisis falla o pierde precisión. Al no ejecutar pruebas, el paso no necesita PostgreSQL.
-3. **Ejecuta el scanner oficial**, `SonarSource/sonarqube-scan-action`, que se autentica con el secreto `SONAR_TOKEN` del repositorio.
+3. **Ejecuta el scanner oficial**, `SonarSource/sonarqube-scan-action`, que se autentica con el secreto `SONAR_TOKEN` del repositorio. La acción se fija por el SHA completo de su commit y no por una etiqueta: una etiqueta puede moverse a otro código, y esta acción recibe el token.
 
 Lo que se analiza lo declara un único archivo en la raíz, `sonar-project.properties`: la clave del proyecto y de la organización, qué es código fuente y qué es prueba, dónde están el bytecode y las dependencias de Java y qué versión de Java se usa. El `pom.xml` no se modifica: la configuración del análisis no forma parte de la construcción del backend.
 
 **Es un workflow aparte, y no un paso de `verify.yml`**, por dos razones. Los checks `Backend` y `Frontend` son obligatorios y su duración está acotada por la condición 3; el análisis corre en paralelo y no les suma tiempo. Además, un fallo del análisis, por ejemplo un token caducado, no debe impedir integrar, conforme al apartado 3.
+
+**A diferencia de `verify.yml`, también corre al integrar en `develop`.** No es una repetición del análisis del Pull Request: aquel juzga el cambio, y este actualiza la rama principal del proyecto en SonarQube Cloud, que es la que guarda el historial, la deuda medida y las incidencias ya marcadas. Sin él, el panel del proyecto quedaría congelado en el último análisis y el código nuevo de cada Pull Request se compararía contra una rama desactualizada.
 
 **Se descarta el análisis automático de SonarQube Cloud**, con el que se empezó. No exige workflow ni token, pero deja fuera el backend por la condición 5. Tampoco admite configurar exclusiones, la versión de Java ni el bytecode, y no publica registros con los que diagnosticar un análisis incompleto. Su comodidad no compensa dejar sin analizar la mitad del sistema de mayor riesgo. Además, en SonarQube Cloud ambas formas de análisis son excluyentes: el análisis automático queda desactivado en el proyecto.
 
@@ -54,9 +56,11 @@ El proyecto usa la puerta predefinida **Sonar way**. Sus condiciones se aplican 
 | Líneas duplicadas | `new_duplicated_lines_density` | supera el 3 % |
 | Security hotspots revisados | `new_security_hotspots_reviewed` | es menor que el 100 % |
 
-**La condición de cobertura no se evalúa.** Sonar way incluye una sexta condición, cobertura del código nuevo de al menos el 80 %, que solo se calcula si el análisis recibe informes de cobertura. El workflow no ejecuta pruebas, el backend no tiene JaCoCo configurado y el informe de Vitest no se envía, de modo que la condición queda sin datos y fuera de la evaluación. Así se cumple el ADR-009 sin mantener una puerta personalizada: en la organización solo existen las dos puertas predefinidas.
+**La condición de cobertura no se evalúa.** Sonar way incluye una sexta condición, cobertura del código nuevo de al menos el 80 %. No basta con no enviar informes: en el análisis desde CI, los analizadores de Java y JavaScript declaran las líneas ejecutables de cada archivo aunque no llegue ningún informe, de modo que la cobertura se calcula como 0 % y la condición falla. Se comprobó en el primer análisis del workflow.
 
-A diferencia del análisis automático, que no podía recibir cobertura aunque se quisiera, aquí la ausencia de cobertura **depende de la configuración del workflow**. Por eso se declara como regla en los compromisos y no como una limitación del mecanismo.
+Por eso `sonar-project.properties` **excluye todos los archivos del cálculo de cobertura** con `sonar.coverage.exclusions=**`. Sin líneas por cubrir, la métrica no existe y la condición queda fuera de la evaluación. Así se cumple el ADR-009 sin mantener una puerta personalizada: en la organización solo existen las dos puertas predefinidas. El workflow, además, no ejecuta pruebas ni envía informes.
+
+A diferencia del análisis automático, que no podía recibir cobertura aunque se quisiera, aquí la ausencia de cobertura **depende de una línea de configuración**. Por eso se declara como regla en los compromisos y no como una limitación del mecanismo.
 
 **Se juzga el código nuevo y no el total** por la condición 4. Exigir A sobre todo el proyecto dejaría la puerta en rojo hasta saldar una deuda que no cabe en los sprints restantes, y una puerta siempre en rojo deja de leerse. Juzgando lo nuevo, la deuda existente no impide trabajar, pero no puede crecer. Es el mismo criterio del apartado 5 del ADR-009: lo ya entregado se aborda por riesgo, no por completitud.
 
@@ -132,7 +136,7 @@ No regula quién atiende cada incidencia, ni el texto de las justificaciones, ni
 - **El repositorio gana un secreto.** `SONAR_TOKEN` es un token de una cuenta personal de SonarQube Cloud: si caduca, se revoca o su titular deja el proyecto, el análisis falla hasta que alguien genere otro. Es la clase de dependencia de una persona que la condición 3 del ADR-002 quiso evitar para el repositorio.
 - **El backend se compila dos veces por Pull Request**, una en `Backend` y otra en el análisis. No retrasa los checks obligatorios, pero el resultado de SonarQube Cloud tarda más en aparecer que con el análisis automático.
 - **La configuración hay que mantenerla.** Si cambia dónde vive el bytecode, aparece una carpeta de pruebas con otro patrón o cambia la versión de Java, `sonar-project.properties` debe acompañar el cambio; de lo contrario el análisis falla o clasifica mal los archivos.
-- **La ausencia de cobertura depende de una regla del equipo**, no de una imposibilidad técnica. Basta con que alguien añada un informe de cobertura al workflow para que la condición del 80 % entre en la puerta.
+- **La ausencia de cobertura depende de una línea de configuración**, no de una imposibilidad técnica. Basta con que alguien retire la exclusión de `sonar-project.properties` para que la condición del 80 % entre en la puerta, y falle.
 - **Una puerta en rojo no impide integrar.** Su efecto depende de que la revisión lea el resultado, que es la misma dependencia que el ADR-009 quiso reducir para las pruebas.
 - **Los falsos positivos cuestan trabajo.** Cada uno exige marcarlo y justificarlo, y las migraciones seguirán produciéndolos mientras se analicen como PL/SQL.
 - **Las calificaciones globales del proyecto pueden quedar por debajo de A** mientras no se trate la deuda del apartado 5, aunque la puerta esté en verde. Quien mire solo el panel principal puede sacar una impresión equivocada.
@@ -140,8 +144,8 @@ No regula quién atiende cada incidencia, ni el texto de las justificaciones, ni
 
 **Compromisos asumidos**
 
-- En el primer análisis del workflow se verifica que los archivos Java aparecen en el proyecto de SonarQube Cloud y que la condición de cobertura sigue sin evaluarse. Si la cobertura aparece evaluada, se corrige antes de integrar el workflow.
-- El workflow de análisis no ejecuta pruebas ni envía informes de cobertura. Cualquier cambio que los añada reabre primero el apartado 5 del ADR-009.
+- La condición de cobertura no aparece en la evaluación de la puerta. Si aparece, se trata como un error de configuración y se corrige antes de seguir integrando.
+- `sonar-project.properties` mantiene la exclusión de todos los archivos del cálculo de cobertura, y el workflow no ejecuta pruebas ni envía informes. Cualquier cambio en eso reabre primero el apartado 5 del ADR-009.
 - El token se guarda únicamente como secreto del repositorio, nunca en un archivo. Quién lo generó y cuándo caduca se registra en el tablero, para que su renovación no dependa de la memoria de una persona.
 - Las vulnerabilidades, los security hotspots y los falsos positivos conocidos del apartado 5 se resuelven o se marcan, con justificación, antes del cierre del Sprint 3.
 - La plantilla de Pull Request incorpora una casilla que confirma que el resultado de SonarQube Cloud se revisó y que cada incidencia nueva quedó corregida o justificada.
