@@ -11,6 +11,13 @@ cd backend  && ./mvnw spring-boot:run  # backend en :8080
 cd frontend && npm run dev             # interfaz en :5173
 ```
 
+Las pruebas, que deben pasar antes de abrir un Pull Request:
+
+```bash
+cd backend  && ./mvnw test             # necesita la base local levantada
+cd frontend && npm test
+```
+
 El servidor de desarrollo de Vite reenvía `/api` al backend local, así que el código llama a la API con rutas relativas y nunca contiene la dirección del backend.
 
 Si la base local queda en un estado que no arranca:
@@ -60,4 +67,4 @@ Un workflow programado consulta la base una vez al día para que Supabase no pau
 
 ## Decisiones de arquitectura
 
-En `docs/adr/`, del ADR-001 al ADR-008.
+En `docs/adr/`.

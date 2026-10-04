@@ -42,7 +42,7 @@ Como el navegador ve un solo sitio, por el ADR-006, la cookie pertenece al domin
 
 Las sesiones se almacenan en PostgreSQL mediante **Spring Session JDBC**, no en la memoria del proceso. Sus tablas se crean con una migración de Flyway, conforme al ADR-005, y se desactiva la creación automática del esquema que trae la librería.
 
-Se descarta guardar las sesiones en memoria. Bajo la condición 3, cada despliegue y cada suspensión por inactividad cerrarían las sesiones de todos los usuarios conectados. Durante el piloto del Sprint 5 bastaría con quince minutos sin tráfico para desconectar a todos los participantes, algo que no se evita congelando las integraciones.
+Se descarta guardar las sesiones en memoria. Bajo la condición 3, cada despliegue y cada suspensión por inactividad cerrarían las sesiones de todos los usuarios conectados. Desde la apertura a estudiantes del Sprint 5 bastaría con quince minutos sin tráfico para desconectar a todos los usuarios, algo que no se evita congelando las integraciones.
 
 Una sesión expira tras **dos horas de inactividad**. Es suficiente para cubrir una sesión de trabajo o de clase sin pedir un nuevo inicio de sesión, y lo bastante corta para limitar el riesgo de dejar una sesión abierta en un equipo compartido. El cierre de sesión invalida la sesión en el servidor.
 
@@ -66,11 +66,11 @@ Ninguna contraseña se guarda en texto plano ni de forma reversible. Se almacena
 
 Un usuario con sesión iniciada puede cambiar su contraseña confirmando la actual.
 
-Los intentos fallidos de inicio de sesión se limitan antes del piloto mediante un **retraso creciente por correo intentado**, registrado en la base de datos. El retraso se aplica rechazando de inmediato los intentos, con una respuesta 429, hasta que vence la espera, y no reteniendo la petición: una petición retenida ocupa un hilo del servidor durante toda la espera, y en la instancia gratuita unas pocas bastarían para degradar el servicio a todos los usuarios. El registro se lleva por el correo intentado, exista o no una cuenta con él, para que la respuesta no revele qué correos tienen cuenta.
+Los intentos fallidos de inicio de sesión se limitan antes de abrir la plataforma a estudiantes mediante un **retraso creciente por correo intentado**, registrado en la base de datos. El retraso se aplica rechazando de inmediato los intentos, con una respuesta 429, hasta que vence la espera, y no reteniendo la petición: una petición retenida ocupa un hilo del servidor durante toda la espera, y en la instancia gratuita unas pocas bastarían para degradar el servicio a todos los usuarios. El registro se lleva por el correo intentado, exista o no una cuenta con él, para que la respuesta no revele qué correos tienen cuenta.
 
 Se descarta bloquear la cuenta tras varios intentos, porque permitiría a cualquiera que conozca un correo dejar a ese usuario sin acceso. Se descarta limitar por dirección IP, porque detrás de la reescritura del ADR-006 y del proxy de Render depende de interpretar correctamente la dirección reenviada, y un error limitaría a todos los usuarios a la vez. Y se descartan los contadores en memoria, que se perderían con cada reinicio del proceso por la condición 3. Hasta que el límite se implemente, el riesgo se acepta, porque los únicos usuarios son el equipo.
 
-La recuperación de contraseña por correo queda **pendiente de decidir antes del piloto**. Exigiría un proveedor de correo y, como la capa gratuita de Render bloquea el tráfico saliente hacia los puertos SMTP, el envío tendría que hacerse mediante la API web de un servicio externo. Incorporar ese proveedor tiene entidad propia: si se adopta, se registra en un ADR aparte.
+La recuperación de contraseña por correo **queda fuera del alcance del proyecto**, decidido el 1 de octubre de 2026. Exigiría un proveedor de correo y, como la capa gratuita de Render bloquea el tráfico saliente hacia los puertos SMTP, el envío tendría que hacerse mediante la API web de un servicio externo, que el proyecto no incorpora.
 
 ### 7. Alcance del acceso y autorización
 
@@ -86,7 +86,7 @@ La recuperación de contraseña por correo queda **pendiente de decidir antes de
 
 - HU102 y HU103 se resuelven mayoritariamente con configuración del framework, incluido el inicio de sesión, que conserva las protecciones del filtro de login.
 - La marca HttpOnly impide que un script de la página extraiga el identificador de sesión, la vía de robo de credenciales más común en interfaces separadas. No impide que un script malicioso haga peticiones en nombre del usuario mientras la página está abierta; esa vía se cierra evitando la inyección de scripts, no con la cookie.
-- Las sesiones sobreviven a despliegues, reinicios y suspensiones por inactividad, de modo que ni el desarrollo ni el piloto dependen de que el proceso siga vivo.
+- Las sesiones sobreviven a despliegues, reinicios y suspensiones por inactividad, de modo que ni el desarrollo ni el uso por estudiantes dependen de que el proceso siga vivo.
 - Las cuentas y las sesiones viven en el mismo modelo de datos que el resto del sistema y se versionan con las mismas migraciones; ninguna parte del estado existe solo en el panel de un proveedor.
 
 **Negativas**
@@ -95,7 +95,7 @@ La recuperación de contraseña por correo queda **pendiente de decidir antes de
 - **La protección CSRF añade una condición al frontend.** Una petición que modifica datos sin el token es rechazada con un error 403, que puede confundirse con un problema de permisos. Es el fallo más probable de HU102 y HU103, empezando por el primer intento de inicio de sesión si el frontend no obtuvo el token al cargar.
 - **La sesión depende de una verificación pendiente.** Si la reescritura del ADR-006 no propaga las cookies, el mecanismo de la sección 2 se reabre, con el costo de un ADR nuevo y de rehacer HU102 y HU103 dentro del Sprint 1.
 - **El registro abierto, sin verificación de correo, permite crear cuentas falsas.** Como no hay administrador y solo el autor puede modificar o eliminar un recurso, el contenido indebido de una cuenta falsa solo puede retirarlo el equipo mediante una migración de datos, conforme al ADR-005. Esas migraciones contienen identificadores que solo existen en la base desplegada: en las bases locales y en la del workflow de verificación no tienen efecto, pero quedan en el historial de migraciones. Queda como materia del informe final.
-- **Mientras la recuperación de contraseña esté pendiente, quien olvida su contraseña debe crear una cuenta nueva con otro correo**, porque el registro rechaza un correo ya en uso. No hay panel de administración, y restablecerla mediante una migración expondría en el repositorio el hash de una contraseña temporal. Los recursos de la cuenta anterior quedan sin posibilidad de edición, porque solo su autor puede modificarlos.
+- **Sin recuperación de contraseña, quien olvida su contraseña debe crear una cuenta nueva con otro correo**, porque el registro rechaza un correo ya en uso. No hay panel de administración, y restablecerla mediante una migración expondría en el repositorio el hash de una contraseña temporal. Los recursos de la cuenta anterior quedan sin posibilidad de edición, porque solo su autor puede modificarlos.
 - **Hasta el Sprint 4 no se limitan los intentos fallidos de inicio de sesión.** Se acepta el riesgo de ataques de fuerza bruta mientras los únicos usuarios son el equipo; el costo de cálculo de bcrypt los ralentiza, pero no los impide.
 - **El retraso por correo permite a un tercero demorar el acceso de un usuario** fallando a propósito con su correo. Es un efecto menor que el bloqueo de cuenta, que se descartó por esa razón, y se acepta.
 - **El registro permite averiguar si un correo tiene cuenta.** Se acepta como riesgo menor frente a la claridad para el usuario.
@@ -106,8 +106,8 @@ La recuperación de contraseña por correo queda **pendiente de decidir antes de
 - Como parte de HU103 se verifica en el entorno desplegado, no solo en local: que la cookie llega al navegador a través de la reescritura del ADR-006 con las marcas HttpOnly, Secure y SameSite=Lax; que el backend reconoce que opera detrás del proxy de Render, condición para emitir la cookie como Secure; y que una sesión abierta sigue activa tras un nuevo despliegue y tras una suspensión por inactividad. Si la cookie no llega a través de la reescritura, se aplica lo previsto al final de la sección 2 dentro del Sprint 1.
 - Las historias que modifiquen o eliminen recursos del catálogo incorporan la regla de autoría como criterio de aceptación.
 - El cambio de contraseña con sesión iniciada se incorpora como criterio de aceptación de la historia que el equipo designe, sin exigirlo en el Sprint 1.
-- El retraso creciente ante intentos fallidos se incorpora al backlog como tarea técnica planificada para el Sprint 4, antes del piloto.
-- Antes del piloto se decide si se incorpora la recuperación de contraseña por correo. Si se incorpora, el proveedor de correo se decide en un ADR propio; si no, la consecuencia declarada sobre las cuentas nuevas se mantiene durante el piloto.
+- El retraso creciente ante intentos fallidos se incorpora al backlog como historia planificada para el Sprint 4, antes de abrir la plataforma a estudiantes.
+- La recuperación de contraseña por correo no se incorpora, y la consecuencia declarada sobre las cuentas nuevas se mantiene mientras el proyecto esté en uso.
 - Ninguna credencial de usuario se almacena ni se transmite fuera de lo establecido aquí, y ninguna configuración con secretos entra al repositorio, conforme al ADR-002.
 - La deuda técnica de autenticación registrada en el registro de decisiones queda cerrada por este ADR.
 
