@@ -62,4 +62,18 @@ class CatalogSeedDataTests {
 		}
 	}
 
+	// La migración que añadió la vía de ingreso (historia HU202, AB#141) marca
+	// como manuales los recursos que ya existían, empezando por la semilla.
+	@Test
+	void seedResourcesAreMarkedAsManualEntries() {
+		List<Resource> seedResources = resourceRepository.findAll().stream()
+				.filter(resource -> SEED_URLS.contains(resource.getUrl()))
+				.toList();
+
+		assertEquals(5, seedResources.size());
+		for (Resource resource : seedResources) {
+			assertEquals(EntryMethod.MANUAL, resource.getEntryMethod(), resource.getUrl());
+		}
+	}
+
 }

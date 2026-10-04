@@ -56,8 +56,20 @@ class ResourceController {
 		return resourceService.listTopicsWithResources(courseId);
 	}
 
-	// Las rutas literales /courses y /topics ganan a esta por ser más
-	// específicas, así que ninguna se interpreta como identificador de recurso.
+	/**
+	 * Datos de un video de YouTube para autocompletar el formulario de
+	 * registro (historia HU202). A diferencia del resto de GET del catálogo,
+	 * exige sesión: cada consulta gasta cuota de la API. Un parámetro ausente
+	 * se trata como un enlace inválido, con su propio código de error.
+	 */
+	@GetMapping("/youtube-metadata")
+	VideoMetadataDto getYouTubeMetadata(@RequestParam(required = false) String url) {
+		return resourceService.getYouTubeMetadata(url);
+	}
+
+	// Las rutas literales /courses, /topics y /youtube-metadata ganan a esta
+	// por ser más específicas, así que ninguna se interpreta como
+	// identificador de recurso.
 	@GetMapping("/{id}")
 	ResourceDetailDto getResource(@PathVariable Long id) {
 		return resourceService.getResource(id);

@@ -48,6 +48,9 @@ class Resource {
 	// nombre se le pide al servicio de ese módulo cuando haga falta.
 	private Long authorId;
 
+	@Enumerated(EnumType.STRING)
+	private EntryMethod entryMethod;
+
 	@ManyToMany(fetch = FetchType.LAZY)
 	@JoinTable(
 			name = "resource_topics",
@@ -58,11 +61,12 @@ class Resource {
 	protected Resource() {
 	}
 
-	// Para crear un recurso nuevo al registrarlo manualmente (historia
-	// HU105). Los temas se añaden después con addTopic, porque son una
-	// colección de tamaño variable.
+	// Para crear un recurso nuevo al registrarlo (historias HU105 y HU202).
+	// Los temas se añaden después con addTopic, porque son una colección de
+	// tamaño variable.
 	Resource(String title, String description, LocalDate publishedAt, Integer durationSeconds,
-			String channel, String url, ResourceType resourceType, Course course, Long authorId) {
+			String channel, String url, ResourceType resourceType, Course course, Long authorId,
+			EntryMethod entryMethod) {
 		this.title = title;
 		this.description = description;
 		this.publishedAt = publishedAt;
@@ -72,6 +76,7 @@ class Resource {
 		this.resourceType = resourceType;
 		this.course = course;
 		this.authorId = authorId;
+		this.entryMethod = entryMethod;
 	}
 
 	void addTopic(Topic topic) {
@@ -116,6 +121,10 @@ class Resource {
 
 	Long getAuthorId() {
 		return authorId;
+	}
+
+	EntryMethod getEntryMethod() {
+		return entryMethod;
 	}
 
 	Set<Topic> getTopics() {
