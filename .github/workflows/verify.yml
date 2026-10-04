@@ -75,10 +75,10 @@ jobs:
           java-version: 25
           cache: maven
 
-      # El test levanta el contexto completo de Spring, de modo que Flyway
+      # Cada prueba levanta el contexto completo de Spring, de modo que Flyway
       # aplica las migraciones e Hibernate valida las entidades contra las
-      # tablas. Si la aplicación no arrancaría, esto falla.
-      - name: Arrancar la aplicación contra PostgreSQL
+      # tablas: si la aplicación no arranca, fallan todas.
+      - name: Ejecutar las pruebas contra PostgreSQL
         working-directory: backend
         run: ./mvnw -B test
 
