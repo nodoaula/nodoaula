@@ -2,8 +2,8 @@ const EDGE = 'stroke-border-strong stroke-[1.5]'
 // Las líneas resaltadas avanzan salvo para quien pide menos movimiento en su
 // sistema: ahí quedan punteadas y quietas.
 const ACTIVE_EDGE = 'stroke-accent stroke-[1.5] [stroke-dasharray:5_6] motion-safe:animate-dash-flow'
-const CAPTION = 'fill-content-faint font-mono text-[11px]'
-const LABEL = 'fill-content text-[13px] font-medium'
+const CAPTION = 'fill-content-faint font-mono text-caption'
+const LABEL = 'fill-content text-label font-medium'
 
 /** Ilustración fija de la idea del sitio: un curso lleva a sus temas, y cada tema a sus recursos. */
 export default function NodeGraph() {

@@ -69,7 +69,7 @@ export default function CatalogPreview() {
           <li key={course.id} className="shrink-0">
             <Link
               to={`/catalogo?courseId=${course.id}`}
-              className="block rounded-full border border-border-strong px-3.5 py-1.5 text-[13px] font-medium text-content-muted hover:border-content-muted hover:text-content"
+              className="block rounded-full border border-border-strong px-3.5 py-1.5 text-label font-medium text-content-muted hover:border-content-muted hover:text-content"
             >
               {course.name}
             </Link>
@@ -92,19 +92,19 @@ export default function CatalogPreview() {
                   className="h-full w-full object-cover"
                 />
                 {video.durationSeconds != null && (
-                  <span className="absolute right-2 bottom-2 rounded bg-surface/85 px-1.5 py-0.5 font-mono text-[11px] font-medium text-content">
+                  <span className="absolute right-2 bottom-2 rounded bg-surface/85 px-1.5 py-0.5 font-mono text-caption font-medium text-content">
                     {formatDuration(video.durationSeconds)}
                   </span>
                 )}
               </div>
               <div className="px-4 pt-3.5 pb-4">
-                <h3 className="text-[15px] leading-snug font-semibold text-content">{video.title}</h3>
-                <p className="mt-1 text-[13px] text-content-faint">{video.course}</p>
+                <h3 className="text-body leading-snug font-semibold text-content">{video.title}</h3>
+                <p className="mt-1 text-label text-content-faint">{video.course}</p>
                 <p className="mt-3 flex flex-wrap gap-1.5">
                   {video.topics.map((topic) => (
                     <span
                       key={topic}
-                      className="rounded-full bg-accent/15 px-2.5 py-0.5 text-[11px] font-semibold text-accent"
+                      className="rounded-full bg-accent/15 px-2.5 py-0.5 text-caption font-semibold text-accent"
                     >
                       {topic}
                     </span>
