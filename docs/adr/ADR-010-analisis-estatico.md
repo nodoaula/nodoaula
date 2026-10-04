@@ -105,7 +105,7 @@ La deuda que el análisis muestra no se aborda en una historia propia ni con el 
 
 ### 6. Relación con los objetivos específicos
 
-El análisis estático **no produce el indicador de ningún objetivo específico**. El anteproyecto prevé dos niveles de prueba —funcionales al cierre de cada sprint y una prueba de usabilidad con el piloto— y ninguno de los dos mira la calidad interna del código. Este ADR no sustituye a ninguno: actúa sobre lo que se construye para alcanzarlos.
+El análisis estático **no produce el indicador de ningún objetivo específico**. El anteproyecto lo incluye como acompañamiento de las pruebas automatizadas, junto a las pruebas funcionales al cierre de cada sprint y la evaluación heurística de la interfaz al final del proyecto, y son estas dos últimas las que valoran los indicadores. Este ADR no sustituye a ninguna: actúa sobre lo que se construye para alcanzarlos.
 
 Por eso importa dónde va a caer el código nuevo en los tres sprints restantes, que es donde la puerta actúa, ahora tanto en el frontend como en el backend:
 
@@ -113,7 +113,7 @@ Por eso importa dónde va a caer el código nuevo en los tres sprints restantes,
 - **OE3 — obtención semiautomática de metadatos.** Supone consumir servicios externos e interpretar datos que el proyecto no controla, que es donde aparecen los hotspots sobre peticiones a terceros y el manejo de entradas no confiables.
 - **OE4 — grupos de estudio y foro.** Muestra a unos estudiantes lo que escriben otros. El riesgo es que un contenido se interprete como código en el navegador, que vigilan las reglas de seguridad del frontend, o que una regla de acceso deje ver o modificar lo ajeno, que vigilan las del backend.
 
-El **OE1** y el **OE6** son, sobre todo, un esquema documentado, un catálogo semilla y una encuesta; su única huella en el código son las migraciones, cuyo análisis el apartado 4 ya acota. El **OE5** se construyó en el Sprint 2 y está cubierto por las pruebas de búsqueda del ADR-009; su código de backend entra al análisis como deuda existente y se trata según el apartado 5.
+El **OE1** y el **OE6** son, sobre todo, un esquema documentado, un catálogo semilla y una evaluación heurística; su única huella en el código son las migraciones, cuyo análisis el apartado 4 ya acota. El **OE5** se construyó en el Sprint 2 y está cubierto por las pruebas de búsqueda del ADR-009; su código de backend entra al análisis como deuda existente y se trata según el apartado 5.
 
 ### 7. Lo que este ADR no regula
 
