@@ -1,0 +1,44 @@
+name: Análisis estático
+
+# Fuera de verify.yml a propósito: este check es informativo (ADR-010) y no
+# debe sumar tiempo a los checks obligatorios.
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  sonar:
+    name: SonarQube Cloud
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # El historial completo permite atribuir cada línea a su commit y
+          # no tratar como nuevo el código que ya existía.
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: maven
+
+      # Solo compila: no ejecuta pruebas, de modo que no necesita PostgreSQL ni
+      # puede generar un informe de cobertura que llegue al análisis (ADR-009).
+      - name: Compilar el backend
+        working-directory: backend
+        run: ./mvnw -B test-compile dependency:copy-dependencies
+
+      - name: Analizar con SonarQube Cloud
+        uses: SonarSource/sonarqube-scan-action@v8
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.java.jdkHome=${{ env.JAVA_HOME }}
