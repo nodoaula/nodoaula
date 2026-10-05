@@ -12,8 +12,8 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 /**
- * Datos del formulario de registro manual de un recurso (historia HU105). El
- * frontend aplica las mismas reglas; si cambian aquí, cambian allí.
+ * Datos del formulario de registro de un recurso (historias HU105 y HU202).
+ * El frontend aplica las mismas reglas; si cambian aquí, cambian allí.
  *
  * Curso y cada tema son texto libre: si el nombre no existe en el vocabulario
  * controlado, el servicio lo crea en la misma operación (AB#93). El autor no
@@ -51,6 +51,15 @@ public record CreateResourceRequest(
 
 		@NotEmpty(message = "Escribe al menos un tema.")
 		List<@NotBlank(message = "Un tema no puede estar en blanco.")
-		@Size(max = 200, message = "Un tema no puede tener más de 200 caracteres.") String> topics) {
+		@Size(max = 200, message = "Un tema no puede tener más de 200 caracteres.") String> topics,
+
+		// Opcional (historia HU202): sin ella el servicio toma MANUAL.
+		EntryMethod entryMethod) {
+
+	/** Sin vía de ingreso, como antes de HU202; el servicio la toma como manual. */
+	public CreateResourceRequest(String title, String description, LocalDate publishedAt, Integer durationSeconds,
+			String channel, String url, ResourceType resourceType, String course, List<String> topics) {
+		this(title, description, publishedAt, durationSeconds, channel, url, resourceType, course, topics, null);
+	}
 
 }

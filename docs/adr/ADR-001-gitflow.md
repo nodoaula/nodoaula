@@ -29,7 +29,7 @@ Se adopta **Gitflow**, con dos ramas primarias y tres tipos de rama de soporte:
 - `release/` nace de `develop` al cierre de cada sprint y se integra hacia `main` **y** hacia `develop`.
 - `hotfix/` nace de `main` y se propaga hacia `main` **y** hacia `develop`.
 - Toda integración ocurre por Pull Request con aprobación de al menos otro integrante.
-- Versionado semántico, con una versión menor por sprint: `v0.1.0` al cerrar el Sprint 1, hasta `v1.0.0` en la entrega del piloto.
+- Versionado semántico, con una versión menor por sprint: `v0.1.0` al cerrar el Sprint 1, hasta `v1.0.0` en la entrega final.
 
 Las convenciones de nombres de rama, formato de mensajes de commit y criterios de revisión están en la guía de aprendizaje, no en este documento.
 

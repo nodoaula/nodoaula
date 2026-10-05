@@ -1,10 +1,15 @@
 package io.github.nodoaula.catalog;
 
+import java.text.Normalizer;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import io.github.nodoaula.shared.error.FieldValidationException;
 
 /** Único punto público del módulo catalog, conforme al ADR-008. */
 @Service
@@ -13,44 +18,86 @@ public class ResourceService {
 	private final ResourceRepository resourceRepository;
 	private final CourseRepository courseRepository;
 	private final TopicRepository topicRepository;
+	private final VideoMetadataProvider videoMetadataProvider;
 
 	ResourceService(ResourceRepository resourceRepository, CourseRepository courseRepository,
-			TopicRepository topicRepository) {
+			TopicRepository topicRepository, VideoMetadataProvider videoMetadataProvider) {
 		this.resourceRepository = resourceRepository;
 		this.courseRepository = courseRepository;
 		this.topicRepository = topicRepository;
+		this.videoMetadataProvider = videoMetadataProvider;
 	}
 
 	/**
-	 * Lista los recursos del catálogo, opcionalmente filtrados por curso.
-	 * El filtro es una comparación exacta por identificador de curso, nunca una
-	 * búsqueda de texto.
+	 * Lista los recursos del catálogo, filtrados por curso, tema, tipo de
+	 * recurso (historia HU206) y un texto de búsqueda libre sobre título,
+	 * descripción y temas (historia HU207). Los cuatro filtros son opcionales
+	 * y cada uno admite uno o varios valores a la vez: una lista vacía o en
+	 * null (o, para tipo, una lista con ambos valores) no restringe nada.
+	 * Entre los cuatro filtros se combinan con AND; dentro de cada uno, los
+	 * valores elegidos se combinan con OR. Curso, tema y tipo son
+	 * comparaciones exactas por identificador; la búsqueda de texto es
+	 * insensible a mayúsculas y tildes.
 	 */
 	@Transactional(readOnly = true)
-	public List<ResourceDto> listResources(Long courseId) {
-		List<Resource> resources = courseId != null
-				? resourceRepository.findByCourseId(courseId)
-				: resourceRepository.findAll();
+	public List<ResourceDto> listResources(
+			List<Long> courseIds, List<Long> topicIds, List<ResourceType> resourceTypes, String query) {
+		// Marcar ambos tipos, o ninguno, equivale a no filtrar por tipo.
+		List<ResourceType> effectiveTypes = (resourceTypes == null || resourceTypes.isEmpty()
+				|| resourceTypes.size() >= ResourceType.values().length)
+				? null
+				: resourceTypes;
+
+		List<Resource> resources = resourceRepository.search(
+				normalizeIds(courseIds), normalizeIds(topicIds), effectiveTypes);
+
+		// La búsqueda de texto (historia HU207) se aplica en memoria y no en la
+		// consulta: normalizar mayúsculas y tildes es más simple en Java que en
+		// SQL portable, y el catálogo no es lo bastante grande para que importe.
+		String normalizedQuery = normalize(query);
+		if (normalizedQuery != null && !normalizedQuery.isBlank()) {
+			resources = resources.stream().filter(resource -> matches(resource, normalizedQuery)).toList();
+		}
 
 		return resources.stream()
 				.map(this::toDto)
 				.toList();
 	}
 
-	/**
-	 * Devuelve la ficha de un recurso (historia HU108). Los temas salen
-	 * ordenados por nombre: la tabla intermedia no guarda ningún orden, y sin
-	 * esto la ficha podría mostrarlos distinto en cada visita.
-	 */
+	// Compara título, descripción y temas: coincide si el texto buscado
+	// aparece en cualquiera de los tres.
+	private static boolean matches(Resource resource, String normalizedQuery) {
+		if (contains(resource.getTitle(), normalizedQuery)) return true;
+		if (contains(resource.getDescription(), normalizedQuery)) return true;
+		return resource.getTopics().stream().anyMatch(topic -> contains(topic.getName(), normalizedQuery));
+	}
+
+	private static boolean contains(String value, String normalizedQuery) {
+		String normalizedValue = normalize(value);
+		return normalizedValue != null && normalizedValue.contains(normalizedQuery);
+	}
+
+	// Quita tildes (forma NFD: separa cada letra de su diacrítico, y \p{M}
+	// borra el diacrítico) y pasa a minúsculas, para comparar sin distinguir
+	// mayúsculas ni acentos.
+	private static String normalize(String value) {
+		if (value == null) return null;
+		String withoutAccents = Normalizer.normalize(value, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
+		return withoutAccents.toLowerCase(Locale.ROOT);
+	}
+
+	// Una lista vacía de ids equivale a no elegir ninguno, y eso significa "no
+	// filtrar por este campo" (igual que con el tipo de recurso), no "no
+	// mostrar nada".
+	private static List<Long> normalizeIds(List<Long> ids) {
+		return (ids == null || ids.isEmpty()) ? null : ids;
+	}
+
+	/** Devuelve la ficha de un recurso (historia HU108). */
 	@Transactional(readOnly = true)
 	public ResourceDetailDto getResource(Long id) {
 		Resource resource = resourceRepository.findById(id)
 				.orElseThrow(ResourceNotFoundException::new);
-
-		List<String> topics = resource.getTopics().stream()
-				.map(Topic::getName)
-				.sorted()
-				.toList();
 
 		return new ResourceDetailDto(
 				resource.getId(),
@@ -62,7 +109,7 @@ public class ResourceService {
 				resource.getUrl(),
 				resource.getResourceType(),
 				resource.getCourse().getName(),
-				topics);
+				topicNames(resource));
 	}
 
 	/** Lista los cursos que tienen al menos un recurso, para poblar el selector de filtro. */
@@ -74,12 +121,62 @@ public class ResourceService {
 	}
 
 	/**
-	 * Registra un recurso manualmente (historia HU105). El curso y cada tema se
+	 * Lista los temas con al menos un recurso, para poblar el selector de
+	 * temas del catálogo (HU206) y las sugerencias al registrar un recurso
+	 * (HU105, con un único curso). Sin cursos elegidos lista los de todos.
+	 */
+	@Transactional(readOnly = true)
+	public List<TopicDto> listTopicsWithResources(List<Long> courseIds) {
+		return topicRepository.findTopicsWithAtLeastOneResource(normalizeIds(courseIds)).stream()
+				.map(topic -> new TopicDto(topic.getId(), topic.getName()))
+				.toList();
+	}
+
+	/**
+	 * Consulta en YouTube los datos de un video para autocompletar el
+	 * formulario de registro (historia HU202). No persiste nada: el recurso
+	 * solo se crea al publicar, con createResource, que exige curso y temas.
+	 * Sin transacción, porque no toca la base y no debe retener una conexión
+	 * mientras espera a YouTube.
+	 */
+	public VideoMetadataDto getYouTubeMetadata(String link) {
+		String videoId = YouTubeVideoIds.extract(link).orElseThrow(InvalidVideoLinkException::new);
+		VideoMetadata metadata = videoMetadataProvider.fetch(videoId);
+
+		List<String> missingFields = new ArrayList<>();
+		if (metadata.title() == null) missingFields.add("title");
+		if (metadata.description() == null) missingFields.add("description");
+		if (metadata.publishedAt() == null) missingFields.add("publishedAt");
+		if (metadata.durationSeconds() == null) missingFields.add("durationSeconds");
+		if (metadata.channel() == null) missingFields.add("channel");
+
+		return new VideoMetadataDto(
+				videoId,
+				YouTubeVideoIds.canonicalUrl(videoId),
+				metadata.title(),
+				metadata.description(),
+				metadata.publishedAt(),
+				metadata.durationSeconds(),
+				metadata.channel(),
+				List.copyOf(missingFields));
+	}
+
+	/**
+	 * Registra un recurso (historias HU105 y HU202). El curso y cada tema se
 	 * reutilizan si ya existen en el vocabulario controlado, o se crean en la
-	 * misma operación si no (AB#93).
+	 * misma operación si no (AB#93). Sin vía de ingreso se toma la manual, de
+	 * modo que los clientes que no la envían no cambian.
 	 */
 	@Transactional
 	public ResourceDto createResource(CreateResourceRequest request, Long authorId) {
+		EntryMethod entryMethod = request.entryMethod() == null ? EntryMethod.MANUAL : request.entryMethod();
+
+		// Solo un video de YouTube puede haberse indexado automáticamente.
+		if (entryMethod == EntryMethod.AUTOMATIC && YouTubeVideoIds.extract(request.url()).isEmpty()) {
+			throw new FieldValidationException("entryMethod",
+					"Solo un recurso con enlace de YouTube puede registrarse como indexado automáticamente.");
+		}
+
 		Course course = findOrCreateCourse(request.course().strip());
 
 		Resource resource = new Resource(
@@ -91,7 +188,8 @@ public class ResourceService {
 				request.url().strip(),
 				request.resourceType(),
 				course,
-				authorId);
+				authorId,
+				entryMethod);
 
 		// distinct() para que escribir el mismo tema dos veces en el formulario
 		// no intente insertarlo dos veces en la tabla intermedia.
@@ -143,7 +241,18 @@ public class ResourceService {
 				resource.getTitle(),
 				resource.getCourse().getName(),
 				resource.getResourceType(),
-				resource.getDurationSeconds());
+				resource.getDurationSeconds(),
+				resource.getUrl(),
+				topicNames(resource));
+	}
+
+	// Ordenados por nombre: la tabla intermedia no guarda ningún orden, y sin
+	// esto el listado y la ficha podrían mostrarlos distinto en cada visita.
+	private static List<String> topicNames(Resource resource) {
+		return resource.getTopics().stream()
+				.map(Topic::getName)
+				.sorted()
+				.toList();
 	}
 
 }

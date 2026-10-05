@@ -73,6 +73,29 @@ class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 				"Parámetro no válido", "Algún dato de la dirección no tiene el formato esperado."));
 	}
 
+	// Una regla del producto sobre un campo, comprobada en el servicio. Sale
+	// con la misma forma que un fallo de Bean Validation, para que el
+	// frontend la señale junto al campo igual que las demás.
+	@ExceptionHandler(FieldValidationException.class)
+	ProblemDetail handleFieldValidation(FieldValidationException exception) {
+		ProblemDetail problem = problem(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED",
+				"Datos no válidos", "Revisa los campos marcados.");
+		problem.setProperty("errors", List.of(new FieldErrorDto(exception.getField(), exception.getMessage())));
+		return problem;
+	}
+
+	@ExceptionHandler(BadRequestException.class)
+	ProblemDetail handleBadRequest(BadRequestException exception) {
+		return problem(HttpStatus.BAD_REQUEST, exception.getCode(), "Petición no válida", exception.getMessage());
+	}
+
+	// La causa ya la registró quien lanzó la excepción, que sabe cuál fue.
+	@ExceptionHandler(UnavailableException.class)
+	ProblemDetail handleUnavailable(UnavailableException exception) {
+		return problem(HttpStatus.SERVICE_UNAVAILABLE, exception.getCode(), "Servicio no disponible",
+				exception.getMessage());
+	}
+
 	@ExceptionHandler(ConflictException.class)
 	ProblemDetail handleConflict(ConflictException exception) {
 		return problem(HttpStatus.CONFLICT, exception.getCode(), "Conflicto", exception.getMessage());

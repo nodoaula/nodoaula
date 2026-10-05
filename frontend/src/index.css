@@ -1,1 +1,31 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+
+  --color-surface: #090c15;
+  --color-surface-raised: #10141f;
+  --color-surface-hover: #161b29;
+  --color-border: #222838;
+  --color-border-strong: #2d3447;
+  --color-content: #edf0f7;
+  --color-content-muted: #98a1b5;
+  --color-content-faint: #7c859b;
+  --color-accent: #4fd1c5;
+
+  --text-caption: 0.6875rem; /* 11px */
+  --text-label: 0.8125rem; /* 13px */
+  --text-body: 0.9375rem; /* 15px */
+  --text-lead: 1.1875rem; /* 19px */
+  --text-display: 2.5rem; /* 40px */
+  --text-heading: 2.625rem; /* 42px */
+
+  --animate-dash-flow: dash-flow 1.6s linear infinite;
+
+  @keyframes dash-flow {
+    to {
+      stroke-dashoffset: -22;
+    }
+  }
+}

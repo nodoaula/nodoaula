@@ -38,6 +38,13 @@ class SecurityConfig {
 						// lugar del error real.
 						.requestMatchers("/error").permitAll()
 
+						// Consultar un video en YouTube es parte de aportar y
+						// gasta cuota de la API (HU202), así que exige sesión.
+						// Tiene que ir antes de la regla siguiente: gana la
+						// primera regla que coincide, y /api/resources/**
+						// también coincide con esta ruta y la dejaría pública.
+						.requestMatchers(HttpMethod.GET, "/api/resources/youtube-metadata").authenticated()
+
 						// El catálogo se consulta sin cuenta; la cuenta hace
 						// falta para aportar.
 						.requestMatchers(HttpMethod.GET, "/api/resources", "/api/resources/**").permitAll()

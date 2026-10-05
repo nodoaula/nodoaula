@@ -59,6 +59,32 @@ export function getYouTubeVideoId(url) {
   return candidate && YOUTUBE_VIDEO_ID.test(candidate) ? candidate : null
 }
 
+/**
+ * Lo que el campo «Enlace» del registro acepta como video de YouTube
+ * (historia HU202): un enlace que getYouTubeVideoId reconoce o el
+ * identificador suelto de once caracteres. Devuelve el identificador, o null
+ * si no es ninguna de las dos cosas. getYouTubeVideoId no acepta el
+ * identificador suelto a propósito: la usa el reproductor de la ficha, y ahí
+ * solo vale un enlace. El backend acepta las mismas formas en YouTubeVideoIds.
+ */
+export function parseYouTubeInput(input) {
+  const trimmed = (input ?? '').trim()
+  if (YOUTUBE_VIDEO_ID.test(trimmed)) return trimmed
+  return getYouTubeVideoId(trimmed)
+}
+
+/**
+ * Cierto si el enlace es de un sitio de YouTube, tenga o no un video
+ * reconocible. Sirve para rechazar un enlace de YouTube sin video, como el de
+ * un canal, sin confundirlo con un enlace de otra plataforma.
+ */
+export function isYouTubeLink(url) {
+  const parsed = isWebUrl(url) ? parseUrl(url) : null
+  if (parsed === null) return false
+  const host = hostnameWithoutWww(parsed)
+  return host === 'youtu.be' || YOUTUBE_HOSTS.has(host)
+}
+
 /** Texto del botón que abre el recurso en su plataforma de origen. */
 export function sourceLinkLabel(url) {
   if (getYouTubeVideoId(url) !== null) return 'Ver en YouTube'

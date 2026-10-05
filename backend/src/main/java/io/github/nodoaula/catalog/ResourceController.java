@@ -31,9 +31,16 @@ class ResourceController {
 		this.resourceService = resourceService;
 	}
 
+	// Los cuatro filtros son opcionales y se combinan con AND (historias
+	// HU206 y HU207); curso, tema y tipo admiten además varios valores a la
+	// vez (varios courseId/topicId/resourceType en la query string).
 	@GetMapping
-	List<ResourceDto> listResources(@RequestParam(required = false) Long courseId) {
-		return resourceService.listResources(courseId);
+	List<ResourceDto> listResources(
+			@RequestParam(required = false) List<Long> courseId,
+			@RequestParam(required = false) List<Long> topicId,
+			@RequestParam(required = false) List<ResourceType> resourceType,
+			@RequestParam(required = false) String q) {
+		return resourceService.listResources(courseId, topicId, resourceType, q);
 	}
 
 	@GetMapping("/courses")
@@ -41,8 +48,28 @@ class ResourceController {
 		return resourceService.listCoursesWithResources();
 	}
 
-	// La ruta literal /courses gana a esta por ser más específica, así que un
-	// curso nunca se interpreta como identificador de recurso.
+	// Sin courseId lista los temas de todos los cursos (historia HU206); con
+	// uno o varios courseId, solo los de esos cursos (uso original: sugerirlos
+	// al registrar un recurso con un único curso, historia HU105).
+	@GetMapping("/topics")
+	List<TopicDto> listTopicsWithResources(@RequestParam(required = false) List<Long> courseId) {
+		return resourceService.listTopicsWithResources(courseId);
+	}
+
+	/**
+	 * Datos de un video de YouTube para autocompletar el formulario de
+	 * registro (historia HU202). A diferencia del resto de GET del catálogo,
+	 * exige sesión: cada consulta gasta cuota de la API. Un parámetro ausente
+	 * se trata como un enlace inválido, con su propio código de error.
+	 */
+	@GetMapping("/youtube-metadata")
+	VideoMetadataDto getYouTubeMetadata(@RequestParam(required = false) String url) {
+		return resourceService.getYouTubeMetadata(url);
+	}
+
+	// Las rutas literales /courses, /topics y /youtube-metadata ganan a esta
+	// por ser más específicas, así que ninguna se interpreta como
+	// identificador de recurso.
 	@GetMapping("/{id}")
 	ResourceDetailDto getResource(@PathVariable Long id) {
 		return resourceService.getResource(id);

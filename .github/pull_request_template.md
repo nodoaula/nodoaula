@@ -13,3 +13,7 @@ Solo para cambios de código.
 - [ ] Un módulo no accede a las clases internas de otro
 - [ ] Las entidades de distintos módulos se relacionan por identificador
 - [ ] Las llamadas al backend pasan por `lib/apiClient.js`
+
+### Análisis estático
+
+- [ ] El resultado de SonarQube Cloud se revisó y cada incidencia nueva quedó corregida o justificada
