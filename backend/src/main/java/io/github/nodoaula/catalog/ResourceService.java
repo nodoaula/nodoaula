@@ -1,31 +1,60 @@
 package io.github.nodoaula.catalog;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.Normalizer;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
 import io.github.nodoaula.shared.error.FieldValidationException;
+import io.github.nodoaula.shared.storage.FileStorage;
+import io.github.nodoaula.shared.storage.StorageUnavailableException;
 
 /** Único punto público del módulo catalog, conforme al ADR-008. */
 @Service
 public class ResourceService {
 
+	private static final Logger log = LoggerFactory.getLogger(ResourceService.class);
+
+	// Por debajo del giga del plan gratuito de Supabase: pasarlo restringe el
+	// proyecto entero, base de datos incluida (HU301).
+	static final long STORAGE_LIMIT_BYTES = 900L * 1024 * 1024;
+
+	// La fecha de un apunte es el día en que se sube, en la zona de los
+	// usuarios del proyecto.
+	private static final ZoneId UPLOAD_ZONE = ZoneId.of("America/Bogota");
+
 	private final ResourceRepository resourceRepository;
 	private final CourseRepository courseRepository;
 	private final TopicRepository topicRepository;
 	private final VideoMetadataProvider videoMetadataProvider;
+	private final FileStorage fileStorage;
+	private final TransactionTemplate transactionTemplate;
 
 	ResourceService(ResourceRepository resourceRepository, CourseRepository courseRepository,
-			TopicRepository topicRepository, VideoMetadataProvider videoMetadataProvider) {
+			TopicRepository topicRepository, VideoMetadataProvider videoMetadataProvider, FileStorage fileStorage,
+			TransactionTemplate transactionTemplate) {
 		this.resourceRepository = resourceRepository;
 		this.courseRepository = courseRepository;
 		this.topicRepository = topicRepository;
 		this.videoMetadataProvider = videoMetadataProvider;
+		this.fileStorage = fileStorage;
+		this.transactionTemplate = transactionTemplate;
 	}
 
 	/**
@@ -172,6 +201,11 @@ public class ResourceService {
 	public ResourceDto createResource(CreateResourceRequest request, Long authorId) {
 		EntryMethod entryMethod = request.entryMethod() == null ? EntryMethod.MANUAL : request.entryMethod();
 
+		if (request.resourceType() == ResourceType.DOCUMENT) {
+			throw new FieldValidationException("resourceType",
+					"Un apunte se registra subiendo su archivo, no con un enlace.");
+		}
+
 		// Solo un video de YouTube puede haberse indexado automáticamente.
 		if (entryMethod == EntryMethod.AUTOMATIC && YouTubeVideoIds.extract(request.url()).isEmpty()) {
 			throw new FieldValidationException("entryMethod",
@@ -192,17 +226,104 @@ public class ResourceService {
 				authorId,
 				entryMethod);
 
-		// distinct() para que escribir el mismo tema dos veces en el formulario
-		// no intente insertarlo dos veces en la tabla intermedia.
-		request.topics().stream()
+		addTopics(resource, course, request.topics());
+		resourceRepository.save(resource);
+
+		return toDto(resource);
+	}
+
+	/**
+	 * Sube un apunte y lo registra (historia HU302). El archivo se guarda antes
+	 * que el registro y fuera de la transacción, para no retener una conexión
+	 * de la base mientras se sube; si después el registro falla, se borra.
+	 */
+	public ResourceDto createDocument(DocumentUploadRequest request, Long authorId) {
+		MultipartFile upload = request.file();
+		if (resourceRepository.totalStoredBytes() + upload.getSize() > STORAGE_LIMIT_BYTES) {
+			throw new DocumentStorageFullException();
+		}
+
+		// PDFBox necesita leer el archivo desde el disco, y el almacenamiento lo
+		// sube desde esa misma copia.
+		Path pdf = copyToTempFile(upload);
+		try {
+			DocumentFile file = new DocumentFile(UUID.randomUUID() + ".pdf", upload.getSize(),
+					PdfDocuments.countPages(pdf));
+			fileStorage.store(file.key(), pdf, MediaType.APPLICATION_PDF_VALUE);
+			return saveDocumentOrDeleteFile(request, file, authorId);
+		} finally {
+			deleteTempFile(pdf);
+		}
+	}
+
+	private ResourceDto saveDocumentOrDeleteFile(DocumentUploadRequest request, DocumentFile file, Long authorId) {
+		try {
+			return transactionTemplate.execute(status -> saveDocument(request, file, authorId));
+		} catch (RuntimeException exception) {
+			deleteStoredFile(file.key());
+			throw exception;
+		}
+	}
+
+	private ResourceDto saveDocument(DocumentUploadRequest request, DocumentFile file, Long authorId) {
+		Course course = findOrCreateCourse(request.course().strip());
+
+		Resource resource = Resource.document(
+				request.title().strip(),
+				blankToNull(request.description()),
+				LocalDate.now(UPLOAD_ZONE),
+				course,
+				authorId,
+				file);
+
+		addTopics(resource, course, request.topics());
+		resourceRepository.save(resource);
+
+		return toDto(resource);
+	}
+
+	// Un fallo al borrar no debe tapar el error del registro, que es el que
+	// recibe el usuario: el archivo queda sin registro y el log lo dice.
+	private void deleteStoredFile(String key) {
+		try {
+			fileStorage.delete(key);
+		} catch (StorageUnavailableException exception) {
+			log.error("El archivo {} quedó en el almacenamiento sin un recurso que lo registre", key, exception);
+		}
+	}
+
+	private static Path copyToTempFile(MultipartFile upload) {
+		Path pdf;
+		try {
+			pdf = Files.createTempFile("apunte-", ".pdf");
+		} catch (IOException exception) {
+			throw new UncheckedIOException(exception);
+		}
+		try {
+			upload.transferTo(pdf);
+			return pdf;
+		} catch (IOException exception) {
+			deleteTempFile(pdf);
+			throw new UncheckedIOException(exception);
+		}
+	}
+
+	private static void deleteTempFile(Path pdf) {
+		try {
+			Files.deleteIfExists(pdf);
+		} catch (IOException exception) {
+			log.warn("No se pudo borrar el temporal {}", pdf, exception);
+		}
+	}
+
+	// distinct() para que escribir el mismo tema dos veces en el formulario
+	// no intente insertarlo dos veces en la tabla intermedia.
+	private void addTopics(Resource resource, Course course, List<String> topics) {
+		topics.stream()
 				.map(String::strip)
 				.distinct()
 				.map(name -> findOrCreateTopic(course, name))
 				.forEach(resource::addTopic);
-
-		resourceRepository.save(resource);
-
-		return toDto(resource);
 	}
 
 	// Busca primero y crea solo si hace falta, pero el hueco entre ambas
