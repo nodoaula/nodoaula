@@ -37,7 +37,7 @@ import io.github.nodoaula.shared.error.PayloadTooLargeException;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 class RequestSizeLimitFilter extends OncePerRequestFilter {
 
-	static final long MAX_BODY_BYTES = 1024 * 1024;
+	static final long MAX_BODY_BYTES = 1024L * 1024;
 
 	private final HandlerExceptionResolver resolver;
 
