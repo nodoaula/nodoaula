@@ -5,7 +5,7 @@ import { formatDuration, formatDurationText, formatPublishedAt, formatResourceTy
 describe('formatResourceType', () => {
   it('traduce los tipos conocidos al español', () => {
     expect(formatResourceType('VIDEO')).toBe('Video')
-    expect(formatResourceType('DOCUMENT')).toBe('Documento')
+    expect(formatResourceType('DOCUMENT')).toBe('Apunte')
   })
 
   it('devuelve el valor tal cual si el tipo no está mapeado', () => {

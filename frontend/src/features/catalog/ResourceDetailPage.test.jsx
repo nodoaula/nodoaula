@@ -48,7 +48,7 @@ describe('ResourceDetailPage', () => {
     renderDetail()
 
     const courseLink = await screen.findByRole('link', { name: 'Cálculo Integral' })
-    expect(courseLink).toHaveAttribute('href', '/catalogo?courseId=7')
+    expect(courseLink).toHaveAttribute('href', '/catalogo/cursos/7')
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(VIDEO.title)
     expect(screen.getByText('Video · 1 h 40 min · YouTube')).toBeInTheDocument()
   })
