@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router'
 
+import { buttonClasses } from '../../components/ui/button.js'
+import NodePath from '../../components/ui/NodePath.jsx'
+import Notice from '../../components/ui/Notice.jsx'
+import Tabs from '../../components/ui/Tabs.jsx'
+import Tag from '../../components/ui/Tag.jsx'
 import { getResource } from './api.js'
-import { formatDuration, formatPublishedAt, formatResourceType } from './format.js'
+import { formatDurationText, formatPublishedAt, formatResourceType } from './format.js'
 import ResourcePlayer from './ResourcePlayer.jsx'
-import { isWebUrl, sourceLinkLabel } from './sourcePlatform.js'
+import { getYouTubeVideoId, isWebUrl, sourceLinkLabel } from './sourcePlatform.js'
 
 const RESOURCE_NOT_FOUND = 'RESOURCE_NOT_FOUND'
 
@@ -49,119 +54,155 @@ function ResourceDetail({ resourceId }) {
   }, [resourceId])
 
   return (
-    <main className="px-4 py-10">
-      <div className="mx-auto max-w-3xl">
-        <Link to="/catalogo" className="text-sm text-slate-600 hover:text-slate-900">
-          ← Volver al catálogo
-        </Link>
+    <main className="mx-auto max-w-6xl px-4 pt-9 pb-18 sm:px-6">
+      {error && <LoadError error={error} />}
 
-        {error && <LoadError error={error} />}
+      {!error && resource === null && (
+        <p className="text-body text-content-muted" role="status">
+          Cargando recurso…
+        </p>
+      )}
 
-        {!error && resource === null && (
-          <p className="mt-6 text-sm text-slate-500" role="status">
-            Cargando recurso…
-          </p>
-        )}
-
-        {!error && resource !== null && <ResourceSheet resource={resource} />}
-      </div>
+      {!error && resource !== null && <ResourceSheet resource={resource} />}
     </main>
   )
 }
 
 function LoadError({ error }) {
+  const backToCatalog = (
+    <Link to="/catalogo" className={buttonClasses('secondary')}>
+      Volver al catálogo
+    </Link>
+  )
+
   if (isNotFound(error)) {
     return (
-      <div className="mt-6">
-        <h1 className="text-2xl font-semibold text-slate-900">Recurso no encontrado</h1>
-        <p className="mt-2 text-sm text-slate-600">Este recurso no existe o ya no está en el catálogo.</p>
-      </div>
+      <Notice title="Recurso no encontrado" action={backToCatalog}>
+        Este recurso no existe o ya no está en el catálogo.
+      </Notice>
     )
   }
 
   return (
-    <p className="mt-6 text-sm text-red-700" role="alert">
-      No se pudo cargar el recurso. Recarga la página para reintentar.
-    </p>
+    <Notice title="No se pudo cargar el recurso" role="alert">
+      Recarga la página para reintentar.
+    </Notice>
   )
 }
 
 function ResourceSheet({ resource }) {
-  const canLink = isWebUrl(resource.url)
+  const type = formatResourceType(resource.resourceType)
+  const summary = [
+    type,
+    resource.durationSeconds != null && formatDurationText(resource.durationSeconds),
+    getYouTubeVideoId(resource.url) !== null && 'YouTube',
+  ].filter(Boolean)
 
   return (
-    <article className="mt-6">
-      <h1 className="text-2xl font-semibold text-slate-900">{resource.title}</h1>
-      <p className="mt-1 text-sm text-slate-600">
-        {resource.course} · {formatResourceType(resource.resourceType)}
-        {resource.durationSeconds != null && ` · ${formatDuration(resource.durationSeconds)}`}
-      </p>
+    <article>
+      <NodePath
+        label="Ubicación"
+        items={[
+          { label: 'Catálogo', to: '/catalogo' },
+          { label: resource.course, to: `/catalogo?courseId=${resource.courseId}` },
+        ]}
+        current={type}
+      />
 
-      <div className="mt-6">
-        <ResourcePlayer url={resource.url} title={resource.title} />
+      <h1 className="mt-5 max-w-[24ch] text-[1.75rem] leading-[1.08] font-semibold tracking-tight text-balance sm:text-display">
+        {resource.title}
+      </h1>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {resource.topics.map((topic) => (
+          <Tag key={topic}>{topic}</Tag>
+        ))}
+        <span className="ml-1.5 font-mono text-label text-content-muted tabular-nums">{summary.join(' · ')}</span>
       </div>
 
-      {/* Siempre visible, se pueda incrustar o no: el objetivo de la ficha
-          es llevar al recurso en su plataforma de origen. */}
-      {canLink && (
-        <a
-          href={resource.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-4 inline-block rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-        >
-          {sourceLinkLabel(resource.url)}
-          <span className="sr-only"> (se abre en una pestaña nueva)</span>
-        </a>
-      )}
+      <div className="mt-8">
+        <Tabs
+          label="Contenido del recurso"
+          tabs={[
+            { id: 'content', label: type, content: <ContentPanel resource={resource} /> },
+            { id: 'details', label: 'Detalles', content: <DetailsPanel resource={resource} /> },
+          ]}
+        />
+      </div>
+    </article>
+  )
+}
+
+function ContentPanel({ resource }) {
+  const source = [resource.channel, resource.publishedAt && formatPublishedAt(resource.publishedAt)].filter(Boolean)
+
+  return (
+    <div>
+      <ResourcePlayer url={resource.url} title={resource.title} />
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-label text-content-muted">{source.join(' · ')}</p>
+        {/* Siempre visible, se pueda incrustar o no: el objetivo de la ficha
+            es llevar al recurso en su plataforma de origen. */}
+        {isWebUrl(resource.url) && (
+          <a href={resource.url} target="_blank" rel="noopener noreferrer" className={buttonClasses('secondary')}>
+            {sourceLinkLabel(resource.url)}
+            <span className="sr-only"> (se abre en una pestaña nueva)</span>
+          </a>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function DetailsPanel({ resource }) {
+  return (
+    <div className="grid gap-10 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:gap-12">
+      <div>
+        <h2 className="text-body font-semibold text-content">Descripción</h2>
+        <p className="mt-3 max-w-[65ch] text-base leading-relaxed whitespace-pre-line text-content-muted">
+          {resource.description || 'Este recurso no tiene descripción.'}
+        </p>
+      </div>
 
       {/* Los campos opcionales solo aparecen cuando el recurso los tiene. */}
-      <dl className="mt-8 divide-y divide-slate-200 border-y border-slate-200 text-sm">
-        <Field label="Identificador">{resource.id}</Field>
-        <Field label="Título">{resource.title}</Field>
-        {resource.description && (
-          <Field label="Descripción">
-            <span className="whitespace-pre-line">{resource.description}</span>
-          </Field>
+      <dl className="border-t border-border text-sm">
+        <Field label="Curso">{resource.course}</Field>
+        <Field label="Temas">
+          <span className="flex flex-wrap gap-1.5">
+            {resource.topics.map((topic) => (
+              <Tag key={topic}>{topic}</Tag>
+            ))}
+          </span>
+        </Field>
+        <Field label="Tipo">{formatResourceType(resource.resourceType)}</Field>
+        {resource.durationSeconds != null && (
+          <Field label="Duración">{formatDurationText(resource.durationSeconds)}</Field>
         )}
-        {resource.publishedAt && <Field label="Fecha de publicación">{formatPublishedAt(resource.publishedAt)}</Field>}
-        {resource.durationSeconds != null && <Field label="Duración">{formatDuration(resource.durationSeconds)}</Field>}
         {resource.channel && <Field label="Canal">{resource.channel}</Field>}
-        <Field label="Enlace">
-          {canLink ? (
+        {resource.publishedAt && <Field label="Publicado">{formatPublishedAt(resource.publishedAt)}</Field>}
+        {isWebUrl(resource.url) && (
+          <Field label="Enlace">
             <a
               href={resource.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="break-all text-slate-900 underline hover:text-slate-700"
+              className="break-all underline decoration-border-strong underline-offset-4 hover:text-accent"
             >
               {resource.url}
             </a>
-          ) : (
-            <span className="break-all">{resource.url}</span>
-          )}
-        </Field>
-        <Field label="Tipo de recurso">{formatResourceType(resource.resourceType)}</Field>
-        <Field label="Curso">{resource.course}</Field>
-        <Field label="Temas">
-          <ul className="flex flex-wrap gap-2">
-            {resource.topics.map((topic) => (
-              <li key={topic} className="rounded-full bg-slate-200 px-3 py-0.5 text-xs text-slate-800">
-                {topic}
-              </li>
-            ))}
-          </ul>
-        </Field>
+          </Field>
+        )}
       </dl>
-    </article>
+    </div>
   )
 }
 
 function Field({ label, children }) {
   return (
-    <div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4">
-      <dt className="font-medium text-slate-700">{label}</dt>
-      <dd className="mt-1 text-slate-900 sm:col-span-2 sm:mt-0">{children}</dd>
+    <div className="grid grid-cols-[6rem_minmax(0,1fr)] gap-3 border-b border-border py-3 sm:grid-cols-[7.5rem_minmax(0,1fr)]">
+      <dt className="pt-0.5 font-mono text-xs tracking-wider text-content-muted uppercase">{label}</dt>
+      <dd className="text-content">{children}</dd>
     </div>
   )
 }

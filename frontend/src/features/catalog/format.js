@@ -21,6 +21,16 @@ export function formatDuration(totalSeconds) {
   return hours > 0 ? `${hours}:${paddedMinutes}:${paddedSeconds}` : `${minutes}:${paddedSeconds}`
 }
 
+/** Duración para leer, no para medir: "1 h 40 min", "13 min" o "45 s". */
+export function formatDurationText(totalSeconds) {
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+
+  if (hours > 0) return minutes > 0 ? `${hours} h ${minutes} min` : `${hours} h`
+  if (minutes > 0) return `${minutes} min`
+  return `${totalSeconds} s`
+}
+
 /**
  * La API envía la fecha como "2026-09-06", sin hora. Se arma con la fecha
  * local y no con `new Date("2026-09-06")`, que la interpreta como medianoche
