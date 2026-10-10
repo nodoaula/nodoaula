@@ -54,3 +54,27 @@ export function getYouTubeMetadata(link) {
 export function createResource(resource) {
   return post('/resources', resource)
 }
+
+// Un PDF de 20 MB tarda minutos con una conexión lenta: con el plazo de una
+// petición ordinaria, el navegador la cortaría aunque el backend la estuviera
+// recibiendo. Cinco minutos cubren unos 0,5 Mbit/s.
+const UPLOAD_TIMEOUT_MS = 5 * 60_000
+
+/**
+ * Sube un apunte (historia HU302). Exige sesión iniciada; el backend toma el
+ * autor de ella. Devuelve el recurso creado, con la misma forma que el listado.
+ */
+export function createDocument({ file, title, description, course, topics, rightsDeclared }) {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('title', title)
+  if (description) form.append('description', description)
+  form.append('course', course)
+  topics.forEach((topic) => form.append('topics', topic))
+  form.append('rightsDeclared', String(rightsDeclared))
+
+  return post('/resources/documents', form, {
+    attemptTimeoutMs: UPLOAD_TIMEOUT_MS,
+    totalTimeoutMs: UPLOAD_TIMEOUT_MS,
+  })
+}

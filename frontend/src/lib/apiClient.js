@@ -80,9 +80,10 @@ function sendOnce(path, method, body, csrfToken, attemptTimeoutMs) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), attemptTimeoutMs)
 
-  // Un formulario lo codifica el propio navegador, con su Content-Type; el
-  // resto de cuerpos van como JSON.
-  const isForm = body instanceof URLSearchParams
+  // Un formulario lo codifica el propio navegador, con su Content-Type: en un
+  // FormData, el límite que separa las partes solo lo conoce él. El resto de
+  // cuerpos van como JSON.
+  const isForm = body instanceof URLSearchParams || body instanceof FormData
 
   return fetch(`${API_PREFIX}${path}`, {
     method,
