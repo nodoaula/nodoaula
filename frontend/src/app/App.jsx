@@ -2,8 +2,8 @@ import { BrowserRouter, Link, Route, Routes } from 'react-router'
 
 import LoginPage from '../features/account/LoginPage.jsx'
 import RegisterPage from '../features/account/RegisterPage.jsx'
+import CourseIndexPage from '../features/catalog/CourseIndexPage.jsx'
 import CreateResourcePage from '../features/catalog/CreateResourcePage.jsx'
-import ResourceCatalogPage from '../features/catalog/ResourceCatalogPage.jsx'
 import ResourceDetailPage from '../features/catalog/ResourceDetailPage.jsx'
 import LandingPage from '../features/landing/LandingPage.jsx'
 import SessionProvider from '../session/SessionProvider.jsx'
@@ -22,11 +22,11 @@ export default function App() {
           <Routes>
             <Route index element={<LandingPage />} />
             <Route element={<AppLayout />}>
+              <Route path="catalogo" element={<CourseIndexPage />} />
               <Route path="recursos/:resourceId" element={<ResourceDetailPage />} />
             </Route>
             {/* Pantallas aún sin rediseñar: cada una pasa al grupo de arriba cuando se rediseña. */}
             <Route element={<AppLayout legacy />}>
-              <Route path="catalogo" element={<ResourceCatalogPage />} />
               <Route path="registrar-recurso" element={<CreateResourcePage />} />
               <Route path="registro" element={<RegisterPage />} />
               <Route path="iniciar-sesion" element={<LoginPage />} />
