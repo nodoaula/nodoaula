@@ -27,6 +27,9 @@ class MultiValueFilterTests {
 	private static final Long AUTHOR_ID = 999L;
 
 	@Autowired private ResourceService resourceService;
+	@Autowired private ResourceRepository resourceRepository;
+	@Autowired private CourseRepository courseRepository;
+	@Autowired private TopicRepository topicRepository;
 
 	private static CreateResourceRequest request(
 			String course, List<String> topics, ResourceType type, String urlSuffix) {
@@ -96,9 +99,7 @@ class MultiValueFilterTests {
 		resourceService.createResource(
 				request("Curso de tipos", List.of("Tema de tipos"), ResourceType.VIDEO, "multivalor-tipo-video"),
 				AUTHOR_ID);
-		resourceService.createResource(
-				request("Curso de tipos", List.of("Tema de tipos"), ResourceType.DOCUMENT, "multivalor-tipo-doc"),
-				AUTHOR_ID);
+		saveDocument("Recurso de la prueba multivalor multivalor-tipo-doc", "Curso de tipos", "Tema de tipos");
 
 		List<ResourceDto> onlyVideo = resourceService.listResources(
 				null, null, List.of(ResourceType.VIDEO), "multivalor-tipo-");
@@ -115,8 +116,7 @@ class MultiValueFilterTests {
 		ResourceDto matches = resourceService.createResource(
 				request("Curso AND", List.of("Tema AND"), ResourceType.VIDEO, "multivalor-and-ok"), AUTHOR_ID);
 		// Mismo curso y tema, pero tipo distinto: no debe aparecer al filtrar por VIDEO.
-		resourceService.createResource(
-				request("Curso AND", List.of("Tema AND"), ResourceType.DOCUMENT, "multivalor-and-tipo"), AUTHOR_ID);
+		saveDocument("Recurso de la prueba multivalor multivalor-and-tipo", "Curso AND", "Tema AND");
 		// Mismo curso, tema distinto: no debe aparecer al filtrar por el tema.
 		resourceService.createResource(
 				request("Curso AND", List.of("Otro tema AND"), ResourceType.VIDEO, "multivalor-and-tema"),
@@ -164,6 +164,16 @@ class MultiValueFilterTests {
 		List<TopicDto> topicsOfCourseA = resourceService.listTopicsWithResources(List.of(courseAId));
 		assertTrue(topicsOfCourseA.stream().anyMatch(t -> t.name().equals("Tema del selector A")));
 		assertTrue(topicsOfCourseA.stream().noneMatch(t -> t.name().equals("Tema del selector B")));
+	}
+
+	// Un apunte no se registra por enlace: se guarda con su archivo, en el
+	// curso y el tema que ya creó el video de la misma prueba.
+	private void saveDocument(String title, String courseName, String topicName) {
+		Course course = courseRepository.findByName(courseName).orElseThrow();
+		Resource document = Resource.document(title, null, LocalDate.of(2026, 10, 1), course, AUTHOR_ID,
+				new DocumentFile(title + ".pdf", 2048, 3));
+		document.addTopic(topicRepository.findByCourseAndName(course, topicName).orElseThrow());
+		resourceRepository.save(document);
 	}
 
 	private Long courseIdOf(ResourceDto resource) {

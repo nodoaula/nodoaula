@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -58,6 +59,10 @@ class Resource {
 			inverseJoinColumns = @JoinColumn(name = "topic_id"))
 	private Set<Topic> topics = new LinkedHashSet<>();
 
+	// Solo los apuntes tienen archivo; en un video queda en null.
+	@Embedded
+	private DocumentFile file;
+
 	protected Resource() {
 	}
 
@@ -77,6 +82,22 @@ class Resource {
 		this.course = course;
 		this.authorId = authorId;
 		this.entryMethod = entryMethod;
+	}
+
+	// Para registrar un apunte subido (historia HU302). Siempre entra por el
+	// formulario, así que su vía de ingreso es manual.
+	static Resource document(String title, String description, LocalDate publishedAt, Course course,
+			Long authorId, DocumentFile file) {
+		Resource resource = new Resource();
+		resource.title = title;
+		resource.description = description;
+		resource.publishedAt = publishedAt;
+		resource.resourceType = ResourceType.DOCUMENT;
+		resource.course = course;
+		resource.authorId = authorId;
+		resource.entryMethod = EntryMethod.MANUAL;
+		resource.file = file;
+		return resource;
 	}
 
 	void addTopic(Topic topic) {
@@ -129,6 +150,10 @@ class Resource {
 
 	Set<Topic> getTopics() {
 		return topics;
+	}
+
+	DocumentFile getFile() {
+		return file;
 	}
 
 }

@@ -24,6 +24,9 @@ class TextSearchTests {
 	private static final Long AUTHOR_ID = 999L;
 
 	@Autowired private ResourceService resourceService;
+	@Autowired private ResourceRepository resourceRepository;
+	@Autowired private CourseRepository courseRepository;
+	@Autowired private TopicRepository topicRepository;
 
 	private static CreateResourceRequest request(
 			String title, String description, List<String> topics, String urlSuffix) {
@@ -91,17 +94,7 @@ class TextSearchTests {
 						"busqueda-and-ok"),
 				AUTHOR_ID);
 		// Mismo texto, pero tipo distinto: no debe aparecer al filtrar por VIDEO.
-		CreateResourceRequest documentVersion = new CreateResourceRequest(
-				"Arboles binarios de busqueda (documento)",
-				"Descripcion",
-				LocalDate.of(2026, 10, 1),
-				600,
-				"Canal de la prueba",
-				"https://www.youtube.com/watch?v=busqueda-and-tipo",
-				ResourceType.DOCUMENT,
-				"Curso de la busqueda de texto",
-				List.of("Tema de arboles"));
-		resourceService.createResource(documentVersion, AUTHOR_ID);
+		saveDocument("Arboles binarios de busqueda (documento)", "Curso de la busqueda de texto", "Tema de arboles");
 
 		List<ResourceDto> results = resourceService.listResources(
 				null, null, List.of(ResourceType.VIDEO), "arboles binarios");
@@ -121,6 +114,16 @@ class TextSearchTests {
 				null, null, null, "texto que no coincide con nada");
 
 		assertTrue(results.isEmpty());
+	}
+
+	// Un apunte no se registra por enlace: se guarda con su archivo, en el
+	// curso y el tema que ya creó el video de la misma prueba.
+	private void saveDocument(String title, String courseName, String topicName) {
+		Course course = courseRepository.findByName(courseName).orElseThrow();
+		Resource document = Resource.document(title, null, LocalDate.of(2026, 10, 1), course, AUTHOR_ID,
+				new DocumentFile(title + ".pdf", 2048, 3));
+		document.addTopic(topicRepository.findByCourseAndName(course, topicName).orElseThrow());
+		resourceRepository.save(document);
 	}
 
 }
