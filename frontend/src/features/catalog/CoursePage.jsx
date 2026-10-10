@@ -61,9 +61,9 @@ function Course({ courseId }) {
       )}
 
       {!error && resources === null && (
-        <p className="text-body text-content-muted" role="status">
+        <output className="block text-body text-content-muted">
           Cargando curso…
-        </p>
+        </output>
       )}
 
       {/* El listado solo incluye cursos con recursos: vacío es lo mismo que no encontrado. */}
@@ -175,14 +175,14 @@ function CourseResources({ courseId, resources }) {
   )
 }
 
+// En pantallas anchas la leyenda flota para quedar al lado de los controles:
+// dentro de un fieldset no participa del flex como un elemento más.
 function FilterGroup({ label, children }) {
   return (
-    <div role="group" aria-label={label} className="flex flex-wrap items-center gap-2">
-      <span aria-hidden="true" className="w-full text-label text-content-muted sm:w-14">
-        {label}
-      </span>
-      {children}
-    </div>
+    <fieldset className="min-w-0">
+      <legend className="mb-2 text-label text-content-muted sm:float-left sm:mb-0 sm:w-14 sm:py-2">{label}</legend>
+      <div className="flex flex-wrap items-center gap-2">{children}</div>
+    </fieldset>
   )
 }
 
@@ -209,9 +209,9 @@ function TopicButton({ pressed, count, onClick, children }) {
 function CourseResourceList({ name, total, resources, filtering, search, onClear }) {
   if (search.searching && search.pending) {
     return (
-      <p className="mt-5 text-body text-content-muted" role="status">
+      <output className="block mt-5 text-body text-content-muted">
         Buscando…
-      </p>
+      </output>
     )
   }
 
@@ -247,9 +247,9 @@ function CourseResourceList({ name, total, resources, filtering, search, onClear
 
   return (
     <div className="mt-5">
-      <p className="text-sm text-content-muted" role="status">
+      <output className="block text-sm text-content-muted">
         {countText}
-      </p>
+      </output>
       <ul aria-label="Recursos del curso" className="mt-2 border-t border-border">
         {resources.map((resource) => (
           <li key={resource.id} className="border-b border-border">

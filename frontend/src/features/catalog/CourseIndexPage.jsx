@@ -95,9 +95,9 @@ function CourseCards({ summaries, error }) {
 
   if (summaries === null) {
     return (
-      <p className="mt-8 text-body text-content-muted" role="status">
+      <output className="block mt-8 text-body text-content-muted">
         Cargando cursos…
-      </p>
+      </output>
     )
   }
 
@@ -156,9 +156,9 @@ function CourseCard({ summary }) {
 function SearchResults({ search }) {
   if (search.pending) {
     return (
-      <p className="mt-8 text-body text-content-muted" role="status">
+      <output className="block mt-8 text-body text-content-muted">
         Buscando…
-      </p>
+      </output>
     )
   }
 
@@ -193,9 +193,9 @@ function SearchResults({ search }) {
 
   return (
     <div className="mt-8">
-      <p className="text-sm text-content-muted" role="status">
+      <output className="block text-sm text-content-muted">
         {count === 1 ? '1 resultado' : `${count} resultados`} para «{search.query}» en todos los cursos
-      </p>
+      </output>
       <ul aria-label="Resultados de la búsqueda" className="mt-2 border-t border-border">
         {search.resources.map((resource) => (
           <li key={resource.id} className="border-b border-border">
