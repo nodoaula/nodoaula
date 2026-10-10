@@ -74,7 +74,7 @@ La recuperación de contraseña por correo **queda fuera del alcance del proyect
 
 ### 7. Alcance del acceso y autorización
 
-- El catálogo se lista y se consulta **sin cuenta**. La sesión hace falta únicamente para aportar.
+- El catálogo se lista y se consulta **sin cuenta**, salvo el archivo completo de los apuntes, que exige sesión para verlo o descargarlo. Fuera de eso, la sesión hace falta para aportar.
 - **No hay rol de administrador.** Cualquier usuario registrado puede catalogar recursos.
 - **Un recurso del catálogo solo puede modificarlo o eliminarlo el usuario que lo creó.** Las reglas para el contenido de sprints posteriores se definen en sus historias.
 - El registro **no restringe el dominio del correo** ni verifica que el correo pertenezca a quien lo registra.
