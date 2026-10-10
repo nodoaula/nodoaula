@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router'
+import { MemoryRouter, Route, Routes, useParams } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { listCoursesWithResources, listResources } from './api.js'
@@ -120,6 +120,24 @@ describe('CourseIndexPage', () => {
 
     expect(screen.getByLabelText('Buscar en todos los cursos')).toHaveValue('series')
     expect(listResources).toHaveBeenCalledWith({ q: 'series' })
+  })
+
+  it('lleva una dirección antigua con ?courseId= a la página del curso, sin cargar el índice', async () => {
+    function CourseStub() {
+      return <p>Página del curso {useParams().courseId}</p>
+    }
+    render(
+      <MemoryRouter initialEntries={['/catalogo?courseId=8']}>
+        <Routes>
+          <Route path="/catalogo" element={<CourseIndexPage />} />
+          <Route path="/catalogo/cursos/:courseId" element={<CourseStub />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    await advanceTime(0)
+
+    expect(screen.getByText('Página del curso 8')).toBeInTheDocument()
+    expect(listResources).not.toHaveBeenCalled()
   })
 
   it('avisa si el catálogo no se pudo cargar', async () => {

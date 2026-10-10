@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router'
+import { Link, Navigate, useSearchParams } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
 import Notice from '../../components/ui/Notice.jsx'
@@ -19,9 +19,19 @@ const VISIBLE_TOPICS = 3
  * los resultados sustituyen a las tarjetas.
  */
 export default function CourseIndexPage() {
-  // La página de entrada llega aquí con ?q= ya escrito. Solo se lee al abrir.
   const [searchParams] = useSearchParams()
-  const search = useResourceSearch(searchParams.get('q') ?? '')
+
+  // Antes, /catalogo?courseId= era el catálogo filtrado por curso; una
+  // dirección así guardada o compartida lleva ahora a la página del curso.
+  const legacyCourseId = searchParams.getAll('courseId').find((id) => /^\d+$/.test(id))
+  if (legacyCourseId) return <Navigate to={`/catalogo/cursos/${legacyCourseId}`} replace />
+
+  // La página de entrada llega aquí con ?q= ya escrito. Solo se lee al abrir.
+  return <CourseIndex initialSearch={searchParams.get('q') ?? ''} />
+}
+
+function CourseIndex({ initialSearch }) {
+  const search = useResourceSearch(initialSearch)
 
   const [summaries, setSummaries] = useState(null)
   const [loadError, setLoadError] = useState(null)

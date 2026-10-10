@@ -104,7 +104,7 @@ function ResourceSheet({ resource }) {
         label="Ubicación"
         items={[
           { label: 'Catálogo', to: '/catalogo' },
-          { label: resource.course, to: `/catalogo?courseId=${resource.courseId}` },
+          { label: resource.course, to: `/catalogo/cursos/${resource.courseId}` },
         ]}
         current={type}
       />
