@@ -22,8 +22,11 @@ export default function App() {
           <Routes>
             <Route index element={<LandingPage />} />
             <Route element={<AppLayout />}>
-              <Route path="catalogo" element={<ResourceCatalogPage />} />
               <Route path="recursos/:resourceId" element={<ResourceDetailPage />} />
+            </Route>
+            {/* Pantallas aún sin rediseñar: cada una pasa al grupo de arriba cuando se rediseña. */}
+            <Route element={<AppLayout legacy />}>
+              <Route path="catalogo" element={<ResourceCatalogPage />} />
               <Route path="registrar-recurso" element={<CreateResourcePage />} />
               <Route path="registro" element={<RegisterPage />} />
               <Route path="iniciar-sesion" element={<LoginPage />} />

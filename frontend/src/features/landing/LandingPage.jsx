@@ -1,13 +1,12 @@
 import { Link } from 'react-router'
 
+import SiteHeader from '../../app/SiteHeader.jsx'
+import { buttonClasses } from '../../components/ui/button.js'
 import { SESSION_STATUS } from '../../session/SessionContext.js'
-import { useLogout } from '../../session/useLogout.js'
 import { useSession } from '../../session/useSession.js'
 import CatalogPreview from './CatalogPreview.jsx'
 import NodeGraph from './NodeGraph.jsx'
 
-const PRIMARY_BUTTON =
-  'inline-flex items-center rounded-full bg-accent font-semibold text-surface transition hover:-translate-y-px hover:shadow-[0_10px_30px_-10px_var(--color-accent)]'
 const EYEBROW = 'font-mono text-xs text-accent'
 const SECTION_TITLE = 'mt-3 max-w-[18ch] text-3xl leading-[1.1] font-semibold tracking-tight text-balance sm:text-heading'
 const CARD = 'rounded-2xl border border-border bg-surface-raised p-7'
@@ -34,7 +33,6 @@ const STEPS = [
  */
 export default function LandingPage() {
   const { status, account } = useSession()
-  const { loggingOut, logoutFailed, handleLogout } = useLogout()
   // Mientras no se sabe si hay sesión no se ofrece crear cuenta ni iniciarla,
   // para no enseñárselo a quien ya la tiene.
   const signedOut = status !== SESSION_STATUS.LOADING && account === null
@@ -47,50 +45,7 @@ export default function LandingPage() {
           className="pointer-events-none absolute inset-x-0 -top-64 h-190 bg-[radial-gradient(ellipse_60%_55%_at_70%_30%,color-mix(in_srgb,var(--color-accent)_20%,transparent),transparent_70%)]"
         />
 
-        <header className="relative mx-auto flex h-18 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-          <Link to="/" className="flex items-center gap-2.5 text-lg font-semibold tracking-tight">
-            <Logo />
-            NodoAula
-          </Link>
-          <nav className="flex items-center gap-3 text-sm whitespace-nowrap text-content-muted sm:gap-5">
-            <Link to="/catalogo" className="hidden hover:text-content sm:block">
-              Catálogo
-            </Link>
-            {signedOut && (
-              <>
-                <Link to="/iniciar-sesion" className="hover:text-content">
-                  Iniciar sesión
-                </Link>
-                <Link to="/registro" className={`${PRIMARY_BUTTON} px-4 py-2`}>
-                  Crear cuenta
-                </Link>
-              </>
-            )}
-            {account !== null && (
-              <>
-                {logoutFailed && (
-                  <span className="text-red-400" role="alert">
-                    No se pudo cerrar la sesión.
-                  </span>
-                )}
-                <span className="hidden max-w-56 truncate md:block" title={account.email}>
-                  {account.email}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  disabled={loggingOut}
-                  className="hover:text-content disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {loggingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
-                </button>
-                <Link to="/registrar-recurso" className={`${PRIMARY_BUTTON} px-4 py-2`}>
-                  Registrar recurso
-                </Link>
-              </>
-            )}
-          </nav>
-        </header>
+        <SiteHeader />
 
         <main>
           <section className="relative mx-auto grid max-w-6xl items-center gap-8 px-4 pt-7 pb-10 sm:px-6 lg:grid-cols-[1.05fr_.95fr] lg:pt-14 lg:pb-16">
@@ -107,13 +62,13 @@ export default function LandingPage() {
                 organizados por curso y por tema. Para consultar el catálogo no necesitas cuenta.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
-                <Link to="/catalogo" className={`${PRIMARY_BUTTON} px-5 py-3 text-body`}>
+                <Link to="/catalogo" className={buttonClasses('primary', 'lg')}>
                   Explorar el catálogo →
                 </Link>
                 {signedOut && (
                   <Link
                     to="/registro"
-                    className="inline-flex items-center rounded-full border border-border-strong px-5 py-3 text-body font-medium hover:border-content-muted"
+                    className={buttonClasses('secondary', 'lg')}
                   >
                     Crear cuenta
                   </Link>
@@ -186,16 +141,5 @@ export default function LandingPage() {
         </div>
       </footer>
     </div>
-  )
-}
-
-function Logo() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="size-6">
-      <path d="M5 5 19 12 5 19" className="stroke-border-strong" strokeWidth="2" />
-      <circle cx="5" cy="5" r="3.5" className="fill-content" />
-      <circle cx="5" cy="19" r="3.5" className="fill-content" />
-      <circle cx="19" cy="12" r="4.5" className="fill-accent" />
-    </svg>
   )
 }

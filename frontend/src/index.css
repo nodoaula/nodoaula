@@ -29,3 +29,16 @@
     }
   }
 }
+
+/* Lo que el navegador dibuja por su cuenta también lleva la identidad: la
+   selección de texto y el anillo de foco del teclado. */
+@layer base {
+  ::selection {
+    background-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+  }
+}
