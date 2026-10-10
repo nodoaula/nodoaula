@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatDuration, formatPublishedAt, formatResourceType } from './format.js'
+import { formatDuration, formatDurationText, formatPublishedAt, formatResourceType } from './format.js'
 
 describe('formatResourceType', () => {
   it('traduce los tipos conocidos al español', () => {
@@ -30,5 +30,23 @@ describe('formatDuration', () => {
 describe('formatPublishedAt', () => {
   it('formatea la fecha en español sin desplazarla por zona horaria', () => {
     expect(formatPublishedAt('2026-09-06')).toBe('6 de septiembre de 2026')
+  })
+})
+
+describe('formatDurationText', () => {
+  it('usa horas y minutos cuando dura una hora o más', () => {
+    expect(formatDurationText(6011)).toBe('1 h 40 min')
+  })
+
+  it('omite los minutos cuando son cero', () => {
+    expect(formatDurationText(7200)).toBe('2 h')
+  })
+
+  it('usa solo minutos cuando dura menos de una hora', () => {
+    expect(formatDurationText(783)).toBe('13 min')
+  })
+
+  it('usa segundos cuando dura menos de un minuto', () => {
+    expect(formatDurationText(45)).toBe('45 s')
   })
 })
