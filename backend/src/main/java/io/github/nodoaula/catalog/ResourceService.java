@@ -108,6 +108,7 @@ public class ResourceService {
 				resource.getChannel(),
 				resource.getUrl(),
 				resource.getResourceType(),
+				resource.getCourse().getId(),
 				resource.getCourse().getName(),
 				topicNames(resource));
 	}
