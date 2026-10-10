@@ -74,9 +74,9 @@ La recuperación de contraseña por correo **queda fuera del alcance del proyect
 
 ### 7. Alcance del acceso y autorización
 
-- El catálogo se lista y se consulta **sin cuenta**. La sesión hace falta únicamente para aportar.
-- **No hay rol de administrador.** Cualquier usuario registrado puede catalogar recursos.
-- **Un recurso del catálogo solo puede modificarlo o eliminarlo el usuario que lo creó.** Las reglas para el contenido de sprints posteriores se definen en sus historias.
+- El catálogo se lista y se consulta **sin cuenta**, salvo el archivo completo de los apuntes, que exige sesión para verlo o descargarlo. Fuera de eso, la sesión hace falta para aportar.
+- **No hay pantalla de administración.** Cualquier usuario registrado puede catalogar recursos. Algunas cuentas se marcan como del equipo, directamente en la base de datos, para moderar el catálogo.
+- **Un recurso del catálogo solo puede corregirlo o retirarlo quien lo aportó, o una cuenta del equipo.** El retiro es lógico: el recurso deja de verse, pero no se borra, y se puede volver a publicar. Las reglas para el contenido de sprints posteriores se definen en sus historias.
 - El registro **no restringe el dominio del correo** ni verifica que el correo pertenezca a quien lo registra.
 - El mensaje de error de inicio de sesión no distingue entre correo inexistente y contraseña incorrecta. El registro sí indica cuando un correo ya está en uso, porque de otro modo el usuario no sabría por qué falla.
 
