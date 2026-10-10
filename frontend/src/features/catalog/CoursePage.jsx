@@ -39,7 +39,7 @@ function Course({ courseId }) {
     if (!validId) return undefined
     let active = true
 
-    listResources({ courseIds: [courseId] })
+    listResources({ courseId })
       .then((data) => {
         if (active) setResources(data)
       })

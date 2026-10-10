@@ -27,7 +27,7 @@ export function useResourceSearch(initialText, courseId) {
     if (query === '') return undefined
     let active = true
 
-    listResources(courseId === undefined ? { q: query } : { q: query, courseIds: [courseId] })
+    listResources({ courseId, q: query })
       .then((resources) => {
         if (active) setResponse({ query, resources, error: null })
       })

@@ -5,11 +5,11 @@ function byCountThenName(a, b) {
 }
 
 /**
- * Una tarjeta por curso para el índice del catálogo, calculada con el listado
- * completo: así cuenta justo los recursos que se ven al entrar al curso. El
- * listado trae el curso por nombre y `courses` su id; se cruzan por nombre,
- * que es único en la base. Los temas y los cursos van de más a menos
- * recursos.
+ * El resumen de cada curso, para su tarjeta en el índice y su cabecera,
+ * calculado con el listado: así cuenta justo los recursos que se ven al
+ * entrar al curso. El listado trae el curso por nombre y `courses` su id; se
+ * cruzan por nombre, que es único en la base. Los temas y los cursos van de
+ * más a menos recursos.
  */
 export function summarizeCourses(resources, courses) {
   const summaries = new Map(

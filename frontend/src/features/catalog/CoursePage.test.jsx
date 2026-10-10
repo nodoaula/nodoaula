@@ -58,7 +58,7 @@ describe('CoursePage', () => {
     renderCourse()
     await advanceTime(0)
 
-    expect(listResources).toHaveBeenCalledWith({ courseIds: ['1'] })
+    expect(listResources).toHaveBeenCalledWith({ courseId: '1' })
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Cálculo Integral')
     expect(screen.getByText('2 videos · 1 apunte · 3 h de video · 3 temas')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Catálogo' })).toHaveAttribute('href', '/catalogo')
@@ -109,7 +109,7 @@ describe('CoursePage', () => {
     expect(screen.getByText('Buscando…')).toBeInTheDocument()
 
     await advanceTime(100)
-    expect(listResources).toHaveBeenLastCalledWith({ q: 'series', courseIds: ['1'] })
+    expect(listResources).toHaveBeenLastCalledWith({ courseId: '1', q: 'series' })
     expect(listedTitles()).toEqual(['Series y sucesiones', 'Apunte de series'])
 
     fireEvent.click(screen.getByRole('button', { name: 'Videos' }))
