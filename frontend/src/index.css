@@ -33,12 +33,6 @@
 /* Lo que el navegador dibuja por su cuenta también lleva la identidad: la
    selección de texto y el anillo de foco del teclado. */
 @layer base {
-  /* Sin esto, el contenido centrado se corre al pasar de una página con barra
-     de desplazamiento a una sin ella. */
-  html {
-    scrollbar-gutter: stable;
-  }
-
   ::selection {
     background-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
   }
