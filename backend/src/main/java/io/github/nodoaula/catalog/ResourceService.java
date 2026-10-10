@@ -113,7 +113,7 @@ public class ResourceService {
 				topicNames(resource));
 	}
 
-	/** Lista los cursos que tienen al menos un recurso, para poblar el selector de filtro. */
+	/** Lista los cursos que tienen al menos un recurso. */
 	@Transactional(readOnly = true)
 	public List<CourseDto> listCoursesWithResources() {
 		return courseRepository.findCoursesWithAtLeastOneResource().stream()
