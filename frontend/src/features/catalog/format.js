@@ -2,7 +2,7 @@
 
 export const RESOURCE_TYPE_LABELS = {
   VIDEO: 'Video',
-  DOCUMENT: 'Documento',
+  DOCUMENT: 'Apunte',
 }
 
 export function formatResourceType(resourceType) {
