@@ -56,6 +56,14 @@ class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 			HttpStatusCode status,
 			WebRequest request) {
 
+		// Un cuerpo sin Content-Length que sobrepasa el límite se corta mientras
+		// Jackson lo lee, y Jackson envuelve ese corte en esta excepción.
+		for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+			if (cause instanceof PayloadTooLargeException tooLarge) {
+				return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).body(handlePayloadTooLarge(tooLarge));
+			}
+		}
+
 		return ResponseEntity.badRequest().body(problem(HttpStatus.BAD_REQUEST, "MALFORMED_REQUEST",
 				"Petición mal formada", "El cuerpo de la petición no es un JSON válido."));
 	}
@@ -99,6 +107,12 @@ class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	@ExceptionHandler(ConflictException.class)
 	ProblemDetail handleConflict(ConflictException exception) {
 		return problem(HttpStatus.CONFLICT, exception.getCode(), "Conflicto", exception.getMessage());
+	}
+
+	@ExceptionHandler(PayloadTooLargeException.class)
+	ProblemDetail handlePayloadTooLarge(PayloadTooLargeException exception) {
+		return problem(HttpStatus.CONTENT_TOO_LARGE, "PAYLOAD_TOO_LARGE",
+				"Petición demasiado grande", "Lo que enviaste supera el tamaño máximo permitido.");
 	}
 
 	@ExceptionHandler(NotFoundException.class)
