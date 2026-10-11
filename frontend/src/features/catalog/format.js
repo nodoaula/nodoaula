@@ -41,6 +41,11 @@ export function formatPublishedAt(isoDate) {
   return new Date(year, month - 1, day).toLocaleDateString('es-CO', { dateStyle: 'long' })
 }
 
+/** "1 página" o "14 páginas". */
+export function formatPageCount(pages) {
+  return pages === 1 ? '1 página' : `${pages} páginas`
+}
+
 /** Tamaño de un archivo para leer: "860 KB" o "2,4 MB". */
 export function formatFileSize(bytes) {
   const megabytes = bytes / (1024 * 1024)

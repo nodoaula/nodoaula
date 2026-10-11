@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatDuration, formatDurationText, formatFileSize, formatPublishedAt, formatResourceType } from './format.js'
+import { formatDuration, formatDurationText, formatFileSize, formatPageCount, formatPublishedAt, formatResourceType } from './format.js'
 
 describe('formatResourceType', () => {
   it('traduce los tipos conocidos al español', () => {
@@ -57,5 +57,12 @@ describe('formatFileSize', () => {
     expect(formatFileSize(880 * 1024)).toBe('880 KB')
     expect(formatFileSize(2516582)).toBe('2,4 MB')
     expect(formatFileSize(20 * 1024 * 1024)).toBe('20 MB')
+  })
+})
+
+describe('formatPageCount', () => {
+  it('usa el singular con una página', () => {
+    expect(formatPageCount(1)).toBe('1 página')
+    expect(formatPageCount(14)).toBe('14 páginas')
   })
 })
