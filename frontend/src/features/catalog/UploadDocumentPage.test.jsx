@@ -45,7 +45,8 @@ async function chooseFile(user, file = pdf()) {
 async function fillValidForm(user) {
   await chooseFile(user)
   await user.type(await screen.findByLabelText('Curso'), 'calculo{Enter}')
-  await user.click(await screen.findByRole('button', { name: 'Añadir el tema Series' }))
+  await user.click(await screen.findByLabelText('Escribe un tema'))
+  await user.click(await screen.findByRole('option', { name: 'Series' }))
   await user.click(screen.getByLabelText(/Declaro que este apunte es de mi autoría/))
 }
 
@@ -149,7 +150,7 @@ describe('UploadDocumentPage', () => {
 
     await chooseFile(user)
     await user.type(await screen.findByLabelText('Curso'), 'Física Cuántica')
-    await user.click(screen.getByRole('button', { name: 'Crear el curso «Física Cuántica»' }))
+    await user.click(screen.getByRole('option', { name: 'Crear el curso «Física Cuántica»' }))
     await user.type(screen.getByLabelText('Escribe un tema'), 'Espín{Enter}')
     await user.click(screen.getByLabelText(/Declaro que este apunte es de mi autoría/))
     await user.click(screen.getByRole('button', { name: 'Publicar apunte' }))
