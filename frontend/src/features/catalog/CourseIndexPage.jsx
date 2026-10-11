@@ -144,8 +144,8 @@ function CourseCard({ summary }) {
         ))}
         {hiddenTopicCount > 0 && (
           <Tag>
-            +{hiddenTopicCount}
-            <span className="sr-only"> temas más</span>
+            +{hiddenTopicCount}{' '}
+            <span className="sr-only">temas más</span>
           </Tag>
         )}
       </span>

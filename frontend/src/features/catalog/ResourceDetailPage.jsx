@@ -146,8 +146,8 @@ function ContentPanel({ resource }) {
             es llevar al recurso en su plataforma de origen. */}
         {isWebUrl(resource.url) && (
           <a href={resource.url} target="_blank" rel="noopener noreferrer" className={buttonClasses('secondary')}>
-            {sourceLinkLabel(resource.url)}
-            <span className="sr-only"> (se abre en una pestaña nueva)</span>
+            {sourceLinkLabel(resource.url)}{' '}
+            <span className="sr-only">(se abre en una pestaña nueva)</span>
           </a>
         )}
       </div>
