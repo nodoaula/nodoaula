@@ -40,3 +40,10 @@ export function formatPublishedAt(isoDate) {
   const [year, month, day] = isoDate.split('-').map(Number)
   return new Date(year, month - 1, day).toLocaleDateString('es-CO', { dateStyle: 'long' })
 }
+
+/** Tamaño de un archivo para leer: "860 KB" o "2,4 MB". */
+export function formatFileSize(bytes) {
+  const megabytes = bytes / (1024 * 1024)
+  if (megabytes < 1) return `${Math.max(1, Math.round(bytes / 1024))} KB`
+  return `${megabytes.toLocaleString('es-CO', { maximumFractionDigits: 1 })} MB`
+}

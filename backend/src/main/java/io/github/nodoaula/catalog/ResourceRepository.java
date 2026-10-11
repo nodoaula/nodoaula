@@ -29,4 +29,8 @@ interface ResourceRepository extends JpaRepository<Resource, Long> {
 			@Param("topicIds") List<Long> topicIds,
 			@Param("resourceTypes") List<ResourceType> resourceTypes);
 
+	/** Bytes que ocupan en el almacenamiento los archivos de todos los apuntes. */
+	@Query("select coalesce(sum(r.file.sizeBytes), 0) from Resource r")
+	long totalStoredBytes();
+
 }

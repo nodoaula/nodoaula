@@ -5,8 +5,10 @@ import java.util.List;
 import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -86,6 +88,15 @@ class ResourceController {
 	ResourceDto createResource(@Valid @RequestBody CreateResourceRequest request,
 			@AuthenticationPrincipal(expression = "id") Long authorId) {
 		return resourceService.createResource(request, authorId);
+	}
+
+	// El archivo y los campos del formulario llegan juntos en un multipart
+	// (historia HU302). El autor se toma igual que en createResource.
+	@PostMapping(path = "/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@ResponseStatus(HttpStatus.CREATED)
+	ResourceDto createDocument(@Valid @ModelAttribute DocumentUploadRequest request,
+			@AuthenticationPrincipal(expression = "id") Long authorId) {
+		return resourceService.createDocument(request, authorId);
 	}
 
 }

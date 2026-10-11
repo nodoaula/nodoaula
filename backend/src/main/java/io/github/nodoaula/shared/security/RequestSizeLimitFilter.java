@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ReadListener;
@@ -17,6 +18,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
@@ -32,6 +34,10 @@ import io.github.nodoaula.shared.error.PayloadTooLargeException;
  * Va primero en la cadena, antes que Spring Security y la sesión. Un cuerpo
  * que declara su tamaño se rechaza sin leerlo; uno que llega por partes, sin
  * Content-Length, se corta al pasar el límite mientras se lee.
+ *
+ * Los formularios multipart/form-data, con los que se sube un apunte, quedan
+ * fuera: Tomcat guarda sus archivos en disco y no en memoria, y los limita
+ * con spring.servlet.multipart.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -49,11 +55,21 @@ class RequestSizeLimitFilter extends OncePerRequestFilter {
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
 			throws ServletException, IOException {
 
+		if (isMultipartForm(request)) {
+			chain.doFilter(request, response);
+			return;
+		}
 		if (request.getContentLengthLong() > MAX_BODY_BYTES) {
 			resolver.resolveException(request, response, null, new PayloadTooLargeException(MAX_BODY_BYTES));
 			return;
 		}
 		chain.doFilter(new LimitedRequest(request), response);
+	}
+
+	private static boolean isMultipartForm(HttpServletRequest request) {
+		String contentType = request.getContentType();
+		return contentType != null
+				&& contentType.toLowerCase(Locale.ROOT).startsWith(MediaType.MULTIPART_FORM_DATA_VALUE);
 	}
 
 	private static final class LimitedRequest extends HttpServletRequestWrapper {

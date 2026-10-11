@@ -55,11 +55,6 @@ export function validateUrl(url) {
   return null
 }
 
-export function validateResourceType(resourceType) {
-  if (resourceType === '') return 'Elige el tipo de recurso.'
-  return null
-}
-
 export function validateCourse(course) {
   if (course === '') return 'Escribe el curso.'
   if (course.length > COURSE_MAX_LENGTH) return `El curso no puede tener más de ${COURSE_MAX_LENGTH} caracteres.`
@@ -84,8 +79,7 @@ export function parseTopics(topicsText) {
 }
 
 /** Devuelve un objeto con el error de cada campo inválido; vacío si todo es válido. */
-export function validateCreateResource({ title, description, publishedAt, durationSeconds, channel, url,
-  resourceType, course, topics }) {
+export function validateCreateResource({ title, description, publishedAt, durationSeconds, channel, url, course, topics }) {
   const errors = {}
 
   const titleError = validateTitle(title)
@@ -105,9 +99,6 @@ export function validateCreateResource({ title, description, publishedAt, durati
 
   const urlError = validateUrl(url)
   if (urlError) errors.url = urlError
-
-  const resourceTypeError = validateResourceType(resourceType)
-  if (resourceTypeError) errors.resourceType = resourceTypeError
 
   const courseError = validateCourse(course)
   if (courseError) errors.course = courseError

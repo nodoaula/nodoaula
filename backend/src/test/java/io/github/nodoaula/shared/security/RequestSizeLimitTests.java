@@ -1,5 +1,6 @@
 package io.github.nodoaula.shared.security;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -7,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,6 +71,21 @@ class RequestSizeLimitTests {
 
 		assertThrows(PayloadTooLargeException.class, () -> filter.doFilter(request, new MockHttpServletResponse(),
 				(req, res) -> req.getInputStream().readAllBytes()));
+	}
+
+	// Un formulario multipart, como la subida de un apunte, lo limita Tomcat,
+	// que guarda sus archivos en disco: el filtro lo deja pasar entero.
+	@Test
+	void letsAMultipartFormThroughWhateverItsSize() throws Exception {
+		MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/resources/documents");
+		request.setContentType(MediaType.MULTIPART_FORM_DATA_VALUE + "; boundary=limite");
+		request.setContent(new byte[(int) RequestSizeLimitFilter.MAX_BODY_BYTES + 1]);
+		AtomicInteger bytesRead = new AtomicInteger();
+
+		filter.doFilter(request, new MockHttpServletResponse(),
+				(req, res) -> bytesRead.set(req.getInputStream().readAllBytes().length));
+
+		assertEquals(RequestSizeLimitFilter.MAX_BODY_BYTES + 1, bytesRead.get());
 	}
 
 	private static byte[] registrationOfSize(long bytes) {

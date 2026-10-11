@@ -18,11 +18,11 @@ const STEPS = [
   },
   {
     title: 'Abre el recurso',
-    text: 'Cada recurso tiene su página: los videos se ven ahí mismo y los apuntes se abren desde su enlace.',
+    text: 'Cada recurso tiene su página: los videos se ven ahí mismo y los apuntes son PDF que suben los propios estudiantes.',
   },
   {
     title: 'Aporta lo tuyo',
-    text: 'Con una cuenta puedes registrar un video o tus apuntes: pegas el enlace e indicas el curso y los temas.',
+    text: 'Con una cuenta agregas un video pegando su enlace o subes tus apuntes en PDF, y eliges el curso y los temas.',
   },
 ]
 
@@ -119,15 +119,23 @@ export default function LandingPage() {
               >
                 <h3 className="text-2xl font-semibold tracking-tight">Si quieres compartir un video o tus apuntes</h3>
                 <p className="mt-2 text-body text-content-muted">
-                  Crea una cuenta y regístralos. Quedan en el catálogo para los demás estudiantes del
+                  Crea una cuenta y compártelos. Quedan en el catálogo para los demás estudiantes del
                   curso.
                 </p>
-                <Link
-                  to={account === null ? '/registro' : '/registrar-recurso'}
-                  className="mt-5 inline-block font-medium text-accent hover:underline"
-                >
-                  {account === null ? 'Crear cuenta →' : 'Registrar un recurso →'}
-                </Link>
+                {account === null ? (
+                  <Link to="/registro" className="mt-5 inline-block font-medium text-accent hover:underline">
+                    Crear cuenta →
+                  </Link>
+                ) : (
+                  <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2">
+                    <Link to="/registrar-recurso" className="font-medium text-accent hover:underline">
+                      Agregar un video →
+                    </Link>
+                    <Link to="/subir-apunte" className="font-medium text-accent hover:underline">
+                      Subir un apunte →
+                    </Link>
+                  </div>
+                )}
               </div>
             </div>
           </section>

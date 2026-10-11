@@ -80,9 +80,10 @@ function sendOnce(path, method, body, csrfToken, attemptTimeoutMs) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), attemptTimeoutMs)
 
-  // Un formulario lo codifica el propio navegador, con su Content-Type; el
-  // resto de cuerpos van como JSON.
-  const isForm = body instanceof URLSearchParams
+  // Un formulario lo codifica el propio navegador, con su Content-Type: en un
+  // FormData, el límite que separa las partes solo lo conoce él. El resto de
+  // cuerpos van como JSON.
+  const isForm = body instanceof URLSearchParams || body instanceof FormData
 
   return fetch(`${API_PREFIX}${path}`, {
     method,
@@ -140,6 +141,12 @@ async function readBodyQuietly(response) {
   }
 }
 
+// Lo que puede arreglarse solo repitiendo: la red falló o el proxy respondió
+// que el backend aún no atiende.
+function isTransient(response, failure) {
+  return failure !== null || RETRYABLE_STATUSES.has(response?.status)
+}
+
 function toTransportError(failure) {
   // En este cliente no aborta nadie más que el temporizador, así que esa marca
   // identifica el tiempo agotado y lo separa de un fallo de red.
@@ -183,21 +190,15 @@ async function request(path, {
       failure = error
     }
 
-    if (response !== null && response.ok) {
+    if (response?.ok) {
       return readBody(response)
     }
 
-    // La comprobación de `response` va escrita y no confiada a que el `||`
-    // corte antes: una condición correcta solo por el orden en que está
-    // escrita se rompe la primera vez que alguien la reordena.
-    const isTransient =
-      failure !== null || (response !== null && RETRYABLE_STATUSES.has(response.status))
-
     // El intento siguiente entra en la cuenta: si solo se midiera la espera,
     // una petición podría durar un intento entero más que su plazo total.
-    const retryCabeEnElPlazo = Date.now() + backoff + attemptTimeoutMs <= deadline
+    const retryFitsInDeadline = Date.now() + backoff + attemptTimeoutMs <= deadline
 
-    if (canRetry && isTransient && retryCabeEnElPlazo) {
+    if (canRetry && isTransient(response, failure) && retryFitsInDeadline) {
       await wait(backoff)
       backoff = Math.min(backoff * 2, MAX_BACKOFF_MS)
       continue

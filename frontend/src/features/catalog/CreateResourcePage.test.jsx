@@ -62,7 +62,6 @@ const field = {
   publishedAt: () => screen.getByLabelText('Fecha de publicación'),
   duration: () => screen.getByLabelText('Duración'),
   channel: () => screen.getByLabelText('Canal'),
-  type: () => screen.getByLabelText('Tipo de recurso'),
   course: () => screen.getByLabelText('Curso'),
   topics: () => screen.getByLabelText('Temas'),
 }
@@ -93,7 +92,6 @@ function clickInDialog(name) {
 }
 
 function fillManualFields() {
-  fireEvent.change(field.type(), { target: { value: 'VIDEO' } })
   type(field.course(), 'Gestión de proyectos')
   type(field.topics(), 'Azure DevOps')
 }
@@ -130,7 +128,7 @@ describe('CreateResourcePage - indexación desde YouTube (HU202)', () => {
     ])
   })
 
-  it('«Insertar» llena lo obtenido, marca lo ausente y canoniza el enlace sin tocar tipo, curso ni temas', async () => {
+  it('«Insertar» llena lo obtenido, marca lo ausente y canoniza el enlace sin tocar curso ni temas', async () => {
     getYouTubeMetadata.mockResolvedValue({ ...FIRST_VIDEO, publishedAt: null, missingFields: ['description', 'publishedAt'] })
     renderPage()
     fillManualFields()
@@ -143,7 +141,6 @@ describe('CreateResourcePage - indexación desde YouTube (HU202)', () => {
     expect(field.title()).toHaveValue(FIRST_VIDEO.title)
     expect(field.duration()).toHaveValue(2371)
     expect(field.channel()).toHaveValue(FIRST_VIDEO.channel)
-    expect(field.type()).toHaveValue('VIDEO')
     expect(field.course()).toHaveValue('Gestión de proyectos')
     expect(field.topics()).toHaveValue('Azure DevOps')
 
@@ -208,7 +205,6 @@ describe('CreateResourcePage - indexación desde YouTube (HU202)', () => {
     expect(field.title()).toHaveValue(SECOND_VIDEO.title)
     expect(field.description()).toHaveValue(SECOND_VIDEO.description)
     expect(field.channel()).toHaveValue(SECOND_VIDEO.channel)
-    expect(field.type()).toHaveValue('')
     expect(field.course()).toHaveValue('')
     expect(field.topics()).toHaveValue('')
   })
@@ -367,7 +363,6 @@ describe('CreateResourcePage - indexación desde YouTube (HU202)', () => {
     renderPage()
     await openModalWith('yhUh4ZmM45w')
     clickInDialog('Insertar')
-    fireEvent.change(field.type(), { target: { value: 'VIDEO' } })
 
     fireEvent.click(screen.getByRole('button', { name: 'Registrar recurso' }))
 
@@ -392,9 +387,17 @@ describe('CreateResourcePage - indexación desde YouTube (HU202)', () => {
         title: FIRST_VIDEO.title,
         description: null,
         durationSeconds: 2371,
+        resourceType: 'VIDEO',
         entryMethod: 'AUTOMATIC',
       }),
     )
+  })
+
+  it('no ofrece elegir el tipo: el registro por enlace es solo de videos', () => {
+    renderPage()
+
+    expect(screen.queryByLabelText('Tipo de recurso')).not.toBeInTheDocument()
+    expect(screen.queryByText('Documento')).not.toBeInTheDocument()
   })
 
   it('publica como manual si se editaron todos los valores insertados', async () => {
