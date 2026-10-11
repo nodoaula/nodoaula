@@ -1,25 +1,27 @@
 import { useState } from 'react'
 
 import { normalizeText, tidyText } from '../../lib/text.js'
-import { CloseIcon, PlusIcon } from './icons.jsx'
+import Combobox from './Combobox.jsx'
+import { CloseIcon } from './icons.jsx'
 
 /**
  * Temas de un recurso: los elegidos llevan una × para quitarlos, y los del
- * curso se ofrecen para añadirlos con un clic. También se escriben, de uno en
- * uno o varios separados por comas. Uno que solo se diferencia de otro en
+ * curso se ofrecen en la lista del campo, que se filtra al escribir. También se
+ * escriben, de uno en uno o varios separados por comas. Uno que solo se diferencia de otro en
  * mayúsculas o tildes se toma como ese otro, con su nombre de siempre.
  *
  * `suggestions` son los temas del curso; `value`, los elegidos.
  */
-export default function TopicPicker({ id, label, courseName, suggestions, value, onChange, error }) {
+export default function TopicPicker({ id, label, suggestions, value, onChange, error }) {
   const [draft, setDraft] = useState('')
   const hintId = `${id}-hint`
   const errorId = `${id}-error`
 
   const isChosen = (name) => value.some((topic) => normalizeText(topic) === normalizeText(name))
   // Se filtra por lo último que se está escribiendo, después de la última coma.
-  const typing = normalizeText(draft.split(',').pop())
-  const available = suggestions.filter((name) => !isChosen(name) && normalizeText(name).includes(typing))
+  const segments = draft.split(',')
+  const typing = segments.at(-1)
+  const available = suggestions.filter((name) => !isChosen(name) && normalizeText(name).includes(normalizeText(typing)))
 
   const add = (names) => {
     const next = [...value]
@@ -31,11 +33,22 @@ export default function TopicPicker({ id, label, courseName, suggestions, value,
       if (!next.includes(name)) next.push(name)
     }
     onChange(next)
+    setDraft('')
   }
 
-  const addDraft = () => {
-    add(draft.split(','))
-    setDraft('')
+  // Elegir una sugerencia añade también lo escrito antes de la última coma.
+  const options = available.map((name) => ({ key: name, label: name, onSelect: () => add([...segments.slice(0, -1), name]) }))
+  // Lo escrito se añade entero: la etiqueta nombra todos los temas que añade.
+  const typed = segments.map(tidyText).filter((name) => name !== '')
+  const lastIsKnown = [...suggestions, ...value].some((name) => normalizeText(name) === normalizeText(typing))
+  if (typed.length > 0 && (typed.length > 1 || !lastIsKnown)) {
+    const quoted = typed.map((name) => `«${name}»`).join(', ')
+    options.push({
+      key: 'nuevo',
+      label: typed.length === 1 ? `Añadir el tema ${quoted}` : `Añadir los temas ${quoted}`,
+      create: true,
+      onSelect: () => add(segments),
+    })
   }
 
   return (
@@ -65,60 +78,24 @@ export default function TopicPicker({ id, label, courseName, suggestions, value,
         </ul>
       )}
 
-      <div className="flex gap-2">
+      <div>
         <label htmlFor={id} className="sr-only">
           Escribe un tema
         </label>
-        <input
+        <Combobox
           id={id}
-          type="text"
-          autoComplete="off"
-          placeholder="Escribe un tema"
           value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key !== 'Enter') return
-            event.preventDefault()
-            addDraft()
-          }}
-          aria-invalid={error ? true : undefined}
+          onChange={setDraft}
+          options={options}
+          onEnter={() => add(segments)}
+          placeholder="Escribe un tema"
+          invalid={Boolean(error)}
           aria-describedby={[hintId, error && errorId].filter(Boolean).join(' ')}
-          className={`min-w-0 flex-1 rounded-full border bg-surface-raised px-4 py-2.5 text-body text-content placeholder:text-content-faint focus:border-accent focus:outline-none ${error ? 'border-red-400' : 'border-border-strong hover:border-content-faint'}`}
         />
-        <button
-          type="button"
-          onClick={addDraft}
-          className="shrink-0 rounded-full border border-border-strong px-4 text-sm font-medium text-content hover:border-content-muted"
-        >
-          Añadir
-        </button>
       </div>
 
-      {available.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <p className="text-label text-content-muted">
-            {typing ? `Coinciden en ${courseName}:` : `Temas de ${courseName}:`}
-          </p>
-          <ul className="flex flex-wrap gap-2">
-            {available.map((name) => (
-              <li key={name}>
-                <button
-                  type="button"
-                  onClick={() => add([name])}
-                  aria-label={`Añadir el tema ${name}`}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border-strong px-3 py-1.5 text-label text-content hover:border-content-muted"
-                >
-                  <PlusIcon />
-                  {name}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       <p id={hintId} className="text-label text-content-muted">
-        Puedes escribir varios separados por comas. Los que aún no existan se crean al publicar.
+        Elige de la lista los temas del curso o escribe uno nuevo y pulsa Enter. Puedes escribir varios separados por comas.
       </p>
       {error && <p id={errorId} className="text-label text-red-400">{error}</p>}
     </fieldset>

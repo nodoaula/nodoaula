@@ -269,7 +269,6 @@ export default function UploadDocumentPage() {
                   <TopicPicker
                     id="temas"
                     label="Temas"
-                    courseName={course.name}
                     suggestions={suggestedTopics}
                     value={topics}
                     onChange={(value) => {

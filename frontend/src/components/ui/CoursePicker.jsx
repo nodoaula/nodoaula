@@ -1,9 +1,8 @@
 import { useRef, useState } from 'react'
 
 import { normalizeText, tidyText } from '../../lib/text.js'
-import { PlusIcon } from './icons.jsx'
+import Combobox from './Combobox.jsx'
 
-const MAX_MATCHES = 8
 const COURSE_MAX_LENGTH = 200
 
 /**
@@ -11,10 +10,6 @@ const COURSE_MAX_LENGTH = 200
  * crear uno nuevo es una acción aparte, para que el catálogo no se llene de
  * cursos mal escritos. `value` es `{ id, name, isNew }` o null; un curso
  * nuevo aún no tiene `id`.
- *
- * Los cursos que coinciden se muestran como botones y no como lista
- * desplegable: con botones nativos se llega a ellos con el teclado sin roles
- * ARIA ni manejo del foco.
  */
 export default function CoursePicker({ id, label, courses, value, onChange, error }) {
   const [query, setQuery] = useState('')
@@ -64,22 +59,24 @@ export default function CoursePicker({ id, label, courses, value, onChange, erro
   const matches = courses
     .filter((course) => normalizeText(course.name).includes(normalizedQuery))
     .sort((a, b) => a.name.localeCompare(b.name, 'es'))
-    .slice(0, MAX_MATCHES)
   const exact = courses.find((course) => normalizeText(course.name) === normalizedQuery)
-  const canCreate = typed !== '' && exact === undefined
 
   const choose = (course) => {
     setQuery('')
     onChange({ id: course.id, name: course.name, isNew: false })
   }
 
-  // Enter elige el curso cuando no hay duda de cuál es; si no, no hace nada,
-  // y en ningún caso envía el formulario.
-  const handleKeyDown = (event) => {
-    if (event.key !== 'Enter') return
-    event.preventDefault()
-    if (exact !== undefined) choose(exact)
-    else if (matches.length === 1) choose(matches[0])
+  const options = matches.map((course) => ({ key: course.id, label: course.name, onSelect: () => choose(course) }))
+  if (typed !== '' && exact === undefined) {
+    options.push({
+      key: 'crear',
+      label: `Crear el curso «${typed}»`,
+      create: true,
+      onSelect: () => {
+        setQuery('')
+        onChange({ name: typed, isNew: true })
+      },
+    })
   }
 
   return (
@@ -87,50 +84,22 @@ export default function CoursePicker({ id, label, courses, value, onChange, erro
       <label htmlFor={id} className="text-sm font-medium text-content">
         {label}
       </label>
-      <input
-        ref={searchRef}
+      <Combobox
         id={id}
-        type="search"
-        autoComplete="off"
+        inputRef={searchRef}
+        value={query}
+        onChange={setQuery}
+        options={options}
+        // Enter sin opción marcada elige el curso cuando no hay duda de cuál es.
+        onEnter={() => {
+          if (exact !== undefined) choose(exact)
+          else if (matches.length === 1) choose(matches[0])
+        }}
         maxLength={COURSE_MAX_LENGTH}
         placeholder="Busca el curso"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        onKeyDown={handleKeyDown}
-        aria-invalid={error ? true : undefined}
+        invalid={Boolean(error)}
         aria-describedby={[hintId, error && errorId].filter(Boolean).join(' ')}
-        className={`w-full rounded-xl border bg-surface-raised px-3.5 py-3 text-body text-content placeholder:text-content-faint focus:border-accent focus:outline-none ${error ? 'border-red-400' : 'border-border-strong hover:border-content-faint'}`}
       />
-      {(matches.length > 0 || canCreate) && (
-        <ul aria-label="Cursos" className="flex flex-wrap gap-2">
-          {matches.map((course) => (
-            <li key={course.id}>
-              <button
-                type="button"
-                onClick={() => choose(course)}
-                className="rounded-full border border-border-strong px-3 py-1.5 text-label text-content hover:border-content-muted"
-              >
-                {course.name}
-              </button>
-            </li>
-          ))}
-          {canCreate && (
-            <li>
-              <button
-                type="button"
-                onClick={() => {
-                  setQuery('')
-                  onChange({ name: typed, isNew: true })
-                }}
-                className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-accent/60 px-3 py-1.5 text-label text-accent hover:border-accent"
-              >
-                <PlusIcon />
-                Crear el curso «{typed}»
-              </button>
-            </li>
-          )}
-        </ul>
-      )}
       <p id={hintId} className="text-label text-content-muted">
         Elígelo de la lista. Si tu curso no está, escríbelo y pulsa «Crear el curso».
       </p>
