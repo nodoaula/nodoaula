@@ -134,6 +134,8 @@ function ResourceSheet({ resource }) {
 }
 
 function ContentPanel({ resource }) {
+  if (resource.resourceType === 'DOCUMENT') return <DocumentPending />
+
   const source = [resource.channel, resource.publishedAt && formatPublishedAt(resource.publishedAt)].filter(Boolean)
 
   return (
@@ -151,6 +153,20 @@ function ContentPanel({ resource }) {
           </a>
         )}
       </div>
+    </div>
+  )
+}
+
+// Un apunte no tiene enlace ni reproductor: se leerá con el visor de la
+// historia HU411, que reemplaza este aviso.
+function DocumentPending() {
+  return (
+    <div className="flex aspect-video flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-surface-raised px-6 text-center">
+      <svg viewBox="0 0 20 24" fill="none" aria-hidden="true" className="h-9 w-8 text-content-muted">
+        <path d="M2 1.5h10.5L18 7v15.5H2z M12.5 1.5V7H18" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+      </svg>
+      <p className="text-body text-content">Este apunte es un PDF.</p>
+      <p className="text-label text-content-muted">Pronto podrás leerlo y descargarlo aquí mismo.</p>
     </div>
   )
 }

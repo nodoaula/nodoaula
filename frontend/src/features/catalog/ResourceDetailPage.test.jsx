@@ -83,4 +83,14 @@ describe('ResourceDetailPage', () => {
     expect(await screen.findByText('Recurso no encontrado')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Volver al catálogo' })).toHaveAttribute('href', '/catalogo')
   })
+
+  it('un apunte no muestra el aviso del reproductor, que remite a un botón que no tiene', async () => {
+    getResource.mockResolvedValue({ ...VIDEO, url: null, resourceType: 'DOCUMENT', channel: null, durationSeconds: null })
+    renderDetail()
+
+    expect(await screen.findByText('Este apunte es un PDF.')).toBeInTheDocument()
+    expect(screen.getByText('Pronto podrás leerlo y descargarlo aquí mismo.')).toBeInTheDocument()
+    expect(screen.queryByText(/No se puede ver dentro de NodoAula/)).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Apunte' })).toBeInTheDocument()
+  })
 })
