@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
 import NodePath from '../../components/ui/NodePath.jsx'
@@ -92,7 +92,13 @@ function CourseResources({ courseId, resources }) {
   const { account } = useSession()
   const search = useResourceSearch('', courseId)
   const [type, setType] = useState(ALL_TYPES)
-  const [selectedTopics, setSelectedTopics] = useState([])
+  // Desde la ruta de una ficha se llega con ?topic= y ese tema ya filtrado.
+  // Se lee solo al abrir la página, como ?q= en el índice.
+  const [searchParams] = useSearchParams()
+  const [selectedTopics, setSelectedTopics] = useState(() => {
+    const topic = searchParams.get('topic')
+    return summary.topics.some((known) => known.name === topic) ? [topic] : []
+  })
 
   const toggleTopic = (topic) =>
     setSelectedTopics((current) => (current.includes(topic) ? current.filter((t) => t !== topic) : [...current, topic]))
