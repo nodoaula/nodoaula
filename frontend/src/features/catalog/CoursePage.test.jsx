@@ -20,9 +20,9 @@ const RESOURCES = [
   { id: 12, title: 'Apunte de series', course: 'Cálculo Integral', resourceType: 'DOCUMENT', durationSeconds: null, pageCount: 14, topics: ['Series'] },
 ]
 
-function renderCourse(courseId = '1') {
+function renderCourse(courseId = '1', query = '') {
   return render(
-    <MemoryRouter initialEntries={[`/catalogo/cursos/${courseId}`]}>
+    <MemoryRouter initialEntries={[`/catalogo/cursos/${courseId}${query}`]}>
       <Routes>
         <Route path="/catalogo/cursos/:courseId" element={<CoursePage />} />
       </Routes>
@@ -77,6 +77,19 @@ describe('CoursePage', () => {
     const row = screen.getByRole('link', { name: /Apunte de series/ })
     expect(row).toHaveTextContent('Apunte')
     expect(row).toHaveTextContent('PDF · 14 páginas')
+  })
+
+  it('con ?topic= abre con ese tema filtrado; un tema que no es del curso no filtra', async () => {
+    renderCourse('1', '?topic=Series')
+    await advanceTime(0)
+
+    expect(screen.getByRole('button', { name: /^Series/ })).toHaveAttribute('aria-pressed', 'true')
+    expect(listedTitles()).toEqual(['Series y sucesiones', 'Apunte de series'])
+
+    cleanup()
+    renderCourse('1', '?topic=Tema+ajeno')
+    await advanceTime(0)
+    expect(listedTitles()).toHaveLength(3)
   })
 
   it('con sesión ofrece subir un apunte a este curso, con el curso ya puesto', async () => {

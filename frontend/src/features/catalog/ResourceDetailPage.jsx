@@ -100,14 +100,7 @@ function ResourceSheet({ resource }) {
 
   return (
     <article>
-      <NodePath
-        label="Ubicación"
-        items={[
-          { label: 'Catálogo', to: '/catalogo' },
-          { label: resource.course, to: `/catalogo/cursos/${resource.courseId}` },
-        ]}
-        current={type}
-      />
+      <NodePath label="Ubicación" items={pathItems(resource)} current={type} />
 
       <h1 className="mt-5 max-w-[24ch] text-[1.75rem] leading-[1.08] font-semibold tracking-tight text-balance sm:text-display">
         {resource.title}
@@ -131,6 +124,17 @@ function ResourceSheet({ resource }) {
       </div>
     </article>
   )
+}
+
+// La firma de la identidad: curso → tema → recurso. El tema es el primero del
+// recurso, que llegan ordenados por nombre, y lleva a su curso con ese tema
+// filtrado.
+function pathItems(resource) {
+  const course = `/catalogo/cursos/${resource.courseId}`
+  const [topic] = resource.topics
+  const items = [{ label: resource.course, to: course }]
+  if (topic) items.push({ label: topic, to: `${course}?${new URLSearchParams({ topic })}` })
+  return items
 }
 
 function ContentPanel({ resource }) {

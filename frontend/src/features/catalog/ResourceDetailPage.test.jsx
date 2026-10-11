@@ -49,6 +49,12 @@ describe('ResourceDetailPage', () => {
 
     const courseLink = await screen.findByRole('link', { name: 'Cálculo Integral' })
     expect(courseLink).toHaveAttribute('href', '/catalogo/cursos/7')
+    // Curso → tema → recurso, como en el prototipo: el tema es el primero por nombre.
+    expect(screen.getByRole('link', { name: 'Integral Indefinida' })).toHaveAttribute(
+      'href',
+      '/catalogo/cursos/7?topic=Integral+Indefinida',
+    )
+    expect(screen.queryByRole('link', { name: 'Catálogo' })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(VIDEO.title)
     expect(screen.getByText('Video · 1 h 40 min · YouTube')).toBeInTheDocument()
   })
