@@ -28,11 +28,6 @@ const MISSING_FIELD_NOTICE = 'No fue posible obtener este dato de YouTube; compl
 const INVALID_YOUTUBE_LINK_MESSAGE =
   'El enlace de YouTube no corresponde a un video. Revisa que esté completo, como https://www.youtube.com/watch?v=… o https://youtu.be/….'
 
-const RESOURCE_TYPE_OPTIONS = [
-  { value: 'VIDEO', label: 'Video' },
-  { value: 'DOCUMENT', label: 'Documento' },
-]
-
 const EMPTY_FORM = {
   title: '',
   description: '',
@@ -40,7 +35,6 @@ const EMPTY_FORM = {
   durationSeconds: '',
   channel: '',
   url: '',
-  resourceType: '',
   course: '',
   topicsText: '',
 }
@@ -316,7 +310,7 @@ export default function CreateResourcePage() {
     const missing = AUTOFILLABLE_FIELDS.filter((field) => metadata.missingFields.includes(field))
     const isReplacement = appliedIndexing !== null
 
-    // La primera inserción respeta tipo, curso y temas; una que reemplaza a
+    // La primera inserción respeta curso y temas; una que reemplaza a
     // otra vacía todo el formulario antes de llenar lo obtenido.
     setForm((current) => ({ ...(isReplacement ? EMPTY_FORM : current), ...values, url: metadata.url }))
 
@@ -365,7 +359,6 @@ export default function CreateResourcePage() {
       durationSeconds: form.durationSeconds.trim(),
       channel: form.channel.trim(),
       url: form.url.trim(),
-      resourceType: form.resourceType,
       course: form.course.trim(),
       topics: parseTopics(form.topicsText),
     }
@@ -388,7 +381,8 @@ export default function CreateResourcePage() {
         durationSeconds: data.durationSeconds === '' ? null : Number(data.durationSeconds),
         channel: data.channel === '' ? null : data.channel,
         url: data.url,
-        resourceType: data.resourceType,
+        // El registro por enlace es solo de videos: un apunte entra subiendo su archivo.
+        resourceType: 'VIDEO',
         course: data.course,
         topics: data.topics,
         entryMethod: resolveEntryMethod(appliedIndexing?.snapshot ?? null, data),
@@ -508,31 +502,6 @@ export default function CreateResourcePage() {
             notice={noticeFor('channel')}
           />
 
-          <div>
-            <label htmlFor="resource-type" className="block text-sm font-medium text-slate-700">
-              Tipo de recurso
-            </label>
-            <select
-              id="resource-type"
-              value={form.resourceType}
-              onChange={(event) => updateField('resourceType', event.target.value)}
-              aria-invalid={fieldErrors.resourceType ? true : undefined}
-              className={`mt-1 block w-full rounded-md border bg-white px-3 py-2 text-sm ${
-                fieldErrors.resourceType ? 'border-red-500' : 'border-slate-300'
-              }`}
-            >
-              <option value="">Elige uno…</option>
-              {RESOURCE_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            {fieldErrors.resourceType && (
-              <p className="mt-1 text-sm text-red-700">{fieldErrors.resourceType}</p>
-            )}
-          </div>
-
           <TextField
             id="resource-course"
             label="Curso"
@@ -602,7 +571,7 @@ export default function CreateResourcePage() {
         {appliedIndexing !== null && (
           <p className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">
             Ya insertaste los datos de otro video. Si insertas estos, se borrará todo lo que hayas ingresado en el
-            formulario, incluidos el tipo, el curso y los temas.
+            formulario, incluidos el curso y los temas.
           </p>
         )}
         {pendingMetadata !== null && (

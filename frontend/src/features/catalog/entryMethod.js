@@ -8,7 +8,7 @@ export const ENTRY_METHOD = {
   AUTOMATIC: 'AUTOMATIC',
 }
 
-/** Campos que la indexación puede llenar. Tipo, curso y temas nunca los llena. */
+/** Campos que la indexación puede llenar. Curso y temas nunca los llena. */
 export const AUTOFILLABLE_FIELDS = ['title', 'description', 'publishedAt', 'durationSeconds', 'channel']
 
 /**
