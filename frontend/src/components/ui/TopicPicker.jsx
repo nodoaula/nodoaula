@@ -73,7 +73,7 @@ export default function TopicPicker({ id, label, courseName, suggestions, value,
           id={id}
           type="text"
           autoComplete="off"
-          placeholder="Escribe un tema, o varios separados por comas"
+          placeholder="Escribe un tema"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
@@ -118,7 +118,7 @@ export default function TopicPicker({ id, label, courseName, suggestions, value,
       )}
 
       <p id={hintId} className="text-label text-content-muted">
-        Los temas que escribas y aún no existan se crean al publicar.
+        Puedes escribir varios separados por comas. Los que aún no existan se crean al publicar.
       </p>
       {error && <p id={errorId} className="text-label text-red-400">{error}</p>}
     </fieldset>
