@@ -17,7 +17,7 @@ const DEBOUNCE_MS = 400
 const RESOURCES = [
   { id: 10, title: 'Series y sucesiones', course: 'Cálculo Integral', resourceType: 'VIDEO', durationSeconds: 4749, topics: ['Series', 'Sucesiones'] },
   { id: 11, title: 'Métodos de integración', course: 'Cálculo Integral', resourceType: 'VIDEO', durationSeconds: 6670, topics: ['Métodos de integración'] },
-  { id: 12, title: 'Apunte de series', course: 'Cálculo Integral', resourceType: 'DOCUMENT', durationSeconds: null, topics: ['Series'] },
+  { id: 12, title: 'Apunte de series', course: 'Cálculo Integral', resourceType: 'DOCUMENT', durationSeconds: null, pageCount: 14, topics: ['Series'] },
 ]
 
 function renderCourse(courseId = '1') {
@@ -68,6 +68,15 @@ describe('CoursePage', () => {
     expect(screen.getByRole('link', { name: 'Catálogo' })).toHaveAttribute('href', '/catalogo')
     expect(screen.getByText('3 recursos')).toBeInTheDocument()
     expect(listedTitles()).toHaveLength(3)
+  })
+
+  it('un apunte muestra sus páginas donde un video muestra su duración', async () => {
+    renderCourse()
+    await advanceTime(0)
+
+    const row = screen.getByRole('link', { name: /Apunte de series/ })
+    expect(row).toHaveTextContent('Apunte')
+    expect(row).toHaveTextContent('PDF · 14 páginas')
   })
 
   it('con sesión ofrece subir un apunte a este curso, con el curso ya puesto', async () => {

@@ -364,6 +364,7 @@ public class ResourceService {
 				resource.getCourse().getName(),
 				resource.getResourceType(),
 				resource.getDurationSeconds(),
+				resource.getFile() == null ? null : resource.getFile().pageCount(),
 				resource.getUrl(),
 				topicNames(resource));
 	}

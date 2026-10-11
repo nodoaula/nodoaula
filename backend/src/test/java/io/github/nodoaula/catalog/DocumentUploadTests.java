@@ -120,7 +120,9 @@ class DocumentUploadTests {
 
 		mockMvc.perform(get("/api/resources").param("q", TITLE))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[0].title").value(TITLE));
+				.andExpect(jsonPath("$[0].title").value(TITLE))
+				.andExpect(jsonPath("$[0].pageCount").value(1))
+				.andExpect(jsonPath("$[0].durationSeconds").doesNotExist());
 	}
 
 	@Test
