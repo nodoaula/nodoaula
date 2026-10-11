@@ -249,10 +249,21 @@ public class ResourceService {
 		try {
 			DocumentFile file = new DocumentFile(UUID.randomUUID() + ".pdf", upload.getSize(),
 					PdfDocuments.countPages(pdf));
-			fileStorage.store(file.key(), pdf, MediaType.APPLICATION_PDF_VALUE);
+			storeOrDeleteFile(file.key(), pdf);
 			return saveDocumentOrDeleteFile(request, file, authorId);
 		} finally {
 			deleteTempFile(pdf);
+		}
+	}
+
+	// Que la subida falle al esperar la respuesta no prueba que el archivo no
+	// se guardara: se intenta borrar para no dejarlo sin registro.
+	private void storeOrDeleteFile(String key, Path pdf) {
+		try {
+			fileStorage.store(key, pdf, MediaType.APPLICATION_PDF_VALUE);
+		} catch (StorageUnavailableException exception) {
+			deleteStoredFile(key);
+			throw exception;
 		}
 	}
 
