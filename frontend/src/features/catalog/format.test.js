@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatDuration, formatDurationText, formatPublishedAt, formatResourceType } from './format.js'
+import { formatDuration, formatDurationText, formatFileSize, formatPublishedAt, formatResourceType } from './format.js'
 
 describe('formatResourceType', () => {
   it('traduce los tipos conocidos al español', () => {
@@ -48,5 +48,14 @@ describe('formatDurationText', () => {
 
   it('usa segundos cuando dura menos de un minuto', () => {
     expect(formatDurationText(45)).toBe('45 s')
+  })
+})
+
+describe('formatFileSize', () => {
+  it('muestra KB por debajo de un mega y MB con un decimal por encima', () => {
+    expect(formatFileSize(500)).toBe('1 KB')
+    expect(formatFileSize(880 * 1024)).toBe('880 KB')
+    expect(formatFileSize(2516582)).toBe('2,4 MB')
+    expect(formatFileSize(20 * 1024 * 1024)).toBe('20 MB')
   })
 })

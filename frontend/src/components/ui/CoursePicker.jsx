@@ -9,7 +9,8 @@ const COURSE_MAX_LENGTH = 200
 /**
  * Curso de una lista cerrada: se busca y se elige uno de los que existen, y
  * crear uno nuevo es una acción aparte, para que el catálogo no se llene de
- * cursos mal escritos. `value` es `{ name, isNew }` o null.
+ * cursos mal escritos. `value` es `{ id, name, isNew }` o null; un curso
+ * nuevo aún no tiene `id`.
  *
  * Los cursos que coinciden se muestran como botones y no como lista
  * desplegable: con botones nativos se llega a ellos con el teclado sin roles
@@ -69,7 +70,7 @@ export default function CoursePicker({ id, label, courses, value, onChange, erro
 
   const choose = (course) => {
     setQuery('')
-    onChange({ name: course.name, isNew: false })
+    onChange({ id: course.id, name: course.name, isNew: false })
   }
 
   // Enter elige el curso cuando no hay duda de cuál es; si no, no hace nada,

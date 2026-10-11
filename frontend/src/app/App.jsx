@@ -6,6 +6,7 @@ import CourseIndexPage from '../features/catalog/CourseIndexPage.jsx'
 import CoursePage from '../features/catalog/CoursePage.jsx'
 import CreateResourcePage from '../features/catalog/CreateResourcePage.jsx'
 import ResourceDetailPage from '../features/catalog/ResourceDetailPage.jsx'
+import UploadDocumentPage from '../features/catalog/UploadDocumentPage.jsx'
 import LandingPage from '../features/landing/LandingPage.jsx'
 import SessionProvider from '../session/SessionProvider.jsx'
 import AppLayout from './AppLayout.jsx'
@@ -26,6 +27,7 @@ export default function App() {
               <Route path="catalogo" element={<CourseIndexPage />} />
               <Route path="catalogo/cursos/:courseId" element={<CoursePage />} />
               <Route path="recursos/:resourceId" element={<ResourceDetailPage />} />
+              <Route path="subir-apunte" element={<UploadDocumentPage />} />
             </Route>
             {/* Pantallas aún sin rediseñar: cada una pasa al grupo de arriba cuando se rediseña. */}
             <Route element={<AppLayout legacy />}>
