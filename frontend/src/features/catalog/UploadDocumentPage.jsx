@@ -326,7 +326,7 @@ export default function UploadDocumentPage() {
                       aria-describedby={fieldErrors.rightsDeclared ? 'derechos-error' : undefined}
                       className="mt-0.5 size-5 shrink-0 accent-accent"
                     />
-                    Declaro que este apunte es de mi autoría o que tengo permiso para compartirlo.
+                    <span>Declaro que este apunte es de mi autoría o que tengo permiso para compartirlo.</span>
                   </label>
                   {fieldErrors.rightsDeclared && (
                     <p id="derechos-error" className="text-label text-red-400">{fieldErrors.rightsDeclared}</p>
