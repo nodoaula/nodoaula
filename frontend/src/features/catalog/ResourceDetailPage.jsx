@@ -161,7 +161,7 @@ function ContentPanel({ resource }) {
 // historia HU411, que reemplaza este aviso.
 function DocumentPending() {
   return (
-    <div className="flex aspect-video flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-surface-raised px-6 text-center">
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface-raised px-6 py-14 text-center">
       <svg viewBox="0 0 20 24" fill="none" aria-hidden="true" className="h-9 w-8 text-content-muted">
         <path d="M2 1.5h10.5L18 7v15.5H2z M12.5 1.5V7H18" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
       </svg>
