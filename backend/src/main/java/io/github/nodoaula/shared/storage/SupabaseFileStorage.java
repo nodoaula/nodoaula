@@ -1,5 +1,6 @@
 package io.github.nodoaula.shared.storage;
 
+import java.net.http.HttpClient;
 import java.nio.file.Path;
 import java.time.Duration;
 
@@ -9,8 +10,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -28,9 +30,10 @@ class SupabaseFileStorage implements FileStorage {
 	private static final String API_KEY_HEADER = "apikey";
 
 	private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
-	// Holgado a propósito: Supabase responde en menos de un segundo tras recibir
-	// el archivo, y cortar antes de tiempo dejaría un archivo guardado sin registro.
-	private static final Duration READ_TIMEOUT = Duration.ofSeconds(30);
+	// Plazo de la petición entera, envío incluido: un Supabase que deja de leer
+	// a mitad de una subida no retiene el hilo más que esto. Un PDF de 20 MB
+	// tardó 6 s incluso desde una conexión doméstica.
+	private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
 
 	private final RestClient restClient;
 	private final String secretKey;
@@ -40,7 +43,7 @@ class SupabaseFileStorage implements FileStorage {
 	@Autowired
 	SupabaseFileStorage(@Value("${supabase.url:}") String url, @Value("${supabase.secret-key:}") String secretKey,
 			@Value("${supabase.storage.bucket:}") String bucket) {
-		this(RestClient.builder().requestFactory(requestFactory()), url, secretKey, bucket);
+		this(RestClient.builder().requestFactory(requestFactory(REQUEST_TIMEOUT)), url, secretKey, bucket);
 	}
 
 	// Las pruebas pasan un builder enlazado a MockRestServiceServer.
@@ -51,10 +54,12 @@ class SupabaseFileStorage implements FileStorage {
 		this.configured = !url.isBlank() && !secretKey.isBlank() && !bucket.isBlank();
 	}
 
-	private static SimpleClientHttpRequestFactory requestFactory() {
-		SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-		factory.setConnectTimeout(CONNECT_TIMEOUT);
-		factory.setReadTimeout(READ_TIMEOUT);
+	// El cliente de Java y no HttpURLConnection: este solo limita la espera de
+	// la respuesta, y una subida que se atasca mientras se envía no se cortaría.
+	static JdkClientHttpRequestFactory requestFactory(Duration requestTimeout) {
+		HttpClient client = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
+		JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(client);
+		factory.setReadTimeout(requestTimeout);
 		return factory;
 	}
 
@@ -85,6 +90,12 @@ class SupabaseFileStorage implements FileStorage {
 					.retrieve()
 					.toBodilessEntity();
 		} catch (RestClientException exception) {
+			// Supabase responde 400 con el código NoSuchKey a un archivo que no
+			// existe: para quien borra, ya está borrado.
+			if (exception instanceof HttpClientErrorException rejected
+					&& rejected.getResponseBodyAsString().contains("\"NoSuchKey\"")) {
+				return;
+			}
 			log.error("No se pudo borrar el archivo {} de Supabase Storage", key, exception);
 			throw new StorageUnavailableException(exception);
 		}

@@ -16,6 +16,8 @@ public interface FileStorage {
 	void store(String key, Path file, String contentType);
 
 	/**
+	 * Borrar un archivo que no existe no es un error.
+	 *
 	 * @throws StorageUnavailableException si no se pudo borrar
 	 */
 	void delete(String key);

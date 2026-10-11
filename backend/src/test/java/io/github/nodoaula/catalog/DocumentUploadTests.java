@@ -164,7 +164,7 @@ class DocumentUploadTests {
 	}
 
 	@Test
-	void ifTheStorageFailsNothingIsRegistered() throws Exception {
+	void ifTheStorageFailsNothingIsRegisteredAndTheFileIsDeleted() throws Exception {
 		doThrow(new StorageUnavailableException(null)).when(fileStorage).store(anyString(), any(), anyString());
 		long before = resourceRepository.count();
 
@@ -173,6 +173,10 @@ class DocumentUploadTests {
 				.andExpect(jsonPath("$.code").value("STORAGE_UNAVAILABLE"));
 
 		assertEquals(before, resourceRepository.count());
+		// Pudo guardarse aunque la respuesta fallara: se intenta borrar ese mismo archivo.
+		ArgumentCaptor<String> key = ArgumentCaptor.forClass(String.class);
+		verify(fileStorage).store(key.capture(), any(), anyString());
+		verify(fileStorage).delete(key.getValue());
 	}
 
 	@Test
