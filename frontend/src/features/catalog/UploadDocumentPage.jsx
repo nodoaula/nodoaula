@@ -16,6 +16,23 @@ import { validateDescription, validateTitle } from './validation.js'
 
 const RIGHTS_MESSAGE = 'Declara que el apunte es de tu autoría o que tienes permiso para compartirlo.'
 
+// Orden de los campos en la página, con el elemento que recibe el foco.
+const FIELD_FOCUS = [
+  ['file', 'pdf-cambiar'],
+  ['course', 'curso'],
+  ['topics', 'temas'],
+  ['title', 'titulo'],
+  ['description', 'descripcion'],
+  ['rightsDeclared', 'derechos'],
+]
+
+// Tras un intento fallido, el foco va al primer campo con error: así se ve,
+// aunque esté lejos del botón, y un lector de pantalla lo lee con su error.
+function focusFirstInvalid(errors) {
+  const first = FIELD_FOCUS.find(([field]) => errors[field])
+  if (first) document.getElementById(first[1])?.focus()
+}
+
 // Traduce el error de la API al mensaje de la página. Lo que se refiere a un
 // campo va junto al campo; el resto, en un aviso general.
 function describeFailure(error) {
@@ -166,7 +183,10 @@ export default function UploadDocumentPage() {
     if (!rightsDeclared) errors.rightsDeclared = RIGHTS_MESSAGE
     setFieldErrors(errors)
     setFormError(null)
-    if (Object.keys(errors).length > 0) return
+    if (Object.keys(errors).length > 0) {
+      focusFirstInvalid(errors)
+      return
+    }
 
     setSending(true)
     try {
@@ -184,6 +204,7 @@ export default function UploadDocumentPage() {
       const failure = describeFailure(error)
       setFieldErrors(failure.fieldErrors ?? {})
       setFormError(failure.formError ?? null)
+      focusFirstInvalid(failure.fieldErrors ?? {})
     } finally {
       setSending(false)
     }
@@ -294,6 +315,7 @@ export default function UploadDocumentPage() {
                 <div className="flex flex-col gap-2">
                   <label className="flex cursor-pointer items-start gap-3 text-body text-content">
                     <input
+                      id="derechos"
                       type="checkbox"
                       checked={rightsDeclared}
                       onChange={(event) => {

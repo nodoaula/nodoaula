@@ -113,6 +113,7 @@ describe('UploadDocumentPage', () => {
     expect(screen.getByText('Elige un curso de la lista o crea uno nuevo.')).toBeInTheDocument()
     expect(screen.getByText('Declara que el apunte es de tu autoría o que tienes permiso para compartirlo.')).toBeInTheDocument()
     expect(screen.getByText('Revisa los campos marcados.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Curso')).toHaveFocus()
     expect(createDocument).not.toHaveBeenCalled()
   })
 
@@ -169,6 +170,7 @@ describe('UploadDocumentPage', () => {
     await user.click(screen.getByRole('button', { name: 'Publicar apunte' }))
 
     expect(await screen.findByText('El PDF está protegido con contraseña. Súbelo sin ella.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Cambiar archivo')).toHaveFocus()
   })
 
   it('sin espacio en el almacenamiento lo explica y no pierde lo escrito', async () => {
