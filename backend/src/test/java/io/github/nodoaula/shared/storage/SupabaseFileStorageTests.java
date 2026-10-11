@@ -13,7 +13,6 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import java.io.IOException;
 import java.net.ServerSocket;
-import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -119,21 +118,13 @@ class SupabaseFileStorageTests {
 		assertThrows(StorageUnavailableException.class, () -> storage.delete("apunte.pdf"));
 	}
 
-	// Un servidor que acepta la conexión y nunca lee: el envío se atasca en
-	// cuanto se llenan los búferes del sistema, y solo el plazo total lo corta.
+	// Un servidor que nunca lee: el sistema operativo acepta la conexión en su
+	// cola y el envío se atasca en cuanto se llenan los búferes, como con un
+	// Supabase colgado. Solo el plazo total lo corta.
 	@Test
 	void anUploadThatStallsIsCutAtTheRequestTimeout() throws IOException {
 		Path file = Files.write(tempDir.resolve("grande.tmp"), new byte[8 * 1024 * 1024]);
 		try (ServerSocket stalled = new ServerSocket(0)) {
-			Thread.ofVirtual().start(() -> {
-				try (Socket _ = stalled.accept()) {
-					Thread.sleep(Duration.ofSeconds(30));
-				} catch (IOException _) {
-					// La prueba terminó y cerró el servidor.
-				} catch (InterruptedException _) {
-					Thread.currentThread().interrupt();
-				}
-			});
 			SupabaseFileStorage slow = new SupabaseFileStorage(
 					RestClient.builder().requestFactory(SupabaseFileStorage.requestFactory(Duration.ofSeconds(2))),
 					"http://127.0.0.1:" + stalled.getLocalPort(), SECRET_KEY, BUCKET);
