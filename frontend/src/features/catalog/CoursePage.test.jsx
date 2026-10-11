@@ -5,6 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { listResources } from './api.js'
 import CoursePage from './CoursePage.jsx'
 
+let session = { status: 'ready', account: null }
+vi.mock('../../session/useSession.js', () => ({ useSession: () => session }))
+
 vi.mock('./api.js', () => ({
   listResources: vi.fn(),
 }))
@@ -45,6 +48,7 @@ function listedTitles() {
 describe('CoursePage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    session = { status: 'ready', account: null }
     listResources.mockResolvedValue(RESOURCES)
     vi.useFakeTimers()
   })
@@ -64,6 +68,21 @@ describe('CoursePage', () => {
     expect(screen.getByRole('link', { name: 'Catálogo' })).toHaveAttribute('href', '/catalogo')
     expect(screen.getByText('3 recursos')).toBeInTheDocument()
     expect(listedTitles()).toHaveLength(3)
+  })
+
+  it('con sesión ofrece subir un apunte a este curso, con el curso ya puesto', async () => {
+    session = { status: 'ready', account: { id: 7, email: 'aporte@ejemplo.com' } }
+    renderCourse()
+    await advanceTime(0)
+
+    expect(screen.getByRole('link', { name: 'Subir un apunte a este curso' })).toHaveAttribute('href', '/subir-apunte?courseId=1')
+  })
+
+  it('sin sesión no ofrece subir un apunte', async () => {
+    renderCourse()
+    await advanceTime(0)
+
+    expect(screen.queryByRole('link', { name: 'Subir un apunte a este curso' })).not.toBeInTheDocument()
   })
 
   it('ordena los temas de más a menos recursos, con su número', async () => {

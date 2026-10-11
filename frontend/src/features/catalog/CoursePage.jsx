@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router'
 import { buttonClasses } from '../../components/ui/button.js'
 import NodePath from '../../components/ui/NodePath.jsx'
 import Notice from '../../components/ui/Notice.jsx'
+import { useSession } from '../../session/useSession.js'
 import { listResources } from './api.js'
 import { formatCourseSummary, summarizeCourses } from './courseSummary.js'
 import ResourceRow from './ResourceRow.jsx'
@@ -88,6 +89,7 @@ function Course({ courseId }) {
 function CourseResources({ courseId, resources }) {
   const name = resources[0].course
   const [summary] = summarizeCourses(resources, [{ id: courseId, name }])
+  const { account } = useSession()
   const search = useResourceSearch('', courseId)
   const [type, setType] = useState(ALL_TYPES)
   const [selectedTopics, setSelectedTopics] = useState([])
@@ -123,6 +125,11 @@ function CourseResources({ courseId, resources }) {
           <p className="mt-2.5 font-mono text-label text-content-muted tabular-nums">
             {formatCourseSummary(summary)} · {topicText}
           </p>
+          {account !== null && (
+            <Link to={`/subir-apunte?courseId=${courseId}`} className={`${buttonClasses('secondary')} mt-4`}>
+              Subir un apunte a este curso
+            </Link>
+          )}
         </div>
         <SearchBox id="course-search" label={`Buscar en ${name}`} value={search.text} onChange={search.setText} />
       </div>
