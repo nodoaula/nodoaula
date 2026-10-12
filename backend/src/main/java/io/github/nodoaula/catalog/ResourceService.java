@@ -14,7 +14,6 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -337,30 +336,27 @@ public class ResourceService {
 				.forEach(resource::addTopic);
 	}
 
-	// Busca primero y crea solo si hace falta, pero el hueco entre ambas
-	// operaciones permite que dos registros simultáneos con el mismo curso
-	// nuevo intenten crearlo a la vez; el segundo lo detiene la restricción
-	// única de la tabla, y entonces se reutiliza el que ganó la carrera.
+	// Busca primero y crea solo si hace falta. Si dos registros simultáneos
+	// crean el mismo curso nuevo, el insert del segundo no hace nada (on
+	// conflict do nothing) y la búsqueda posterior encuentra el del primero:
+	// el duplicado nunca lanza excepción (AB#213). Dos nombres que solo se
+	// diferencian en mayúsculas o tildes son el mismo curso (HU308).
 	private Course findOrCreateCourse(String name) {
-		return courseRepository.findByName(name)
+		String normalizedName = NameNormalizer.normalize(name);
+		return courseRepository.findByNormalizedName(normalizedName)
 				.orElseGet(() -> {
-					try {
-						return courseRepository.saveAndFlush(new Course(name));
-					} catch (DataIntegrityViolationException exception) {
-						return courseRepository.findByName(name).orElseThrow(() -> exception);
-					}
+					courseRepository.insertIfAbsent(name, normalizedName);
+					return courseRepository.findByNormalizedName(normalizedName).orElseThrow();
 				});
 	}
 
-	// Misma carrera que findOrCreateCourse, pero por curso y nombre de tema.
+	// Misma lógica que findOrCreateCourse, por curso y nombre de tema.
 	private Topic findOrCreateTopic(Course course, String name) {
-		return topicRepository.findByCourseAndName(course, name)
+		String normalizedName = NameNormalizer.normalize(name);
+		return topicRepository.findByCourseAndNormalizedName(course, normalizedName)
 				.orElseGet(() -> {
-					try {
-						return topicRepository.saveAndFlush(new Topic(course, name));
-					} catch (DataIntegrityViolationException exception) {
-						return topicRepository.findByCourseAndName(course, name).orElseThrow(() -> exception);
-					}
+					topicRepository.insertIfAbsent(course.getId(), name, normalizedName);
+					return topicRepository.findByCourseAndNormalizedName(course, normalizedName).orElseThrow();
 				});
 	}
 
