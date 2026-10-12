@@ -1,5 +1,6 @@
 package io.github.nodoaula.catalog;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -16,6 +17,11 @@ class Course {
 
 	private String name;
 
+	// Forma comparable del nombre (HU308): la base de datos impide dos cursos
+	// con la misma, aunque se diferencien en mayúsculas o tildes.
+	@Column(name = "normalized_name")
+	private String normalizedName;
+
 	protected Course() {
 	}
 
@@ -23,6 +29,7 @@ class Course {
 	// existe en el vocabulario controlado (historia HU105).
 	Course(String name) {
 		this.name = name;
+		this.normalizedName = NameNormalizer.normalize(name);
 	}
 
 	Long getId() {
