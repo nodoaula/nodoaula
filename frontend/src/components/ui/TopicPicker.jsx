@@ -6,9 +6,10 @@ import { CloseIcon } from './icons.jsx'
 
 /**
  * Temas de un recurso: los elegidos llevan una × para quitarlos, y los del
- * curso se ofrecen en la lista del campo, que se filtra al escribir. También se
- * escriben, de uno en uno o varios separados por comas. Uno que solo se diferencia de otro en
- * mayúsculas o tildes se toma como ese otro, con su nombre de siempre.
+ * curso se ofrecen en la lista del campo, que se filtra al escribir. Los
+ * nuevos se añaden de uno en uno: una coma no separa temas, es parte del
+ * nombre que se escribe. Uno que solo se diferencia de otro en mayúsculas o
+ * tildes se toma como ese otro, con su nombre de siempre.
  *
  * `suggestions` son los temas del curso; `value`, los elegidos.
  */
@@ -18,36 +19,26 @@ export default function TopicPicker({ id, label, suggestions, value, onChange, e
   const errorId = `${id}-error`
 
   const isChosen = (name) => value.some((topic) => normalizeText(topic) === normalizeText(name))
-  // Se filtra por lo último que se está escribiendo, después de la última coma.
-  const segments = draft.split(',')
-  const typing = segments.at(-1)
-  const available = suggestions.filter((name) => !isChosen(name) && normalizeText(name).includes(normalizeText(typing)))
+  const available = suggestions.filter((name) => !isChosen(name) && normalizeText(name).includes(normalizeText(draft)))
 
-  const add = (names) => {
-    const next = [...value]
-    for (const raw of names) {
-      const typed = tidyText(raw)
-      if (typed === '') continue
-      const known = [...suggestions, ...next].find((name) => normalizeText(name) === normalizeText(typed))
-      const name = known ?? typed
-      if (!next.includes(name)) next.push(name)
-    }
-    onChange(next)
+  const add = (raw) => {
+    const typed = tidyText(raw)
+    if (typed === '') return
+    const known = [...suggestions, ...value].find((name) => normalizeText(name) === normalizeText(typed))
+    const name = known ?? typed
+    if (!value.includes(name)) onChange([...value, name])
     setDraft('')
   }
 
-  // Elegir una sugerencia añade también lo escrito antes de la última coma.
-  const options = available.map((name) => ({ key: name, label: name, onSelect: () => add([...segments.slice(0, -1), name]) }))
-  // Lo escrito se añade entero: la etiqueta nombra todos los temas que añade.
-  const typed = segments.map(tidyText).filter((name) => name !== '')
-  const lastIsKnown = [...suggestions, ...value].some((name) => normalizeText(name) === normalizeText(typing))
-  if (typed.length > 0 && (typed.length > 1 || !lastIsKnown)) {
-    const quoted = typed.map((name) => `«${name}»`).join(', ')
+  const options = available.map((name) => ({ key: name, label: name, onSelect: () => add(name) }))
+  const typed = tidyText(draft)
+  const isKnown = [...suggestions, ...value].some((name) => normalizeText(name) === normalizeText(typed))
+  if (typed !== '' && !isKnown) {
     options.push({
       key: 'nuevo',
-      label: typed.length === 1 ? `Añadir el tema ${quoted}` : `Añadir los temas ${quoted}`,
+      label: `Añadir el tema «${typed}»`,
       create: true,
-      onSelect: () => add(segments),
+      onSelect: () => add(typed),
     })
   }
 
@@ -87,7 +78,7 @@ export default function TopicPicker({ id, label, suggestions, value, onChange, e
           value={draft}
           onChange={setDraft}
           options={options}
-          onEnter={() => add(segments)}
+          onEnter={() => add(draft)}
           placeholder="Escribe un tema"
           invalid={Boolean(error)}
           aria-describedby={[hintId, error && errorId].filter(Boolean).join(' ')}
@@ -95,7 +86,7 @@ export default function TopicPicker({ id, label, suggestions, value, onChange, e
       </div>
 
       <p id={hintId} className="text-label text-content-muted">
-        Elige de la lista los temas del curso o escribe uno nuevo y pulsa Enter. Puedes escribir varios separados por comas.
+        Elige de la lista los temas del curso o escribe uno nuevo y pulsa Enter. Se añaden de uno en uno.
       </p>
       {error && <p id={errorId} className="text-label text-red-400">{error}</p>}
     </fieldset>

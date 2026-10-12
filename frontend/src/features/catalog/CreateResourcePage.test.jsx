@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -62,8 +63,13 @@ const field = {
   publishedAt: () => screen.getByLabelText('Fecha de publicación'),
   duration: () => screen.getByLabelText('Duración'),
   channel: () => screen.getByLabelText('Canal'),
-  course: () => screen.getByLabelText('Curso'),
-  topics: () => screen.getByLabelText('Temas'),
+  courseSearch: () => screen.getByRole('combobox', { name: 'Curso' }),
+}
+
+// Los temas elegidos, en el orden en que se añadieron.
+function chosenTopics() {
+  const list = screen.queryByRole('list', { name: 'Temas elegidos' })
+  return list === null ? [] : within(list).getAllByRole('listitem').map((item) => item.textContent)
 }
 
 // Pegar dispara la consulta de inmediato, como en el navegador: el evento
@@ -91,9 +97,12 @@ function clickInDialog(name) {
   fireEvent.click(within(queryDialog()).getByRole('button', { name }))
 }
 
-function fillManualFields() {
-  type(field.course(), 'Gestión de proyectos')
-  type(field.topics(), 'Azure DevOps')
+// El curso se elige o se crea con el selector, y cada tema se añade de uno en uno.
+async function fillManualFields() {
+  const user = userEvent.setup()
+  await user.type(field.courseSearch(), 'Gestión de proyectos')
+  await user.click(screen.getByRole('option', { name: 'Crear el curso «Gestión de proyectos»' }))
+  await user.type(screen.getByRole('combobox', { name: 'Escribe un tema' }), 'Azure DevOps{Enter}')
 }
 
 describe('CreateResourcePage - indexación desde YouTube (HU202)', () => {
@@ -131,7 +140,7 @@ describe('CreateResourcePage - indexación desde YouTube (HU202)', () => {
   it('«Insertar» llena lo obtenido, marca lo ausente y canoniza el enlace sin tocar curso ni temas', async () => {
     getYouTubeMetadata.mockResolvedValue({ ...FIRST_VIDEO, publishedAt: null, missingFields: ['description', 'publishedAt'] })
     renderPage()
-    fillManualFields()
+    await fillManualFields()
 
     await openModalWith('yhUh4ZmM45w')
     clickInDialog('Insertar')
@@ -141,8 +150,8 @@ describe('CreateResourcePage - indexación desde YouTube (HU202)', () => {
     expect(field.title()).toHaveValue(FIRST_VIDEO.title)
     expect(field.duration()).toHaveValue(2371)
     expect(field.channel()).toHaveValue(FIRST_VIDEO.channel)
-    expect(field.course()).toHaveValue('Gestión de proyectos')
-    expect(field.topics()).toHaveValue('Azure DevOps')
+    expect(screen.getByText('Gestión de proyectos')).toBeInTheDocument()
+    expect(chosenTopics()).toEqual(['Azure DevOps'])
 
     // Los ausentes quedan vacíos con el aviso dentro del campo; nunca se inventan.
     expect(field.description()).toHaveValue('')
@@ -195,7 +204,7 @@ describe('CreateResourcePage - indexación desde YouTube (HU202)', () => {
     renderPage()
     await openModalWith('yhUh4ZmM45w')
     clickInDialog('Insertar')
-    fillManualFields()
+    await fillManualFields()
 
     const dialog = await openModalWith('https://youtu.be/S0TC_HDfKvA')
     expect(within(dialog).getByText(/se borrará todo lo que hayas ingresado/)).toBeInTheDocument()
@@ -205,8 +214,8 @@ describe('CreateResourcePage - indexación desde YouTube (HU202)', () => {
     expect(field.title()).toHaveValue(SECOND_VIDEO.title)
     expect(field.description()).toHaveValue(SECOND_VIDEO.description)
     expect(field.channel()).toHaveValue(SECOND_VIDEO.channel)
-    expect(field.course()).toHaveValue('')
-    expect(field.topics()).toHaveValue('')
+    expect(field.courseSearch()).toHaveValue('')
+    expect(chosenTopics()).toEqual([])
   })
 
   it('tras una inserción, «Cancelar» con un nuevo enlace restaura el enlace anterior y deja el resto intacto', async () => {
@@ -214,21 +223,21 @@ describe('CreateResourcePage - indexación desde YouTube (HU202)', () => {
     renderPage()
     await openModalWith('yhUh4ZmM45w')
     clickInDialog('Insertar')
-    fillManualFields()
+    await fillManualFields()
 
     await openModalWith('https://youtu.be/S0TC_HDfKvA')
     clickInDialog('Cancelar')
 
     expect(field.url()).toHaveValue(FIRST_VIDEO.url)
     expect(field.title()).toHaveValue(FIRST_VIDEO.title)
-    expect(field.course()).toHaveValue('Gestión de proyectos')
-    expect(field.topics()).toHaveValue('Azure DevOps')
+    expect(screen.getByText('Gestión de proyectos')).toBeInTheDocument()
+    expect(chosenTopics()).toEqual(['Azure DevOps'])
   })
 
   it('si el primer modal se canceló, el siguiente se comporta como primera inserción', async () => {
     getYouTubeMetadata.mockResolvedValueOnce(FIRST_VIDEO).mockResolvedValueOnce(SECOND_VIDEO)
     renderPage()
-    fillManualFields()
+    await fillManualFields()
 
     await openModalWith('yhUh4ZmM45w')
     clickInDialog('Cancelar')
@@ -237,7 +246,7 @@ describe('CreateResourcePage - indexación desde YouTube (HU202)', () => {
     expect(within(dialog).queryByText(/se borrará todo/)).not.toBeInTheDocument()
     clickInDialog('Insertar')
     expect(field.title()).toHaveValue(SECOND_VIDEO.title)
-    expect(field.course()).toHaveValue('Gestión de proyectos')
+    expect(screen.getByText('Gestión de proyectos')).toBeInTheDocument()
   })
 
   it('los campos insertados se pueden editar', async () => {
@@ -304,7 +313,7 @@ describe('CreateResourcePage - indexación desde YouTube (HU202)', () => {
     await screen.findByText('No encontramos ese video en YouTube.')
     type(field.title(), 'Título')
     type(field.publishedAt(), '2026-09-10')
-    fillManualFields()
+    await fillManualFields()
 
     fireEvent.click(screen.getByRole('button', { name: 'Registrar recurso' }))
 
@@ -366,8 +375,8 @@ describe('CreateResourcePage - indexación desde YouTube (HU202)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Registrar recurso' }))
 
-    expect(await screen.findByText('Escribe el curso.')).toBeInTheDocument()
-    expect(screen.getByText('Escribe al menos un tema.')).toBeInTheDocument()
+    expect(await screen.findByText('Elige un curso de la lista o crea uno nuevo.')).toBeInTheDocument()
+    expect(screen.getByText('Elige o escribe al menos un tema.')).toBeInTheDocument()
     expect(createResource).not.toHaveBeenCalled()
   })
 
@@ -376,7 +385,7 @@ describe('CreateResourcePage - indexación desde YouTube (HU202)', () => {
     renderPage()
     await openModalWith('yhUh4ZmM45w')
     clickInDialog('Insertar')
-    fillManualFields()
+    await fillManualFields()
 
     fireEvent.click(screen.getByRole('button', { name: 'Registrar recurso' }))
 
@@ -405,7 +414,7 @@ describe('CreateResourcePage - indexación desde YouTube (HU202)', () => {
     renderPage()
     await openModalWith('yhUh4ZmM45w')
     clickInDialog('Insertar')
-    fillManualFields()
+    await fillManualFields()
     type(field.title(), 'Otro título')
     type(field.publishedAt(), '2026-01-01')
     type(field.duration(), '')
@@ -422,12 +431,54 @@ describe('CreateResourcePage - indexación desde YouTube (HU202)', () => {
     type(field.url(), 'https://ejemplo.com/apunte.pdf')
     type(field.title(), 'Apunte')
     type(field.publishedAt(), '2026-09-10')
-    fillManualFields()
+    await fillManualFields()
 
     fireEvent.click(screen.getByRole('button', { name: 'Registrar recurso' }))
 
     await waitFor(() => expect(createResource).toHaveBeenCalledTimes(1))
     expect(createResource).toHaveBeenCalledWith(expect.objectContaining({ entryMethod: 'MANUAL' }))
     expect(getYouTubeMetadata).not.toHaveBeenCalled()
+  })
+
+  it('el curso se elige de la lista y los temas se añaden de uno en uno, sin comas', async () => {
+    listCoursesWithResources.mockResolvedValue([{ id: 3, name: 'Física II' }])
+    listTopicsWithResources.mockResolvedValue([{ id: 9, name: 'Capacitores' }])
+    const user = userEvent.setup()
+    renderPage()
+    type(field.url(), 'https://ejemplo.com/video')
+    type(field.title(), 'Video')
+    type(field.publishedAt(), '2026-09-10')
+
+    await user.click(screen.getByRole('combobox', { name: 'Curso' }))
+    await user.click(await screen.findByRole('option', { name: 'Física II' }))
+    await user.click(await screen.findByRole('combobox', { name: 'Escribe un tema' }))
+    await user.click(await screen.findByRole('option', { name: 'Capacitores' }))
+    await user.type(screen.getByRole('combobox', { name: 'Escribe un tema' }), 'Ley de Ohm, serie{Enter}')
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar recurso' }))
+
+    await waitFor(() => expect(createResource).toHaveBeenCalledTimes(1))
+    expect(createResource).toHaveBeenCalledWith(
+      expect.objectContaining({ course: 'Física II', topics: ['Capacitores', 'Ley de Ohm, serie'] }),
+    )
+  })
+
+  it('un video que ya está registrado se avisa junto al enlace y no se publica', async () => {
+    createResource.mockRejectedValue(
+      new ApiError('El servidor respondió 409', {
+        status: 409,
+        body: { code: 'VIDEO_ALREADY_REGISTERED', detail: 'Este video ya está registrado en el catálogo.' },
+      }),
+    )
+    renderPage()
+    type(field.url(), 'https://ejemplo.com/video')
+    type(field.title(), 'Video')
+    type(field.publishedAt(), '2026-09-10')
+    await fillManualFields()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Registrar recurso' }))
+
+    expect(await screen.findByText('Este video ya está registrado en el catálogo.')).toBeInTheDocument()
+    expect(screen.queryByText('Catálogo')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Registrar recurso' })).toBeEnabled()
   })
 })
