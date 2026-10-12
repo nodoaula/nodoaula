@@ -9,12 +9,14 @@ alter table topics  add column normalized_name text;
 update courses set normalized_name = lower(translate(
     regexp_replace(btrim(name), '\s+', ' ', 'g'),
     'ÁÀÄÂáàäâÉÈËÊéèëêÍÌÏÎíìïîÓÒÖÔóòöôÚÙÜÛúùüûÑñÇç',
-    'AAAAaaaaEEEEeeeeIIIIiiiiOOOOooooUUUUuuuuNnCc'));
+    'AAAAaaaaEEEEeeeeIIIIiiiiOOOOooooUUUUuuuuNnCc'))
+where normalized_name is null;
 
 update topics set normalized_name = lower(translate(
     regexp_replace(btrim(name), '\s+', ' ', 'g'),
     'ÁÀÄÂáàäâÉÈËÊéèëêÍÌÏÎíìïîÓÒÖÔóòöôÚÙÜÛúùüûÑñÇç',
-    'AAAAaaaaEEEEeeeeIIIIiiiiOOOOooooUUUUuuuuNnCc'));
+    'AAAAaaaaEEEEeeeeIIIIiiiiOOOOooooUUUUuuuuNnCc'))
+where normalized_name is null;
 
 -- Si ya hubiera cursos o temas que choquen con la regla, se unifican antes de
 -- imponerla: sobrevive el más antiguo y sus recursos pasan a él.
