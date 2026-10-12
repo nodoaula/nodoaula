@@ -211,6 +211,12 @@ public class ResourceService {
 					"Solo un recurso con enlace de YouTube puede registrarse como indexado automáticamente.");
 		}
 
+		// Un mismo video no se registra dos veces (HU308). Se comprueba antes de
+		// crear el curso y los temas para no dejar nada a medias.
+		YouTubeVideoIds.extract(request.url()).ifPresent(videoId -> {
+			if (resourceRepository.existsByVideoId(videoId)) throw new VideoAlreadyRegisteredException();
+		});
+
 		Course course = findOrCreateCourse(request.course().strip());
 
 		Resource resource = new Resource(

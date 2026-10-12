@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -37,6 +38,11 @@ class Resource {
 	private String channel;
 
 	private String url;
+
+	// Identificador del video de YouTube del enlace (HU308): la base de datos
+	// impide registrar dos veces el mismo video, se pegue como se pegue.
+	@Column(name = "video_id")
+	private String videoId;
 
 	@Enumerated(EnumType.STRING)
 	private ResourceType resourceType;
@@ -78,6 +84,7 @@ class Resource {
 		this.durationSeconds = durationSeconds;
 		this.channel = channel;
 		this.url = url;
+		this.videoId = YouTubeVideoIds.extract(url).orElse(null);
 		this.resourceType = resourceType;
 		this.course = course;
 		this.authorId = authorId;

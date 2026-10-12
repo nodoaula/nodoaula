@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router'
 
+import CoursePicker from '../../components/ui/CoursePicker.jsx'
 import Modal from '../../components/ui/Modal.jsx'
 import TextField from '../../components/ui/TextField.jsx'
+import TopicPicker from '../../components/ui/TopicPicker.jsx'
 import { CSRF_ERROR_CODE } from '../../lib/apiClient.js'
 import { SESSION_STATUS } from '../../session/SessionContext.js'
 import { useSession } from '../../session/useSession.js'
@@ -10,9 +12,13 @@ import { createResource, getYouTubeMetadata, listCoursesWithResources, listTopic
 import { AUTOFILLABLE_FIELDS, resolveEntryMethod } from './entryMethod.js'
 import { formatDuration, formatPublishedAt } from './format.js'
 import { isYouTubeLink, parseYouTubeInput } from './sourcePlatform.js'
-import { parseTopics, validateCreateResource, validateDescription } from './validation.js'
+import { validateCreateResource, validateDescription } from './validation.js'
 
 const VALIDATION_FAILED = 'VALIDATION_FAILED'
+
+// El video ya está en el catálogo (HU308): se compara su identificador de YouTube.
+const VIDEO_ALREADY_REGISTERED = 'VIDEO_ALREADY_REGISTERED'
+const VIDEO_ALREADY_REGISTERED_MESSAGE = 'Este video ya está registrado en el catálogo.'
 
 // Códigos con que el backend rechaza un enlace de YouTube (historia HU202).
 const INVALID_VIDEO_LINK = 'INVALID_VIDEO_LINK'
@@ -35,8 +41,6 @@ const EMPTY_FORM = {
   durationSeconds: '',
   channel: '',
   url: '',
-  course: '',
-  topicsText: '',
 }
 
 // Traduce el error de la API al mensaje del formulario. Lo que se refiere a un
@@ -54,6 +58,10 @@ function describeFailure(error) {
       fieldErrors[formField] ??= message
     }
     return { fieldErrors }
+  }
+
+  if (error.code === VIDEO_ALREADY_REGISTERED) {
+    return { fieldErrors: { url: error.body?.detail ?? VIDEO_ALREADY_REGISTERED_MESSAGE } }
   }
 
   if (error.code === CSRF_ERROR_CODE) {
@@ -154,6 +162,10 @@ export default function CreateResourcePage() {
   const [courses, setCourses] = useState([])
   const [loadedTopics, setLoadedTopics] = useState({ courseId: null, items: [] })
   const [form, setForm] = useState(EMPTY_FORM)
+  // Curso y temas se eligen con los selectores compartidos (HU308): el curso es
+  // `{ id, name, isNew }` o null, y los temas, una lista de nombres.
+  const [course, setCourse] = useState(null)
+  const [topics, setTopics] = useState([])
   const [fieldErrors, setFieldErrors] = useState({})
   const [formError, setFormError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -182,8 +194,7 @@ export default function CreateResourcePage() {
   useEffect(() => {
     let active = true
 
-    // Solo para sugerir cursos ya usados en el campo; no es la lista completa
-    // del vocabulario controlado, y el campo sigue aceptando uno nuevo.
+    // Los cursos que ya tienen recursos; un curso que no esté se crea con «Crear el curso».
     listCoursesWithResources()
       .then((data) => {
         if (active) setCourses(data)
@@ -197,10 +208,9 @@ export default function CreateResourcePage() {
 
   useEffect(() => () => clearTimeout(debounceTimerRef.current), [])
 
-  // El formulario guarda el nombre del curso, pero los temas se piden por su
-  // identificador, así que hay que buscarlo en la lista ya cargada. Un curso
-  // que todavía no existe no tiene identificador ni temas que sugerir.
-  const selectedCourseId = courses.find((course) => course.name === form.course.trim())?.id ?? null
+  // Los temas se piden por el identificador del curso. Un curso nuevo todavía
+  // no tiene identificador ni temas que sugerir.
+  const selectedCourseId = course?.id ?? null
 
   useEffect(() => {
     if (selectedCourseId === null) return
@@ -221,7 +231,10 @@ export default function CreateResourcePage() {
   // Solo se sugieren si la lista cargada es la del curso elegido ahora mismo.
   // Sin esta comprobación, al cambiar de curso seguirían viéndose los temas del
   // anterior hasta que llegara la respuesta del nuevo.
-  const suggestedTopics = loadedTopics.courseId === selectedCourseId ? loadedTopics.items : []
+  const suggestedTopics =
+    selectedCourseId !== null && loadedTopics.courseId === selectedCourseId
+      ? loadedTopics.items.map((topic) => topic.name)
+      : []
 
   // Mientras no se sabe si hay sesión no se decide nada; sin ella, no hay
   // nada que hacer aquí.
@@ -236,11 +249,16 @@ export default function CreateResourcePage() {
     setMissingFields((fields) => fields.filter((missing) => missing !== field))
   }
 
-  // Añade el tema al campo si no está ya, respetando lo que el usuario lleve escrito.
-  function addTopic(name) {
-    const current = parseTopics(form.topicsText)
-    if (current.includes(name)) return
-    updateField('topicsText', [...current, name].join(', '))
+  // Cambiar de curso vacía los temas: son los de ese curso.
+  function changeCourse(value) {
+    setCourse(value)
+    setTopics([])
+    setFieldErrors((errors) => ({ ...errors, course: undefined }))
+  }
+
+  function changeTopics(value) {
+    setTopics(value)
+    setFieldErrors((errors) => ({ ...errors, topics: undefined }))
   }
 
   function handleUrlChange(event) {
@@ -313,6 +331,10 @@ export default function CreateResourcePage() {
     // La primera inserción respeta curso y temas; una que reemplaza a
     // otra vacía todo el formulario antes de llenar lo obtenido.
     setForm((current) => ({ ...(isReplacement ? EMPTY_FORM : current), ...values, url: metadata.url }))
+    if (isReplacement) {
+      setCourse(null)
+      setTopics([])
+    }
 
     // La instantánea solo guarda los campos que la indexación llenó con valor.
     const snapshot = Object.fromEntries(
@@ -359,11 +381,13 @@ export default function CreateResourcePage() {
       durationSeconds: form.durationSeconds.trim(),
       channel: form.channel.trim(),
       url: form.url.trim(),
-      course: form.course.trim(),
-      topics: parseTopics(form.topicsText),
+      course: course?.name ?? '',
+      topics,
     }
 
     const errors = validateCreateResource(data)
+    if (course === null) errors.course = 'Elige un curso de la lista o crea uno nuevo.'
+    if (topics.length === 0) errors.topics = 'Elige o escribe al menos un tema.'
     // Un enlace de YouTube inválido o de un video no disponible no crea un recurso.
     if (!errors.url && rejectedLink?.url === form.url) {
       errors.url = rejectedLink.message
@@ -502,47 +526,26 @@ export default function CreateResourcePage() {
             notice={noticeFor('channel')}
           />
 
-          <TextField
+          <CoursePicker
             id="resource-course"
             label="Curso"
-            list="resource-course-options"
-            hint="Si el curso no existe todavía, se crea al registrar el recurso."
-            value={form.course}
-            onChange={(event) => updateField('course', event.target.value)}
+            courses={courses}
+            value={course}
+            onChange={changeCourse}
             error={fieldErrors.course}
           />
-          <datalist id="resource-course-options">
-            {courses.map((course) => (
-              <option key={course.id} value={course.name} />
-            ))}
-          </datalist>
 
-          <TextField
-            id="resource-topics"
-            label="Temas"
-            hint="Sepáralos con comas. Los que no existan en el curso se crean al registrar el recurso."
-            value={form.topicsText}
-            onChange={(event) => updateField('topicsText', event.target.value)}
-            error={fieldErrors.topics}
-          />
-
-          {suggestedTopics.length > 0 && (
-            <div>
-              <p className="text-xs text-slate-500">Temas ya usados en este curso:</p>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {suggestedTopics.map((topic) => (
-                  <button
-                    key={topic.id}
-                    type="button"
-                    onClick={() => addTopic(topic.name)}
-                    className="rounded-full border border-slate-300 px-3 py-1 text-xs text-slate-700 hover:border-slate-500 hover:bg-slate-50"
-                  >
-                    {topic.name}
-                  </button>
-                ))}
-              </div>
-            </div>
+          {course !== null && (
+            <TopicPicker
+              id="resource-topics"
+              label="Temas"
+              suggestions={suggestedTopics}
+              value={topics}
+              onChange={changeTopics}
+              error={fieldErrors.topics}
+            />
           )}
+          {course === null && fieldErrors.topics && <p className="text-sm text-red-700">{fieldErrors.topics}</p>}
 
           {formError && (
             <p className="text-sm text-red-700" role="alert">

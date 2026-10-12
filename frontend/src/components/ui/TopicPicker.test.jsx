@@ -37,14 +37,25 @@ describe('TopicPicker', () => {
     expect(optionNames()).toEqual(['Electroestática', 'Capacitores'])
   })
 
-  it('añade varios escritos con comas y reutiliza el existente aunque cambien mayúsculas o tildes', async () => {
+  it('añade de uno en uno y reutiliza el existente aunque cambien mayúsculas o tildes', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+    const input = screen.getByRole('combobox', { name: 'Escribe un tema' })
+
+    await user.type(input, 'Circuito  RC{Enter}')
+    await user.type(input, 'ELECTROESTATICA{Enter}')
+
+    expect(chosen()).toEqual(['Circuito RC', 'Electroestática'])
+    expect(input).toHaveValue('')
+  })
+
+  it('una coma no separa temas: forma parte del nombre del tema que se añade', async () => {
     const user = userEvent.setup()
     render(<Harness />)
 
-    await user.type(screen.getByRole('combobox', { name: 'Escribe un tema' }), 'Circuito  RC, capacitores ,,ELECTROESTATICA{Enter}')
+    await user.type(screen.getByRole('combobox', { name: 'Escribe un tema' }), 'Ley de Ohm, grav{Enter}')
 
-    expect(chosen()).toEqual(['Circuito RC', 'Capacitores', 'Electroestática'])
-    expect(screen.getByRole('combobox', { name: 'Escribe un tema' })).toHaveValue('')
+    expect(chosen()).toEqual(['Ley de Ohm, grav'])
   })
 
   it('un tema nuevo se ofrece como «Añadir el tema» y no repite uno ya elegido', async () => {
@@ -70,14 +81,14 @@ describe('TopicPicker', () => {
     expect(chosen()).toEqual(['Capacitores'])
   })
 
-  it('mientras se escribe, ofrece solo los temas del curso que coinciden con lo último escrito', async () => {
+  it('mientras se escribe, ofrece solo los temas del curso que coinciden', async () => {
     const user = userEvent.setup()
     render(<Harness />)
 
-    await user.type(screen.getByRole('combobox', { name: 'Escribe un tema' }), 'Ley de Ohm, grav')
-    expect(optionNames()).toEqual(['Gravitación', 'Añadir los temas «Ley de Ohm», «grav»'])
+    await user.type(screen.getByRole('combobox', { name: 'Escribe un tema' }), 'grav')
+    expect(optionNames()).toEqual(['Gravitación', 'Añadir el tema «grav»'])
 
     await user.keyboard('{ArrowDown}{Enter}')
-    expect(chosen()).toEqual(['Ley de Ohm', 'Gravitación'])
+    expect(chosen()).toEqual(['Gravitación'])
   })
 })

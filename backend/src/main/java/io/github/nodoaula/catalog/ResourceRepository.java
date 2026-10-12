@@ -10,6 +10,8 @@ interface ResourceRepository extends JpaRepository<Resource, Long> {
 
 	List<Resource> findByCourseId(Long courseId);
 
+	boolean existsByVideoId(String videoId);
+
 	/**
 	 * Filtra el catálogo por curso, tema y tipo de recurso, combinados con AND
 	 * (historia HU206). Cada filtro es opcional y admite varios valores a la
