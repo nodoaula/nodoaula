@@ -44,6 +44,9 @@ function describeFailure(error) {
     }
     return { fieldErrors }
   }
+  if (error.code === 'DOCUMENT_ALREADY_UPLOADED') {
+    return { fieldErrors: { file: 'Este apunte ya está en el catálogo. Búscalo en el curso en vez de subirlo otra vez, o elige otro archivo.' } }
+  }
   if (error.code === 'PAYLOAD_TOO_LARGE') return { fieldErrors: { file: 'El archivo pasa de 20 MB.' } }
   if (error.status === 503) {
     return { formError: error.body?.detail ?? 'No fue posible guardar el apunte en este momento. Inténtalo de nuevo más tarde.' }

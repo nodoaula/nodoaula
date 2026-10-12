@@ -35,4 +35,8 @@ interface ResourceRepository extends JpaRepository<Resource, Long> {
 	@Query("select coalesce(sum(r.file.sizeBytes), 0) from Resource r")
 	long totalStoredBytes();
 
+	/** Si ya hay un apunte con ese contenido (SHA-256 en hexadecimal). */
+	@Query("select count(r) > 0 from Resource r where r.file.sha256 = :sha256")
+	boolean existsByFileSha256(@Param("sha256") String sha256);
+
 }
