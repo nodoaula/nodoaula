@@ -105,7 +105,7 @@ class DocumentUploadTests {
 
 		long id = JsonPath.<Number>read(body, "$.id").longValue();
 		Resource saved = resourceRepository.findById(id).orElseThrow();
-		assertEquals(new DocumentFile(key.getValue(), pdf.length, 3), saved.getFile());
+		assertEquals(new DocumentFile(key.getValue(), pdf.length, 3, sha256Of(pdf)), saved.getFile());
 		assertNull(saved.getUrl());
 		assertEquals("Resumen", saved.getDescription());
 		assertEquals(EntryMethod.MANUAL, saved.getEntryMethod());
@@ -253,6 +253,40 @@ class DocumentUploadTests {
 
 		verify(fileStorage, never()).store(anyString(), any(), anyString());
 		assertEquals(before, resourceRepository.count());
+	}
+
+	@Test
+	void theSameFileUploadedAgainIsRejectedEvenWithAnotherName() throws Exception {
+		byte[] pdf = pdf(2);
+		mockMvc.perform(upload(file("original.pdf", pdf))).andExpect(status().isCreated());
+		long resources = resourceRepository.count();
+
+		mockMvc.perform(upload(file("copia con otro nombre.pdf", pdf)))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.code").value("DOCUMENT_ALREADY_UPLOADED"));
+
+		assertEquals(resources, resourceRepository.count());
+		verify(fileStorage, org.mockito.Mockito.times(1)).store(anyString(), any(), anyString());
+	}
+
+	@Test
+	void aDifferentFileIsAccepted() throws Exception {
+		mockMvc.perform(upload(file("uno.pdf", pdf(1)))).andExpect(status().isCreated());
+		mockMvc.perform(upload(file("dos.pdf", pdf(2)))).andExpect(status().isCreated());
+	}
+
+	@Test
+	void theFingerprintIsStoredWithTheDocument() throws Exception {
+		byte[] pdf = pdf(1);
+		String body = mockMvc.perform(upload(file("huella.pdf", pdf))).andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+
+		Resource saved = resourceRepository.findById(JsonPath.<Number>read(body, "$.id").longValue()).orElseThrow();
+		assertEquals(sha256Of(pdf), saved.getFile().sha256());
+	}
+
+	private static String sha256Of(byte[] content) throws Exception {
+		return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(content));
 	}
 
 	private MockMultipartHttpServletRequestBuilder upload(MockMultipartFile file) {

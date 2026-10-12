@@ -174,6 +174,22 @@ describe('UploadDocumentPage', () => {
     expect(screen.getByLabelText('Cambiar archivo')).toHaveFocus()
   })
 
+  it('un apunte que ya está en el catálogo se avisa junto al archivo y no pierde lo escrito', async () => {
+    const user = userEvent.setup()
+    createDocument.mockRejectedValue(new ApiError('409', {
+      status: 409,
+      body: { code: 'DOCUMENT_ALREADY_UPLOADED', detail: 'Este apunte ya está en el catálogo.' },
+    }))
+    renderPage()
+
+    await fillValidForm(user)
+    await user.click(screen.getByRole('button', { name: 'Publicar apunte' }))
+
+    expect(await screen.findByText(/Este apunte ya está en el catálogo/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Cambiar archivo')).toHaveFocus()
+    expect(screen.getByLabelText('Título')).toHaveValue('Series y sucesiones')
+  })
+
   it('sin espacio en el almacenamiento lo explica y no pierde lo escrito', async () => {
     const user = userEvent.setup()
     createDocument.mockRejectedValue(new ApiError('503', {

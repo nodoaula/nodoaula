@@ -1,19 +1,24 @@
 package io.github.nodoaula.catalog;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -252,8 +257,12 @@ public class ResourceService {
 		// sube desde esa misma copia.
 		Path pdf = copyToTempFile(upload);
 		try {
-			DocumentFile file = new DocumentFile(UUID.randomUUID() + ".pdf", upload.getSize(),
-					PdfDocuments.countPages(pdf));
+			int pageCount = PdfDocuments.countPages(pdf);
+			String sha256 = sha256Of(pdf);
+			if (resourceRepository.existsByFileSha256(sha256)) {
+				throw new DocumentAlreadyUploadedException();
+			}
+			DocumentFile file = new DocumentFile(UUID.randomUUID() + ".pdf", upload.getSize(), pageCount, sha256);
 			storeOrDeleteFile(file.key(), pdf);
 			return saveDocumentOrDeleteFile(request, file, authorId);
 		} finally {
@@ -277,6 +286,12 @@ public class ResourceService {
 			return transactionTemplate.execute(status -> saveDocument(request, file, authorId));
 		} catch (RuntimeException exception) {
 			deleteStoredFile(file.key());
+			// Dos subidas simultáneas del mismo archivo pasan la comprobación
+			// previa: la segunda la detiene la restricción única de la tabla.
+			if (exception instanceof DataIntegrityViolationException
+					&& resourceRepository.existsByFileSha256(file.sha256())) {
+				throw new DocumentAlreadyUploadedException();
+			}
 			throw exception;
 		}
 	}
@@ -321,6 +336,22 @@ public class ResourceService {
 		} catch (IOException exception) {
 			deleteTempFile(pdf);
 			throw new UncheckedIOException(exception);
+		}
+	}
+
+	private static String sha256Of(Path file) {
+		try (InputStream in = Files.newInputStream(file)) {
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			byte[] buffer = new byte[8192];
+			for (int read = in.read(buffer); read != -1; read = in.read(buffer)) {
+				digest.update(buffer, 0, read);
+			}
+			return HexFormat.of().formatHex(digest.digest());
+		} catch (IOException exception) {
+			throw new UncheckedIOException(exception);
+		} catch (NoSuchAlgorithmException exception) {
+			// SHA-256 viene en todas las JVM: no puede faltar.
+			throw new IllegalStateException(exception);
 		}
 	}
 
