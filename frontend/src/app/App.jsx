@@ -5,6 +5,7 @@ import RegisterPage from '../features/account/RegisterPage.jsx'
 import CourseIndexPage from '../features/catalog/CourseIndexPage.jsx'
 import CoursePage from '../features/catalog/CoursePage.jsx'
 import CreateResourcePage from '../features/catalog/CreateResourcePage.jsx'
+import EditResourcePage from '../features/catalog/EditResourcePage.jsx'
 import ResourceDetailPage from '../features/catalog/ResourceDetailPage.jsx'
 import UploadDocumentPage from '../features/catalog/UploadDocumentPage.jsx'
 import LandingPage from '../features/landing/LandingPage.jsx'
@@ -27,6 +28,7 @@ export default function App() {
               <Route path="catalogo" element={<CourseIndexPage />} />
               <Route path="catalogo/cursos/:courseId" element={<CoursePage />} />
               <Route path="recursos/:resourceId" element={<ResourceDetailPage />} />
+              <Route path="recursos/:resourceId/corregir" element={<EditResourcePage />} />
               <Route path="subir-apunte" element={<UploadDocumentPage />} />
             </Route>
             {/* Pantallas aún sin rediseñar: cada una pasa al grupo de arriba cuando se rediseña. */}

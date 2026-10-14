@@ -1,4 +1,4 @@
-import { get, post } from '../../lib/apiClient.js'
+import { get, post, put } from '../../lib/apiClient.js'
 
 /** Llamadas del módulo catalog: todas pasan por el cliente único de la API. */
 
@@ -53,6 +53,26 @@ export function getYouTubeMetadata(link) {
  */
 export function createResource(resource) {
   return post('/resources', resource)
+}
+
+// Un campo opcional vacío se envía como null: así el backend lo borra.
+const orNull = (value) => (value === '' ? null : value)
+
+/**
+ * Corrige los datos de un recurso (historia HU311). Exige sesión y que quien
+ * corrige sea quien lo aportó o una cuenta del equipo. Un apunte solo envía
+ * título, descripción, curso y temas: su fecha es la de la subida, y el
+ * backend rechaza la fecha, la duración y el canal en un apunte. El enlace y
+ * el archivo no se corrigen y nunca se envían. Devuelve la ficha corregida.
+ */
+export function updateResource(resourceId, { resourceType, title, description, publishedAt, durationSeconds, channel, course, topics }) {
+  const data = { title, description: orNull(description), course, topics }
+  if (resourceType !== 'DOCUMENT') {
+    data.publishedAt = publishedAt
+    data.durationSeconds = durationSeconds === '' ? null : Number(durationSeconds)
+    data.channel = orNull(channel)
+  }
+  return put(`/resources/${encodeURIComponent(resourceId)}`, data)
 }
 
 // Un PDF de 20 MB tarda minutos con una conexión lenta: con el plazo de una

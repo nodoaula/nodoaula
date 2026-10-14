@@ -10,6 +10,10 @@ import java.util.List;
  * (descripción, fecha de publicación, duración y canal) llegan como null
  * cuando no se registraron.
  * Nunca la entidad, según ADR-008.
+ *
+ * canEdit dice si quien la ve puede corregir el recurso (historia HU311): sin
+ * sesión, siempre false. Así el frontend muestra u oculta la acción sin
+ * conocer al autor ni repetir la regla, que solo vive en el servicio.
  */
 public record ResourceDetailDto(
 		Long id,
@@ -22,5 +26,6 @@ public record ResourceDetailDto(
 		ResourceType resourceType,
 		Long courseId,
 		String course,
-		List<String> topics) {
+		List<String> topics,
+		boolean canEdit) {
 }

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -20,8 +21,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * El listado y la ficha deben seguir accesibles sin sesión iniciada: el catálogo se
  * consulta sin cuenta, y la sesión solo hace falta para aportar (ADR-007).
- * Registrar un recurso sí la exige, sin regla propia en SecurityConfig porque
- * ya la cubre anyRequest().authenticated().
+ * Registrar y corregir un recurso sí la exigen, sin regla propia en
+ * SecurityConfig porque ya la cubre anyRequest().authenticated().
  */
 @RestController
 @RequestMapping("/api/resources")
@@ -71,10 +72,23 @@ class ResourceController {
 
 	// Las rutas literales /courses, /topics y /youtube-metadata ganan a esta
 	// por ser más específicas, así que ninguna se interpreta como
-	// identificador de recurso.
+	// identificador de recurso. Sin sesión, el principal es el texto
+	// "anonymousUser" y no una cuenta: quien ve la ficha queda en null.
 	@GetMapping("/{id}")
-	ResourceDetailDto getResource(@PathVariable Long id) {
-		return resourceService.getResource(id);
+	ResourceDetailDto getResource(@PathVariable Long id,
+			@AuthenticationPrincipal(expression = "#this instanceof T(String) ? null : id") Long viewerId) {
+		return resourceService.getResource(id, viewerId);
+	}
+
+	/**
+	 * Corrige los datos de un recurso (historia HU311). Exige sesión, como
+	 * registrar, y quien corrige se toma de ella igual que el autor en
+	 * createResource. Responde la ficha ya corregida.
+	 */
+	@PutMapping("/{id}")
+	ResourceDetailDto updateResource(@PathVariable Long id, @Valid @RequestBody UpdateResourceRequest request,
+			@AuthenticationPrincipal(expression = "id") Long editorId) {
+		return resourceService.updateResource(id, request, editorId);
 	}
 
 	/**

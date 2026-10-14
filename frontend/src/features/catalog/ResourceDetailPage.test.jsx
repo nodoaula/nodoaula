@@ -99,4 +99,41 @@ describe('ResourceDetailPage', () => {
     expect(screen.queryByText(/No se puede ver dentro de NodoAula/)).not.toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Apunte' })).toBeInTheDocument()
   })
+
+  // Historia HU311: la ficha ofrece corregir solo a quien puede hacerlo.
+  it('ofrece corregir los datos a quien puede hacerlo', async () => {
+    getResource.mockResolvedValue({ ...VIDEO, canEdit: true })
+    renderDetail()
+
+    expect(await screen.findByRole('link', { name: 'Corregir datos' })).toHaveAttribute('href', '/recursos/24/corregir')
+  })
+
+  it('no ofrece corregir los datos a quien no puede', async () => {
+    getResource.mockResolvedValue({ ...VIDEO, canEdit: false })
+    renderDetail()
+
+    await screen.findByRole('heading', { level: 1 })
+    expect(screen.queryByRole('link', { name: 'Corregir datos' })).not.toBeInTheDocument()
+  })
+
+  it('al volver de corregirlo confirma que se guardaron los cambios', async () => {
+    getResource.mockResolvedValue({ ...VIDEO, canEdit: true })
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/recursos/24', state: { resourceCorrected: true } }]}>
+        <Routes>
+          <Route path="recursos/:resourceId" element={<ResourceDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('heading', { name: 'Guardaste los cambios' })).toBeInTheDocument()
+  })
+
+  it('sin venir de corregirlo no muestra la confirmación', async () => {
+    getResource.mockResolvedValue({ ...VIDEO, canEdit: true })
+    renderDetail()
+
+    await screen.findByRole('heading', { level: 1 })
+    expect(screen.queryByText('Guardaste los cambios')).not.toBeInTheDocument()
+  })
 })

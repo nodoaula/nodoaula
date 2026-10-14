@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
+import io.github.nodoaula.account.AccountService;
 import io.github.nodoaula.shared.error.FieldValidationException;
 import io.github.nodoaula.shared.storage.FileStorage;
 import io.github.nodoaula.shared.storage.StorageUnavailableException;
@@ -49,16 +50,20 @@ public class ResourceService {
 	private final VideoMetadataProvider videoMetadataProvider;
 	private final FileStorage fileStorage;
 	private final TransactionTemplate transactionTemplate;
+	// Para saber si una cuenta es del equipo: se le pregunta al servicio de
+	// account, nunca a su repositorio ni a su entidad (ADR-008).
+	private final AccountService accountService;
 
 	ResourceService(ResourceRepository resourceRepository, CourseRepository courseRepository,
 			TopicRepository topicRepository, VideoMetadataProvider videoMetadataProvider, FileStorage fileStorage,
-			TransactionTemplate transactionTemplate) {
+			TransactionTemplate transactionTemplate, AccountService accountService) {
 		this.resourceRepository = resourceRepository;
 		this.courseRepository = courseRepository;
 		this.topicRepository = topicRepository;
 		this.videoMetadataProvider = videoMetadataProvider;
 		this.fileStorage = fileStorage;
 		this.transactionTemplate = transactionTemplate;
+		this.accountService = accountService;
 	}
 
 	/**
@@ -126,24 +131,80 @@ public class ResourceService {
 		return (ids == null || ids.isEmpty()) ? null : ids;
 	}
 
-	/** Devuelve la ficha de un recurso (historia HU108). */
+	/**
+	 * Devuelve la ficha de un recurso (historia HU108), con si quien la ve
+	 * puede corregirlo (HU311). {@code viewerId} es null sin sesión.
+	 */
 	@Transactional(readOnly = true)
-	public ResourceDetailDto getResource(Long id) {
+	public ResourceDetailDto getResource(Long id, Long viewerId) {
 		Resource resource = resourceRepository.findById(id)
 				.orElseThrow(ResourceNotFoundException::new);
 
-		return new ResourceDetailDto(
-				resource.getId(),
-				resource.getTitle(),
-				resource.getDescription(),
-				resource.getPublishedAt(),
-				resource.getDurationSeconds(),
-				resource.getChannel(),
-				resource.getUrl(),
-				resource.getResourceType(),
-				resource.getCourse().getId(),
-				resource.getCourse().getName(),
-				topicNames(resource));
+		return toDetailDto(resource, canChange(resource, viewerId));
+	}
+
+	/**
+	 * Corrige los datos de un recurso (historia HU311). Solo puede quien lo
+	 * aportó o una cuenta del equipo (ADR-007). En un video se corrigen título,
+	 * descripción, fecha, duración, canal, curso y temas; en un apunte, título,
+	 * descripción, curso y temas, porque su fecha es la de la subida. El enlace,
+	 * el archivo y la vía de ingreso no cambian. Curso y temas siguen las
+	 * mismas reglas que al registrar: se reutilizan si ya existen, sin
+	 * distinguir mayúsculas ni tildes, o se crean (HU308).
+	 */
+	@Transactional
+	public ResourceDetailDto updateResource(Long id, UpdateResourceRequest request, Long editorId) {
+		Resource resource = resourceRepository.findById(id)
+				.orElseThrow(ResourceNotFoundException::new);
+
+		if (!canChange(resource, editorId)) {
+			throw new ResourceChangeForbiddenException();
+		}
+
+		boolean isDocument = resource.getResourceType() == ResourceType.DOCUMENT;
+		if (isDocument) {
+			rejectFieldsOfAVideo(request);
+		} else if (request.publishedAt() == null) {
+			throw new FieldValidationException("publishedAt", "Elige la fecha de publicación.");
+		}
+
+		Course course = findOrCreateCourse(request.course().strip());
+		resource.correct(
+				request.title().strip(),
+				blankToNull(request.description()),
+				isDocument ? resource.getPublishedAt() : request.publishedAt(),
+				request.durationSeconds(),
+				blankToNull(request.channel()),
+				course);
+		addTopics(resource, course, request.topics());
+
+		return toDetailDto(resource, true);
+	}
+
+	// La fecha de un apunte es la de su subida, y un apunte no tiene duración
+	// ni canal (HU311). Se rechazan en vez de ignorarse, para que nadie crea
+	// que los cambió.
+	private static void rejectFieldsOfAVideo(UpdateResourceRequest request) {
+		if (request.publishedAt() != null) {
+			throw new FieldValidationException("publishedAt",
+					"La fecha de un apunte es la de su subida y no se cambia.");
+		}
+		if (request.durationSeconds() != null) {
+			throw new FieldValidationException("durationSeconds", "Un apunte no tiene duración.");
+		}
+		if (blankToNull(request.channel()) != null) {
+			throw new FieldValidationException("channel", "Un apunte no tiene canal.");
+		}
+	}
+
+	/**
+	 * Regla de autoría del ADR-007: un recurso lo modifica quien lo aportó o
+	 * una cuenta del equipo. Los del catálogo semilla tienen author_id = 0, que
+	 * no es de ninguna cuenta, así que solo los modifica el equipo.
+	 */
+	private boolean canChange(Resource resource, Long accountId) {
+		if (accountId == null) return false;
+		return accountId.equals(resource.getAuthorId()) || accountService.isTeamMember(accountId);
 	}
 
 	/** Lista los cursos que tienen al menos un recurso. */
@@ -399,6 +460,22 @@ public class ResourceService {
 
 	private static String blankToNull(String value) {
 		return (value == null || value.isBlank()) ? null : value.strip();
+	}
+
+	private static ResourceDetailDto toDetailDto(Resource resource, boolean canEdit) {
+		return new ResourceDetailDto(
+				resource.getId(),
+				resource.getTitle(),
+				resource.getDescription(),
+				resource.getPublishedAt(),
+				resource.getDurationSeconds(),
+				resource.getChannel(),
+				resource.getUrl(),
+				resource.getResourceType(),
+				resource.getCourse().getId(),
+				resource.getCourse().getName(),
+				topicNames(resource),
+				canEdit);
 	}
 
 	private ResourceDto toDto(Resource resource) {

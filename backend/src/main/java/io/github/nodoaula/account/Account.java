@@ -22,6 +22,10 @@ class Account {
 
 	private Instant createdAt;
 
+	// Cuenta del equipo, que modera el catálogo (ADR-007). Se marca en la base
+	// de datos, nunca desde la aplicación: una cuenta nueva no la tiene.
+	private boolean teamMember;
+
 	protected Account() {
 	}
 
@@ -45,6 +49,10 @@ class Account {
 
 	Instant getCreatedAt() {
 		return createdAt;
+	}
+
+	boolean isTeamMember() {
+		return teamMember;
 	}
 
 }

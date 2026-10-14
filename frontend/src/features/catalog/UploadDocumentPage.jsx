@@ -5,6 +5,7 @@ import { buttonClasses } from '../../components/ui/button.js'
 import CoursePicker from '../../components/ui/CoursePicker.jsx'
 import NodePath from '../../components/ui/NodePath.jsx'
 import Notice from '../../components/ui/Notice.jsx'
+import TextInput from '../../components/ui/TextInput.jsx'
 import TopicPicker from '../../components/ui/TopicPicker.jsx'
 import { CSRF_ERROR_CODE } from '../../lib/apiClient.js'
 import { SESSION_STATUS } from '../../session/SessionContext.js'
@@ -507,28 +508,6 @@ function Step({ done, title, intro, last = false, children }) {
         {children}
       </div>
     </section>
-  )
-}
-
-function TextInput({ id, label, optional = false, multiline = false, hint, error, onChange, ...props }) {
-  const Control = multiline ? 'textarea' : 'input'
-  const describedBy = [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(' ')
-  return (
-    <div className="flex flex-col gap-2">
-      <label htmlFor={id} className="text-sm font-medium text-content">
-        {label} {optional && <span className="font-normal text-content-muted">opcional</span>}
-      </label>
-      <Control
-        id={id}
-        onChange={(event) => onChange(event.target.value)}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy || undefined}
-        className={`w-full rounded-xl border bg-surface-raised px-3.5 py-3 text-body text-content placeholder:text-content-faint focus:border-accent focus:outline-none ${multiline ? 'min-h-24 resize-y leading-normal' : ''} ${error ? 'border-red-400' : 'border-border-strong hover:border-content-faint'}`}
-        {...props}
-      />
-      {hint && <p id={`${id}-hint`} className="text-label text-content-muted">{hint}</p>}
-      {error && <p id={`${id}-error`} className="text-label text-red-400">{error}</p>}
-    </div>
   )
 }
 

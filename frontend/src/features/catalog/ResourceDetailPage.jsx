@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useLocation, useParams } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
 import NodePath from '../../components/ui/NodePath.jsx'
@@ -28,10 +28,12 @@ function isNotFound(error) {
  */
 export default function ResourceDetailPage() {
   const { resourceId } = useParams()
-  return <ResourceDetail key={resourceId} resourceId={resourceId} />
+  // Al volver de corregirlo (HU311), la ficha confirma que se guardó.
+  const corrected = useLocation().state?.resourceCorrected === true
+  return <ResourceDetail key={resourceId} resourceId={resourceId} corrected={corrected} />
 }
 
-function ResourceDetail({ resourceId }) {
+function ResourceDetail({ resourceId, corrected }) {
   const [resource, setResource] = useState(null)
   const [error, setError] = useState(null)
 
@@ -61,6 +63,12 @@ function ResourceDetail({ resourceId }) {
         <p className="text-body text-content-muted" role="status">
           Cargando recurso…
         </p>
+      )}
+
+      {!error && resource !== null && corrected && (
+        <div className="mb-8">
+          <Notice title="Guardaste los cambios">Ya se ven en el catálogo, en los filtros y en la búsqueda.</Notice>
+        </div>
       )}
 
       {!error && resource !== null && <ResourceSheet resource={resource} />}
@@ -100,7 +108,15 @@ function ResourceSheet({ resource }) {
 
   return (
     <article>
-      <NodePath label="Ubicación" items={pathItems(resource)} current={type} />
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <NodePath label="Ubicación" items={pathItems(resource)} current={type} />
+        {/* Solo para quien puede corregirlo: quien lo aportó o el equipo (HU311). */}
+        {resource.canEdit && (
+          <Link to={`/recursos/${resource.id}/corregir`} className={buttonClasses('secondary')}>
+            Corregir datos
+          </Link>
+        )}
+      </div>
 
       <h1 className="mt-5 max-w-[24ch] text-[1.75rem] leading-[1.08] font-semibold tracking-tight text-balance sm:text-display">
         {resource.title}
