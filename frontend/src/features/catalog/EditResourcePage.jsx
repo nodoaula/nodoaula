@@ -16,13 +16,13 @@ import { validateCorrection } from './validation.js'
 
 // Orden de los campos en la página, con el elemento que recibe el foco.
 const FIELD_FOCUS = [
-  ['course', 'curso'],
-  ['topics', 'temas'],
   ['title', 'titulo'],
   ['description', 'descripcion'],
   ['publishedAt', 'fecha'],
   ['durationSeconds', 'duracion'],
   ['channel', 'canal'],
+  ['course', 'curso'],
+  ['topics', 'temas'],
 ]
 
 // Tras un intento fallido, el foco va al primer campo con error, como al
@@ -160,8 +160,7 @@ function EditResource({ resourceId }) {
       </p>
 
       {resource.canEdit ? (
-        <div className="mt-8 grid items-start gap-8 md:grid-cols-[15rem_minmax(0,1fr)] md:gap-14">
-          <FixedData resource={resource} />
+        <div className="mt-8">
           <CorrectionForm resource={resource} courses={courses} coursesFailed={coursesFailed} />
         </div>
       ) : (
@@ -265,6 +264,29 @@ function CorrectionForm({ resource, courses, coursesFailed }) {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="flex max-w-3xl min-w-0 flex-col gap-10">
+      <FormSection title="Cómo se llama" intro="El título es lo primero que se lee en el catálogo.">
+        <TextInput
+          id="titulo"
+          label="Título"
+          value={form.title}
+          maxLength={300}
+          onChange={(value) => updateField('title', value)}
+          error={fieldErrors.title}
+        />
+        <TextInput
+          id="descripcion"
+          label="Descripción"
+          optional
+          multiline
+          value={form.description}
+          maxLength={2000}
+          onChange={(value) => updateField('description', value)}
+          error={fieldErrors.description}
+        />
+      </FormSection>
+
+      {!isDocument && <VideoFields form={form} errors={fieldErrors} onChange={updateField} />}
+
       <FormSection title="Dónde está" intro="El curso y los temas por los que se encuentra en el catálogo.">
         {courses === null && !coursesFailed && <p className="text-label text-content-muted">Cargando los cursos…</p>}
         {coursesFailed && <p className="text-label text-red-400">No se pudieron cargar los cursos. Recarga la página.</p>}
@@ -288,28 +310,7 @@ function CorrectionForm({ resource, courses, coursesFailed }) {
         )}
       </FormSection>
 
-      <FormSection title="Cómo se llama" intro="El título es lo primero que se lee en el catálogo.">
-        <TextInput
-          id="titulo"
-          label="Título"
-          value={form.title}
-          maxLength={300}
-          onChange={(value) => updateField('title', value)}
-          error={fieldErrors.title}
-        />
-        <TextInput
-          id="descripcion"
-          label="Descripción"
-          optional
-          multiline
-          value={form.description}
-          maxLength={2000}
-          onChange={(value) => updateField('description', value)}
-          error={fieldErrors.description}
-        />
-      </FormSection>
-
-      {!isDocument && <VideoFields form={form} errors={fieldErrors} onChange={updateField} />}
+      <FixedData resource={resource} />
 
       <div className="flex flex-col gap-4">
         {formError && <Notice role="alert" title="No se guardaron los cambios">{formError}</Notice>}
@@ -396,8 +397,7 @@ function LoadError({ error }) {
 function FixedData({ resource }) {
   const isDocument = resource.resourceType === 'DOCUMENT'
   return (
-    <aside aria-labelledby="fijos" className="flex min-w-0 flex-col gap-4 rounded-2xl border border-border bg-surface-raised p-5">
-      <h2 id="fijos" className="font-mono text-label text-content-muted">Lo que no cambia</h2>
+    <FormSection title="Datos fijos" intro="Se muestran, pero no se corrigen.">
       {isDocument ? (
         <dl className="flex flex-col gap-3 text-sm">
           <FixedField label="Archivo">PDF del apunte</FixedField>
@@ -420,7 +420,7 @@ function FixedData({ resource }) {
         </Link>
         .
       </p>
-    </aside>
+    </FormSection>
   )
 }
 

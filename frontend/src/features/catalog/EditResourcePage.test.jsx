@@ -100,6 +100,18 @@ describe('EditResourcePage', () => {
     expect(screen.getByRole('link', { name: 'registra un recurso nuevo' })).toHaveAttribute('href', '/registrar-recurso')
   })
 
+  it('en un video ordena las secciones y las deja antes de los botones', async () => {
+    renderPage()
+
+    await screen.findByLabelText('Título')
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)
+    expect(headings).toEqual(['Cómo se llama', 'Datos del video', 'Dónde está', 'Datos fijos'])
+
+    const fixedData = screen.getByRole('region', { name: 'Datos fijos' })
+    const save = screen.getByRole('button', { name: 'Guardar cambios' })
+    expect(fixedData.compareDocumentPosition(save) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('guarda la corrección y vuelve a la ficha', async () => {
     const user = userEvent.setup()
     renderPage()
@@ -157,6 +169,8 @@ describe('EditResourcePage', () => {
     renderPage(31)
 
     expect(await screen.findByLabelText('Título')).toHaveValue('Resumen de series')
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)
+    expect(headings).toEqual(['Cómo se llama', 'Dónde está', 'Datos fijos'])
     expect(screen.queryByLabelText('Fecha de publicación')).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/Duración/)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/Canal/)).not.toBeInTheDocument()
