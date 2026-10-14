@@ -137,6 +137,11 @@ class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return problem(HttpStatus.NOT_FOUND, exception.getCode(), "No encontrado", exception.getMessage());
 	}
 
+	@ExceptionHandler(ForbiddenException.class)
+	ProblemDetail handleForbidden(ForbiddenException exception) {
+		return problem(HttpStatus.FORBIDDEN, exception.getCode(), "Acceso denegado", exception.getMessage());
+	}
+
 	// El mismo mensaje para un correo sin cuenta y para una contraseña
 	// incorrecta: distinguirlos revelaría qué correos están registrados
 	// (ADR-007). Spring Security ya entrega los dos casos como esta excepción.

@@ -111,6 +111,20 @@ class Resource {
 		topics.add(topic);
 	}
 
+	// Para corregir sus datos (historia HU311). Enlace, archivo, tipo, autor y
+	// vía de ingreso no tienen cómo cambiar desde aquí. Los temas se quitan
+	// todos, y los corregidos se añaden después con addTopic.
+	void correct(String title, String description, LocalDate publishedAt, Integer durationSeconds,
+			String channel, Course course) {
+		this.title = title;
+		this.description = description;
+		this.publishedAt = publishedAt;
+		this.durationSeconds = durationSeconds;
+		this.channel = channel;
+		this.course = course;
+		this.topics.clear();
+	}
+
 	Long getId() {
 		return id;
 	}

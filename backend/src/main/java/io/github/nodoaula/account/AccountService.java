@@ -72,6 +72,18 @@ public class AccountService implements UserDetailsService {
 				.orElseThrow(() -> new UsernameNotFoundException("No hay cuenta con ese correo"));
 	}
 
+	/**
+	 * Si la cuenta está marcada como del equipo, que puede corregir o retirar
+	 * cualquier recurso del catálogo (ADR-007). Se consulta en cada operación
+	 * y no se guarda en la sesión, para que marcar o desmarcar una cuenta en
+	 * la base surta efecto sin que tenga que volver a iniciar sesión. Una
+	 * cuenta que no existe no es del equipo.
+	 */
+	@Transactional(readOnly = true)
+	public boolean isTeamMember(Long accountId) {
+		return accountRepository.existsByIdAndTeamMemberTrue(accountId);
+	}
+
 	// En minúsculas para que Ana@Ejemplo.com y ana@ejemplo.com sean la misma
 	// cuenta. La tabla rechaza cualquier correo que no llegue así.
 	private static String normalizeEmail(String email) {
