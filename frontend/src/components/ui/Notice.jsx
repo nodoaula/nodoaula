@@ -15,9 +15,11 @@ export default function Notice({ title, children, action, role = 'status' }) {
           <path d="M12 8v5M12 16.5v.01" />
         </svg>
       </span>
-      <div>
+      {/* min-w-0 y el corte de palabras evitan que un texto sin espacios,
+          como el título de un recurso, desborde a 375 px. */}
+      <div className="min-w-0">
         <h2 className="text-lead font-semibold tracking-tight text-content">{title}</h2>
-        {children && <p className="mt-1.5 text-body text-content-muted">{children}</p>}
+        {children && <p className="mt-1.5 text-body wrap-break-word text-content-muted">{children}</p>}
         {action && <div className="mt-4">{action}</div>}
       </div>
     </div>

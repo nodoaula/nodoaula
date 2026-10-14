@@ -21,8 +21,9 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * El listado y la ficha deben seguir accesibles sin sesión iniciada: el catálogo se
  * consulta sin cuenta, y la sesión solo hace falta para aportar (ADR-007).
- * Registrar y corregir un recurso sí la exigen, sin regla propia en
- * SecurityConfig porque ya la cubre anyRequest().authenticated().
+ * Registrar, corregir, retirar y volver a publicar un recurso sí la exigen,
+ * sin regla propia en SecurityConfig porque ya la cubre
+ * anyRequest().authenticated().
  */
 @RestController
 @RequestMapping("/api/resources")
@@ -89,6 +90,23 @@ class ResourceController {
 	ResourceDetailDto updateResource(@PathVariable Long id, @Valid @RequestBody UpdateResourceRequest request,
 			@AuthenticationPrincipal(expression = "id") Long editorId) {
 		return resourceService.updateResource(id, request, editorId);
+	}
+
+	/**
+	 * Retira un recurso del catálogo (historia HU307). Es un POST y no un
+	 * DELETE porque el retiro es lógico y se puede deshacer. Exige sesión y
+	 * token CSRF, como corregir, y responde la ficha del recurso retirado.
+	 */
+	@PostMapping("/{id}/retire")
+	ResourceDetailDto retireResource(@PathVariable Long id, @AuthenticationPrincipal(expression = "id") Long accountId) {
+		return resourceService.retireResource(id, accountId);
+	}
+
+	/** Vuelve a publicar un recurso retirado (historia HU307). Responde su ficha. */
+	@PostMapping("/{id}/republish")
+	ResourceDetailDto republishResource(@PathVariable Long id,
+			@AuthenticationPrincipal(expression = "id") Long accountId) {
+		return resourceService.republishResource(id, accountId);
 	}
 
 	/**

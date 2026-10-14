@@ -10,7 +10,13 @@ import org.springframework.data.repository.query.Param;
 
 interface CourseRepository extends JpaRepository<Course, Long> {
 
-	@Query("select c from Course c where exists (select 1 from Resource r where r.course = c)")
+	/**
+	 * Cursos con al menos un recurso publicado: un curso que se queda solo con
+	 * recursos retirados deja de aparecer en el índice y en los selectores
+	 * (historia HU307).
+	 */
+	@Query("select c from Course c where exists "
+			+ "(select 1 from Resource r where r.course = c and r.retiredAt is null)")
 	List<Course> findCoursesWithAtLeastOneResource();
 
 	Optional<Course> findByName(String name);

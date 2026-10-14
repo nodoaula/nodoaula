@@ -18,11 +18,14 @@ interface ResourceRepository extends JpaRepository<Resource, Long> {
 	 * vez (por ejemplo, dos cursos): una lista en null no restringe nada, y
 	 * dentro de cada filtro los valores se combinan con OR. El left join a
 	 * temas puede duplicar filas cuando un recurso tiene varios temas que
-	 * coinciden con la lista elegida; distinct() lo evita.
+	 * coinciden con la lista elegida; distinct() lo evita. Los recursos
+	 * retirados no se listan (historia HU307), y como la búsqueda de texto
+	 * filtra este resultado, tampoco aparecen en ella.
 	 */
 	@Query("select distinct r from Resource r "
 			+ "left join r.topics t "
-			+ "where (:courseIds is null or r.course.id in :courseIds) "
+			+ "where r.retiredAt is null "
+			+ "and (:courseIds is null or r.course.id in :courseIds) "
 			+ "and (:topicIds is null or t.id in :topicIds) "
 			+ "and (:resourceTypes is null or r.resourceType in :resourceTypes) "
 			+ "order by r.title")
@@ -31,7 +34,10 @@ interface ResourceRepository extends JpaRepository<Resource, Long> {
 			@Param("topicIds") List<Long> topicIds,
 			@Param("resourceTypes") List<ResourceType> resourceTypes);
 
-	/** Bytes que ocupan en el almacenamiento los archivos de todos los apuntes. */
+	/**
+	 * Bytes que ocupan en el almacenamiento los archivos de todos los apuntes,
+	 * también los retirados: el retiro es lógico y su archivo se conserva.
+	 */
 	@Query("select coalesce(sum(r.file.sizeBytes), 0) from Resource r")
 	long totalStoredBytes();
 

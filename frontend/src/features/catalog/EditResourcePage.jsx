@@ -36,6 +36,7 @@ function focusFirstInvalid(errors) {
 const FAILURE_MESSAGES = {
   RESOURCE_CHANGE_FORBIDDEN: 'Solo quien aportó este recurso o una cuenta del equipo puede corregirlo.',
   RESOURCE_NOT_FOUND: 'Este recurso ya no está en el catálogo.',
+  RESOURCE_RETIRED: 'Este recurso se retiró del catálogo y ya no se puede corregir. Si se vuelve a publicar, podrás hacerlo.',
   [CSRF_ERROR_CODE]: 'No se pudo verificar la seguridad del formulario. Recarga la página e inténtalo de nuevo.',
 }
 
@@ -142,6 +143,22 @@ function EditResource({ resourceId }) {
   }
 
   const detailPath = `/recursos/${resource.id}`
+
+  // Un recurso retirado no se corrige (HU307), y su ficha llega sin datos que
+  // mostrar: se avisa en vez de mostrar el formulario.
+  if (resource.retired) {
+    return (
+      <main className="mx-auto max-w-6xl px-4 pt-9 pb-18 sm:px-6">
+        <Notice
+          title="Este recurso está retirado"
+          action={<Link to={detailPath} className={buttonClasses('secondary')}>Ir a la ficha</Link>}
+        >
+          Un recurso retirado del catálogo no se corrige. Si quien lo retiró lo vuelve a publicar, podrás corregir sus
+          datos.
+        </Notice>
+      </main>
+    )
+  }
 
   return (
     <main className="mx-auto max-w-6xl px-4 pt-9 pb-18 sm:px-6">

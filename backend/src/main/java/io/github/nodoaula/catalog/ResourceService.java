@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.Normalizer;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -133,14 +134,13 @@ public class ResourceService {
 
 	/**
 	 * Devuelve la ficha de un recurso (historia HU108), con si quien la ve
-	 * puede corregirlo (HU311). {@code viewerId} es null sin sesión.
+	 * puede corregirlo (HU311), retirarlo o volver a publicarlo (HU307). La de
+	 * un recurso retirado sale sin su contenido. {@code viewerId} es null sin
+	 * sesión.
 	 */
 	@Transactional(readOnly = true)
 	public ResourceDetailDto getResource(Long id, Long viewerId) {
-		Resource resource = resourceRepository.findById(id)
-				.orElseThrow(ResourceNotFoundException::new);
-
-		return toDetailDto(resource, canChange(resource, viewerId));
+		return toDetailDto(findResource(id), viewerId);
 	}
 
 	/**
@@ -150,15 +150,18 @@ public class ResourceService {
 	 * descripción, curso y temas, porque su fecha es la de la subida. El enlace,
 	 * el archivo y la vía de ingreso no cambian. Curso y temas siguen las
 	 * mismas reglas que al registrar: se reutilizan si ya existen, sin
-	 * distinguir mayúsculas ni tildes, o se crean (HU308).
+	 * distinguir mayúsculas ni tildes, o se crean (HU308). Un recurso retirado
+	 * no se corrige: primero se vuelve a publicar (HU307).
 	 */
 	@Transactional
 	public ResourceDetailDto updateResource(Long id, UpdateResourceRequest request, Long editorId) {
-		Resource resource = resourceRepository.findById(id)
-				.orElseThrow(ResourceNotFoundException::new);
+		Resource resource = findResource(id);
 
 		if (!canChange(resource, editorId)) {
 			throw new ResourceChangeForbiddenException();
+		}
+		if (resource.isRetired()) {
+			throw new ResourceRetiredException();
 		}
 
 		boolean isDocument = resource.getResourceType() == ResourceType.DOCUMENT;
@@ -178,7 +181,54 @@ public class ResourceService {
 				course);
 		addTopics(resource, course, request.topics());
 
-		return toDetailDto(resource, true);
+		return toDetailDto(resource, editorId);
+	}
+
+	/**
+	 * Retira un recurso del catálogo (historia HU307), con la misma regla de
+	 * autoría que la corrección (ADR-007): quien lo aportó o una cuenta del
+	 * equipo. El retiro es lógico: deja de listarse, pero la fila, sus temas y
+	 * el archivo de un apunte se conservan. Se comprueba el permiso antes que
+	 * el estado, para no contarle a quien no puede retirarlo si ya lo está.
+	 */
+	@Transactional
+	public ResourceDetailDto retireResource(Long id, Long accountId) {
+		Resource resource = findResource(id);
+
+		if (!canChange(resource, accountId)) {
+			throw new ResourceChangeForbiddenException();
+		}
+		if (resource.isRetired()) {
+			throw new ResourceRetiredException();
+		}
+
+		resource.retire(accountId, Instant.now());
+		return toDetailDto(resource, accountId);
+	}
+
+	/**
+	 * Vuelve a publicar un recurso retirado (historia HU307), que reaparece
+	 * donde estaba. Solo puede la cuenta que lo retiró, mientras conserve el
+	 * permiso sobre él. Aquí el estado va antes que el permiso: en un recurso
+	 * publicado no hay quien lo retirase, y un 403 ocultaría la causa real.
+	 */
+	@Transactional
+	public ResourceDetailDto republishResource(Long id, Long accountId) {
+		Resource resource = findResource(id);
+
+		if (!resource.isRetired()) {
+			throw new ResourceNotRetiredException();
+		}
+		if (!canRepublish(resource, accountId)) {
+			throw new ResourceRepublishForbiddenException();
+		}
+
+		resource.republish();
+		return toDetailDto(resource, accountId);
+	}
+
+	private Resource findResource(Long id) {
+		return resourceRepository.findById(id).orElseThrow(ResourceNotFoundException::new);
 	}
 
 	// La fecha de un apunte es la de su subida, y un apunte no tiene duración
@@ -205,6 +255,15 @@ public class ResourceService {
 	private boolean canChange(Resource resource, Long accountId) {
 		if (accountId == null) return false;
 		return accountId.equals(resource.getAuthorId()) || accountService.isTeamMember(accountId);
+	}
+
+	/**
+	 * Un recurso retirado lo vuelve a publicar la cuenta que lo retiró, si
+	 * conserva el permiso sobre él (HU307): una cuenta que deja de ser del
+	 * equipo ya no devuelve lo que retiró de otros.
+	 */
+	private boolean canRepublish(Resource resource, Long accountId) {
+		return resource.isRetired() && resource.getRetiredBy().equals(accountId) && canChange(resource, accountId);
 	}
 
 	/** Lista los cursos que tienen al menos un recurso. */
@@ -278,7 +337,8 @@ public class ResourceService {
 		}
 
 		// Un mismo video no se registra dos veces (HU308). Se comprueba antes de
-		// crear el curso y los temas para no dejar nada a medias.
+		// crear el curso y los temas para no dejar nada a medias. Uno retirado
+		// también cuenta: su fila sigue ahí y se vuelve a publicar (HU307).
 		YouTubeVideoIds.extract(request.url()).ifPresent(videoId -> {
 			if (resourceRepository.existsByVideoId(videoId)) throw new VideoAlreadyRegisteredException();
 		});
@@ -462,7 +522,14 @@ public class ResourceService {
 		return (value == null || value.isBlank()) ? null : value.strip();
 	}
 
-	private static ResourceDetailDto toDetailDto(Resource resource, boolean canEdit) {
+	// Los permisos son los de quien ve la ficha. Corregir y retirar siguen la
+	// misma regla, y ninguno de los dos aplica a un recurso retirado.
+	private ResourceDetailDto toDetailDto(Resource resource, Long viewerId) {
+		if (resource.isRetired()) {
+			return retiredDetailDto(resource, canRepublish(resource, viewerId));
+		}
+
+		boolean canChange = canChange(resource, viewerId);
 		return new ResourceDetailDto(
 				resource.getId(),
 				resource.getTitle(),
@@ -475,7 +542,32 @@ public class ResourceService {
 				resource.getCourse().getId(),
 				resource.getCourse().getName(),
 				topicNames(resource),
-				canEdit);
+				canChange,
+				false,
+				canChange,
+				false);
+	}
+
+	// Sin su contenido: lo retirado por moderación no sigue a la vista por
+	// enlace directo. El título solo lo recibe quien puede volver a
+	// publicarlo, para que sepa cuál es.
+	private static ResourceDetailDto retiredDetailDto(Resource resource, boolean canRepublish) {
+		return new ResourceDetailDto(
+				resource.getId(),
+				canRepublish ? resource.getTitle() : null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				List.of(),
+				false,
+				true,
+				false,
+				canRepublish);
 	}
 
 	private ResourceDto toDto(Resource resource) {
