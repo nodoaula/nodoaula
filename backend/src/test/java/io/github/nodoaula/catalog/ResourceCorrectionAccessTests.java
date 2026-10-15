@@ -40,7 +40,10 @@ class ResourceCorrectionAccessTests {
 	private static final Long AUTHOR_ID = 999L;
 	private static final Long OTHER_ID = 998L;
 	private static final String TITLE = "Video de la prueba de acceso a la corrección";
-	private static final String SEED_TITLE = "Spring Boot 2026-2";
+	// El recurso semilla "Spring Boot 2026-2". Se identifica por su enlace y
+	// no por el título porque el equipo puede corregir el título (HU311), y
+	// el enlace no.
+	private static final String SEED_URL = "https://www.youtube.com/watch?v=yrir47Z__lY";
 
 	@Autowired private MockMvc mockMvc;
 	@Autowired private ResourceService resourceService;
@@ -91,9 +94,10 @@ class ResourceCorrectionAccessTests {
 				Long.class);
 	}
 
+	// SEED_URL va primero: un apunte no tiene enlace y getUrl() es null.
 	private Long seedResourceId() {
 		return resourceRepository.findAll().stream()
-				.filter(resource -> resource.getTitle().equals(SEED_TITLE))
+				.filter(resource -> SEED_URL.equals(resource.getUrl()))
 				.findFirst()
 				.orElseThrow()
 				.getId();
@@ -140,11 +144,12 @@ class ResourceCorrectionAccessTests {
 	@Test
 	void noOrdinaryAccountCanCorrectASeedResource() {
 		Long seedId = seedResourceId();
+		String titleBefore = savedTitle(seedId);
 
 		assertThrows(ResourceChangeForbiddenException.class,
 				() -> resourceService.updateResource(seedId, correction("Ajeno"), AUTHOR_ID));
 
-		assertEquals(SEED_TITLE, savedTitle(seedId));
+		assertEquals(titleBefore, savedTitle(seedId));
 	}
 
 	@Test
