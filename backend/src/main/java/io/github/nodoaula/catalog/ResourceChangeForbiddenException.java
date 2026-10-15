@@ -4,7 +4,8 @@ import io.github.nodoaula.shared.error.ForbiddenException;
 
 /**
  * Un recurso solo lo modifica quien lo aportó o una cuenta del equipo
- * (ADR-007). Lo lanza la corrección de sus datos (historia HU311).
+ * (ADR-007). Lo lanzan la corrección de sus datos (historia HU311) y su
+ * retiro (historia HU307).
  */
 class ResourceChangeForbiddenException extends ForbiddenException {
 

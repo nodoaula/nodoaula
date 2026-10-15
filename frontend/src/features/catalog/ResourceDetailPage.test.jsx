@@ -2,10 +2,11 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { getResource } from './api.js'
+import { ApiError } from '../../lib/apiClient.js'
+import { getResource, republishResource, retireResource } from './api.js'
 import ResourceDetailPage from './ResourceDetailPage.jsx'
 
-vi.mock('./api.js', () => ({ getResource: vi.fn() }))
+vi.mock('./api.js', () => ({ getResource: vi.fn(), retireResource: vi.fn(), republishResource: vi.fn() }))
 
 // El reproductor carga el script de YouTube; aquí basta con que nunca termine.
 vi.mock('./youtubeIframeApi.js', () => ({ loadYouTubeIframeApi: () => new Promise(() => {}) }))
@@ -135,5 +136,141 @@ describe('ResourceDetailPage', () => {
 
     await screen.findByRole('heading', { level: 1 })
     expect(screen.queryByText('Guardaste los cambios')).not.toBeInTheDocument()
+  })
+})
+
+// Historia HU307: retirar y volver a publicar desde la ficha. Se interactúa
+// como una persona, nunca a través del estado del componente (ADR-009).
+describe('ResourceDetailPage: retirar y volver a publicar', () => {
+  const PUBLISHED = { ...VIDEO, canEdit: true, retired: false, canRetire: true, canRepublish: false }
+  // Lo que devuelve la API de un recurso retirado: sin contenido, y con el
+  // título solo para quien lo retiró.
+  const RETIRED_FOR_RETIRER = {
+    id: 24, title: VIDEO.title, topics: [], retired: true, canEdit: false, canRetire: false, canRepublish: true,
+  }
+  const RETIRED_FOR_ANYONE = { ...RETIRED_FOR_RETIRER, title: null, canRepublish: false }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+  })
+
+  it('ofrece retirar, junto a corregir, a quien puede hacerlo', async () => {
+    getResource.mockResolvedValue(PUBLISHED)
+    renderDetail()
+
+    expect(await screen.findByRole('button', { name: 'Retirar' })).toBeEnabled()
+    expect(screen.getByRole('link', { name: 'Corregir datos' })).toBeInTheDocument()
+  })
+
+  it('no ofrece retirar a quien no puede', async () => {
+    getResource.mockResolvedValue({ ...PUBLISHED, canEdit: false, canRetire: false })
+    renderDetail()
+
+    await screen.findByRole('heading', { level: 1 })
+    expect(screen.queryByRole('button', { name: 'Retirar' })).not.toBeInTheDocument()
+  })
+
+  it('pide confirmación y, si se cancela, no retira nada', async () => {
+    getResource.mockResolvedValue(PUBLISHED)
+    renderDetail()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retirar' }))
+    expect(screen.getByRole('dialog', { name: '¿Retirar este recurso?' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    expect(retireResource).not.toHaveBeenCalled()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(VIDEO.title)
+  })
+
+  it('al confirmar lo retira y la ficha pasa al aviso, con la opción de volver a publicarlo', async () => {
+    getResource.mockResolvedValue(PUBLISHED)
+    retireResource.mockResolvedValue(RETIRED_FOR_RETIRER)
+    renderDetail()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retirar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sí, retirar' }))
+
+    expect(await screen.findByRole('heading', { name: 'Retiraste este recurso' })).toBeInTheDocument()
+    expect(retireResource).toHaveBeenCalledWith(24)
+    expect(screen.getByText(/ya no aparece en el catálogo/)).toHaveTextContent(`«${VIDEO.title}»`)
+    expect(screen.getByRole('button', { name: 'Volver a publicar' })).toBeEnabled()
+    expect(screen.queryByRole('tab', { name: 'Video' })).not.toBeInTheDocument()
+  })
+
+  it('abierta por enlace directo, dice a cualquiera que ya no está disponible y no muestra su contenido', async () => {
+    getResource.mockResolvedValue(RETIRED_FOR_ANYONE)
+    renderDetail()
+
+    expect(await screen.findByRole('heading', { name: 'Este recurso ya no está disponible' })).toBeInTheDocument()
+    expect(screen.getByText('Se retiró del catálogo y ya no se puede consultar.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Volver al catálogo' })).toHaveAttribute('href', '/catalogo')
+    expect(screen.queryByRole('button', { name: 'Volver a publicar' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Corregir datos' })).not.toBeInTheDocument()
+  })
+
+  it('quien lo retiró lo vuelve a publicar y la ficha confirma que reaparece en el catálogo', async () => {
+    getResource.mockResolvedValue(RETIRED_FOR_RETIRER)
+    republishResource.mockResolvedValue(PUBLISHED)
+    renderDetail()
+
+    expect(await screen.findByRole('heading', { name: 'Este recurso ya no está disponible' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a publicar' }))
+
+    expect(await screen.findByRole('heading', { name: 'Volviste a publicar el recurso' })).toBeInTheDocument()
+    expect(republishResource).toHaveBeenCalledWith(24)
+    expect(screen.getByText(/Ya aparece de nuevo en el catálogo/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(VIDEO.title)
+    expect(screen.getByRole('button', { name: 'Retirar' })).toBeInTheDocument()
+  })
+
+  it('si la API rechaza el retiro por autoría, lo dice y recarga la ficha', async () => {
+    getResource.mockResolvedValue(PUBLISHED)
+    retireResource.mockRejectedValue(new ApiError('403', { status: 403, body: { code: 'RESOURCE_CHANGE_FORBIDDEN' } }))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    renderDetail()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retirar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sí, retirar' }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('No se retiró el recurso')
+    expect(alert).toHaveTextContent('Solo quien aportó este recurso o una cuenta del equipo puede retirarlo.')
+    expect(getResource).toHaveBeenCalledTimes(2)
+  })
+
+  it('si falla el token CSRF, pide recargar la página sin tratarlo como falta de permiso', async () => {
+    getResource.mockResolvedValue(PUBLISHED)
+    retireResource.mockRejectedValue(new ApiError('403', { status: 403, body: { code: 'CSRF_TOKEN_INVALID' } }))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    renderDetail()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Retirar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sí, retirar' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Recarga la página e inténtalo de nuevo.')
+    expect(getResource).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'Retirar' })).toBeEnabled()
+  })
+
+  it('si otra cuenta ya no le deja volver a publicarlo, lo dice', async () => {
+    getResource.mockResolvedValue(RETIRED_FOR_RETIRER)
+    republishResource.mockRejectedValue(
+      new ApiError('403', { status: 403, body: { code: 'RESOURCE_REPUBLISH_FORBIDDEN' } }),
+    )
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    renderDetail()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Volver a publicar' }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('No se volvió a publicar el recurso')
+    expect(alert).toHaveTextContent('Solo quien retiró este recurso puede volver a publicarlo.')
   })
 })

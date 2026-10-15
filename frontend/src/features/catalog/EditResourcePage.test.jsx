@@ -229,4 +229,29 @@ describe('EditResourcePage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Recurso no encontrado' })).toBeInTheDocument()
   })
+
+  // Historia HU307: un recurso retirado no se corrige.
+  it('un recurso retirado avisa en vez de mostrar el formulario', async () => {
+    getResource.mockResolvedValue({
+      id: 24, title: null, topics: [], retired: true, canEdit: false, canRetire: false, canRepublish: false,
+    })
+    renderPage()
+
+    expect(await screen.findByRole('heading', { name: 'Este recurso está retirado' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Ir a la ficha' })).toHaveAttribute('href', '/recursos/24')
+    expect(screen.queryByLabelText('Título')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Guardar cambios' })).not.toBeInTheDocument()
+  })
+
+  it('si lo retiraron mientras se corregía, lo dice en un aviso', async () => {
+    const user = userEvent.setup()
+    updateResource.mockRejectedValue(new ApiError('409', { status: 409, body: { code: 'RESOURCE_RETIRED' } }))
+    renderPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Guardar cambios' }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('No se guardaron los cambios')
+    expect(alert).toHaveTextContent('Este recurso se retiró del catálogo y ya no se puede corregir.')
+  })
 })

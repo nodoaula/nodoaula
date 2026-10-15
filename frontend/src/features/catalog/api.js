@@ -75,6 +75,23 @@ export function updateResource(resourceId, { resourceType, title, description, p
   return put(`/resources/${encodeURIComponent(resourceId)}`, data)
 }
 
+/**
+ * Retira un recurso del catálogo (historia HU307). Exige sesión y que quien
+ * lo retira sea quien lo aportó o una cuenta del equipo. El retiro es lógico:
+ * no se borra y se puede volver a publicar. Devuelve la ficha retirada.
+ */
+export function retireResource(resourceId) {
+  return post(`/resources/${encodeURIComponent(resourceId)}/retire`)
+}
+
+/**
+ * Vuelve a publicar un recurso retirado (historia HU307). Solo puede la
+ * cuenta que lo retiró. Devuelve la ficha completa, ya publicada.
+ */
+export function republishResource(resourceId) {
+  return post(`/resources/${encodeURIComponent(resourceId)}/republish`)
+}
+
 // Un PDF de 20 MB tarda minutos con una conexión lenta: con el plazo de una
 // petición ordinaria, el navegador la cortaría aunque el backend la estuviera
 // recibiendo. Cinco minutos cubren unos 0,5 Mbit/s.

@@ -6,9 +6,11 @@ import NodePath from '../../components/ui/NodePath.jsx'
 import Notice from '../../components/ui/Notice.jsx'
 import Tabs from '../../components/ui/Tabs.jsx'
 import Tag from '../../components/ui/Tag.jsx'
-import { getResource } from './api.js'
+import { getResource, republishResource, retireResource } from './api.js'
 import { formatDurationText, formatPublishedAt, formatResourceType } from './format.js'
 import ResourcePlayer from './ResourcePlayer.jsx'
+import { RetiredNotice, RetireAction } from './ResourceRetirement.jsx'
+import { describeRetirementFailure, RETIREMENT_ACTION } from './retirement.js'
 import { getYouTubeVideoId, isWebUrl, sourceLinkLabel } from './sourcePlatform.js'
 
 const RESOURCE_NOT_FOUND = 'RESOURCE_NOT_FOUND'
@@ -36,6 +38,35 @@ export default function ResourceDetailPage() {
 function ResourceDetail({ resourceId, corrected }) {
   const [resource, setResource] = useState(null)
   const [error, setError] = useState(null)
+  // Lo último que hizo quien ve la ficha (HU307): retirarlo o volver a
+  // publicarlo. Mientras la petición está en curso, `busy` lo dice.
+  const [outcome, setOutcome] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [actionFailure, setActionFailure] = useState(null)
+
+  async function changeAvailability(action) {
+    if (busy) return
+    setBusy(true)
+    setActionFailure(null)
+    try {
+      const call = action === RETIREMENT_ACTION.RETIRE ? retireResource : republishResource
+      setResource(await call(resource.id))
+      setOutcome(action)
+    } catch (err) {
+      console.error('No se pudo cambiar la disponibilidad del recurso', err)
+      const failure = describeRetirementFailure(err, action)
+      setActionFailure(failure)
+      setOutcome(null)
+      // Otra cuenta lo cambió entretanto: se muestra su estado real.
+      if (failure.reload) {
+        getResource(resource.id)
+          .then(setResource)
+          .catch((reloadError) => console.error('No se pudo recargar el recurso', reloadError))
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
 
   useEffect(() => {
     let active = true
@@ -65,14 +96,59 @@ function ResourceDetail({ resourceId, corrected }) {
         </p>
       )}
 
-      {!error && resource !== null && corrected && (
+      {!error && actionFailure && (
+        <div className="mb-8">
+          <Notice role="alert" title={actionFailure.title}>
+            {actionFailure.message}
+          </Notice>
+        </div>
+      )}
+
+      {!error && resource !== null && (
+        <Availability
+          resource={resource}
+          corrected={corrected}
+          outcome={outcome}
+          busy={busy}
+          onChange={changeAvailability}
+        />
+      )}
+    </main>
+  )
+}
+
+// Un recurso retirado solo muestra el aviso de que no está disponible (HU307);
+// uno publicado, su ficha, con la confirmación de lo último que se hizo.
+function Availability({ resource, corrected, outcome, busy, onChange }) {
+  if (resource.retired) {
+    return (
+      <RetiredNotice
+        resource={resource}
+        justRetired={outcome === RETIREMENT_ACTION.RETIRE}
+        busy={busy}
+        onRepublish={() => onChange(RETIREMENT_ACTION.REPUBLISH)}
+      />
+    )
+  }
+
+  return (
+    <>
+      {outcome === RETIREMENT_ACTION.REPUBLISH && (
+        <div className="mb-8">
+          <Notice title="Volviste a publicar el recurso">
+            Ya aparece de nuevo en el catálogo, en la página de su curso, en la búsqueda y en la portada.
+          </Notice>
+        </div>
+      )}
+
+      {outcome === null && corrected && (
         <div className="mb-8">
           <Notice title="Guardaste los cambios">Ya se ven en el catálogo, en los filtros y en la búsqueda.</Notice>
         </div>
       )}
 
-      {!error && resource !== null && <ResourceSheet resource={resource} />}
-    </main>
+      <ResourceSheet resource={resource} busy={busy} onRetire={() => onChange(RETIREMENT_ACTION.RETIRE)} />
+    </>
   )
 }
 
@@ -98,7 +174,7 @@ function LoadError({ error }) {
   )
 }
 
-function ResourceSheet({ resource }) {
+function ResourceSheet({ resource, busy, onRetire }) {
   const type = formatResourceType(resource.resourceType)
   const summary = [
     type,
@@ -110,11 +186,17 @@ function ResourceSheet({ resource }) {
     <article>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <NodePath label="Ubicación" items={pathItems(resource)} current={type} />
-        {/* Solo para quien puede corregirlo: quien lo aportó o el equipo (HU311). */}
-        {resource.canEdit && (
-          <Link to={`/recursos/${resource.id}/corregir`} className={buttonClasses('secondary')}>
-            Corregir datos
-          </Link>
+        {/* Solo para quien puede corregirlo o retirarlo: quien lo aportó o el
+            equipo (HU311 y HU307). */}
+        {(resource.canEdit || resource.canRetire) && (
+          <div className="flex flex-wrap gap-3">
+            {resource.canEdit && (
+              <Link to={`/recursos/${resource.id}/corregir`} className={buttonClasses('secondary')}>
+                Corregir datos
+              </Link>
+            )}
+            {resource.canRetire && <RetireAction busy={busy} onConfirm={onRetire} />}
+          </div>
         )}
       </div>
 

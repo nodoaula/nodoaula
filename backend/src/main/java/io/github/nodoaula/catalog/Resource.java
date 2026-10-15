@@ -1,5 +1,6 @@
 package io.github.nodoaula.catalog;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -69,6 +70,12 @@ class Resource {
 	@Embedded
 	private DocumentFile file;
 
+	// Retiro lógico (historia HU307): ambos en null mientras está publicado.
+	// La cuenta que lo retiró, como el autor, se guarda por identificador.
+	private Instant retiredAt;
+
+	private Long retiredBy;
+
 	protected Resource() {
 	}
 
@@ -125,6 +132,23 @@ class Resource {
 		this.topics.clear();
 	}
 
+	// Para retirarlo del catálogo (historia HU307). Es lógico: la fila, sus
+	// temas y el archivo de un apunte se conservan.
+	void retire(Long accountId, Instant at) {
+		this.retiredBy = accountId;
+		this.retiredAt = at;
+	}
+
+	// Para volver a publicarlo (historia HU307): reaparece donde estaba.
+	void republish() {
+		this.retiredBy = null;
+		this.retiredAt = null;
+	}
+
+	boolean isRetired() {
+		return retiredAt != null;
+	}
+
 	Long getId() {
 		return id;
 	}
@@ -175,6 +199,10 @@ class Resource {
 
 	DocumentFile getFile() {
 		return file;
+	}
+
+	Long getRetiredBy() {
+		return retiredBy;
 	}
 
 }
