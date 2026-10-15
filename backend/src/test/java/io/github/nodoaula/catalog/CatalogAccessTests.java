@@ -1,7 +1,7 @@
 package io.github.nodoaula.catalog;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -9,6 +9,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.List;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -20,6 +22,8 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.jayway.jsonpath.JsonPath;
 
 /**
  * Pruebas de HU310: el catálogo se consulta sin cuenta, aportar exige sesión,
@@ -51,13 +55,16 @@ class CatalogAccessTests {
 				.andExpect(jsonPath("$[*].title").value(hasItem(SPRING)));
 	}
 
+	// La búsqueda puede traer otros recursos que mencionen Spring Boot en la
+	// descripción o en los temas, así que se elige el semilla por su título y
+	// no por ser el primero de la lista.
 	@Test
 	void aSeedResourceDetailOpensWithoutASession() throws Exception {
 		String json = mockMvc.perform(get("/api/resources").param("q", "spring boot"))
 				.andReturn().getResponse().getContentAsString();
-		String id = json.replaceAll("(?s).*?\"id\"\\s*:\\s*(\\d+).*", "$1");
+		List<Integer> ids = JsonPath.read(json, "$[?(@.title == '" + SPRING + "')].id");
 
-		mockMvc.perform(get("/api/resources/" + id))
+		mockMvc.perform(get("/api/resources/" + ids.get(0)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.title").value(SPRING));
 	}
@@ -90,9 +97,12 @@ class CatalogAccessTests {
 				.andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
 	}
 
-	// Cada fila es una búsqueda que haría una persona y los títulos que debe
-	// devolver, separados por «|». Se ignoran mayúsculas y tildes.
-	@ParameterizedTest(name = "«{0}» devuelve {1}")
+	// Cada fila es una búsqueda que haría una persona y los títulos del
+	// catálogo semilla que deben aparecer, separados por «|». Se ignoran
+	// mayúsculas y tildes. Otros recursos que coincidan por título,
+	// descripción o temas también pueden aparecer (eso lo cubre
+	// TextSearchTests), así que se exige que estén estos, no que sean los únicos.
+	@ParameterizedTest(name = "«{0}» incluye {1}")
 	@CsvSource(delimiter = ';', value = {
 			"spring;" + SPRING,
 			"SPRING BOOT;" + SPRING,
@@ -108,7 +118,7 @@ class CatalogAccessTests {
 	void representativeSearchesReturnTheExpectedResources(String query, String expectedTitles) throws Exception {
 		mockMvc.perform(get("/api/resources").param("q", query))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$[*].title").value(containsInAnyOrder(expectedTitles.split("\\|"))));
+				.andExpect(jsonPath("$[*].title").value(hasItems(expectedTitles.split("\\|"))));
 	}
 
 	@Test

@@ -1,7 +1,9 @@
 package io.github.nodoaula.catalog;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -70,16 +72,18 @@ class DuplicateVideoTests {
 		assertEquals(courses, courseRepository.count());
 	}
 
+	// Se comprueba por los id que devuelve el registro y no recorriendo toda
+	// la base: los apuntes (HU302) no tienen enlace y su url es null.
 	@Test
 	void aDifferentVideoIsAccepted() {
-		resourceService.createResource(
+		ResourceDto first = resourceService.createResource(
 				request("https://www.youtube.com/watch?v=" + VIDEO_ID, "Curso duplicados"), AUTHOR_ID);
-		resourceService.createResource(
+		ResourceDto second = resourceService.createResource(
 				request("https://www.youtube.com/watch?v=abcdefghijk", "Curso duplicados"), AUTHOR_ID);
 
-		assertEquals(2, resourceRepository.findAll().stream()
-				.filter(resource -> resource.getUrl().contains(VIDEO_ID) || resource.getUrl().contains("abcdefghijk"))
-				.count());
+		assertNotEquals(first.id(), second.id());
+		assertTrue(resourceRepository.existsById(first.id()));
+		assertTrue(resourceRepository.existsById(second.id()));
 	}
 
 }
