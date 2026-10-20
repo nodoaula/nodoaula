@@ -266,6 +266,26 @@ public class ResourceService {
 		return resource.isRetired() && resource.getRetiredBy().equals(accountId) && canChange(resource, accountId);
 	}
 
+	/**
+	 * Si el curso existe. Lo pregunta el foro al publicar una pregunta: la
+	 * entidad del curso no sale de este módulo (ADR-008).
+	 */
+	@Transactional(readOnly = true)
+	public boolean courseExists(Long courseId) {
+		return courseRepository.existsById(courseId);
+	}
+
+	/**
+	 * Si el recurso está publicado, no retirado, y es del curso. Lo pregunta el
+	 * foro para que una pregunta sobre un recurso apunte a uno que se ve.
+	 */
+	@Transactional(readOnly = true)
+	public boolean isPublishedResourceOfCourse(Long resourceId, Long courseId) {
+		return resourceRepository.findById(resourceId)
+				.filter(resource -> !resource.isRetired() && resource.getCourse().getId().equals(courseId))
+				.isPresent();
+	}
+
 	/** Lista los cursos que tienen al menos un recurso. */
 	@Transactional(readOnly = true)
 	public List<CourseDto> listCoursesWithResources() {

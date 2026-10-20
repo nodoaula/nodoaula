@@ -8,6 +8,7 @@ import CreateResourcePage from '../features/catalog/CreateResourcePage.jsx'
 import EditResourcePage from '../features/catalog/EditResourcePage.jsx'
 import ResourceDetailPage from '../features/catalog/ResourceDetailPage.jsx'
 import UploadDocumentPage from '../features/catalog/UploadDocumentPage.jsx'
+import ForumPage from '../features/forum/ForumPage.jsx'
 import LandingPage from '../features/landing/LandingPage.jsx'
 import SessionProvider from '../session/SessionProvider.jsx'
 import AppLayout from './AppLayout.jsx'
@@ -27,6 +28,7 @@ export default function App() {
             <Route element={<AppLayout />}>
               <Route path="catalogo" element={<CourseIndexPage />} />
               <Route path="catalogo/cursos/:courseId" element={<CoursePage />} />
+              <Route path="catalogo/cursos/:courseId/foro" element={<ForumPage />} />
               <Route path="recursos/:resourceId" element={<ResourceDetailPage />} />
               <Route path="recursos/:resourceId/corregir" element={<EditResourcePage />} />
               <Route path="subir-apunte" element={<UploadDocumentPage />} />

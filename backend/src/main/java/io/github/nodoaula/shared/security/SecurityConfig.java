@@ -48,6 +48,8 @@ class SecurityConfig {
 						// El catálogo se consulta sin cuenta; la cuenta hace
 						// falta para aportar.
 						.requestMatchers(HttpMethod.GET, "/api/resources", "/api/resources/**").permitAll()
+						// El foro se lee sin cuenta y se escribe con ella (HU401).
+						.requestMatchers(HttpMethod.GET, "/api/forum/**").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/health", "/api/csrf").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/accounts").permitAll()
 
