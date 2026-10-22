@@ -40,25 +40,49 @@ Billing → Free Instance Hours).
 
 Esta cifra es una estimación del horario, no una medición. No incluye otras
 causas de que la instancia se encienda fuera de horario (visitas de fin de
-semana, la comprobación diaria de la base de datos, despliegues) ni otros
-servicios gratuitos que existan en la misma cuenta de Render. Por eso el margen
-es amplio.
+semana, la comprobación diaria de la base de datos, despliegues). Por eso el
+margen es amplio.
 
-## Pendiente (requiere a quien administra la cuenta de Render)
+## Consumo real antes de activar el pinger
+
+Consultado en Render → Billing → Free Instance Hours el 22 de octubre de 2026
+(captura enviada por quien administra la cuenta):
+
+| Dato | Valor |
+|---|---|
+| Horas de instancia gratuita consumidas en el mes | 33,33 de 750 (4,4 %) |
+| Servicios en la cuenta | 2 de 25 (el sitio estático y el backend) |
+| Minutos de construcción | 12 de 500 |
+| Ancho de banda de salida | 23 MB de 5 GB |
+
+Solo el backend consume horas de instancia: el sitio estático no. Con la cuenta
+en 33,33 horas a 22 días del mes, el consumo sin pinger es de poco más de una
+hora diaria, porque la instancia duerme casi todo el tiempo.
+
+Proyección con el horario propuesto:
+
+- Lo que queda de octubre (7 días hábiles, del 22 al 30): unas 100 horas, para
+  un total de unas 133 horas.
+- Un mes completo, como noviembre (21 días hábiles): 21 × 14,25 ≈ 300 horas.
+
+Ambas quedan muy por debajo de las 750 horas, de modo que el horario no
+necesita ajustes.
+
+## Medición tras una semana (pendiente)
 
 La cuenta de Render es personal de quien la creó y un espacio de trabajo
-gratuito no admite miembros (ADR-004), así que estos dos pasos solo los puede
-hacer esa persona:
+gratuito no admite miembros (ADR-004), así que la captura solo la puede enviar
+esa persona.
 
-- [ ] Consulta del consumo real antes de fijar el horario: captura de Billing →
-      Free Instance Hours con las horas consumidas en el mes.
+- [x] Consulta del consumo real antes de fijar el horario (22 de octubre de
+      2026).
 - [ ] Medición tras una semana de funcionamiento: captura de la misma pantalla
       una semana después de activar el pinger, y comparación con la estimación.
 
 | Fecha | Horas consumidas en el mes | Observaciones |
 |---|---|---|
-| _pendiente_ | _pendiente_ | _consumo real antes de activar el pinger_ |
-| _pendiente_ | _pendiente_ | _consumo una semana después_ |
+| 22 de octubre de 2026 | 33,33 de 750 | Antes de activar el pinger |
+| _pendiente_ | _pendiente_ | Una semana después de activarlo |
 
 Si la medición supera las 600 horas proyectadas al mes, se reduce el horario o
 se alarga el intervalo antes de que se agote el cupo: superarlo suspende los
