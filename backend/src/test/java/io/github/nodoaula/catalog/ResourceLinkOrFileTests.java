@@ -17,7 +17,8 @@ import jakarta.persistence.EntityManager;
 
 /**
  * Cubre la restricción de HU302 en la base de datos: un video tiene enlace y
- * un apunte tiene archivo, y cualquier otra combinación se rechaza.
+ * un apunte tiene archivo, y cualquier otra combinación se rechaza. También la
+ * de HU412: solo un apunte tiene vista previa, y siempre con todos sus datos.
  */
 @SpringBootTest
 @Transactional
@@ -69,6 +70,35 @@ class ResourceLinkOrFileTests {
 	void aDocumentWithALinkIsRejected() {
 		Resource document = new Resource("Apunte con enlace", null, PUBLISHED_AT, null, null,
 				"https://ejemplo.com/apunte.pdf", ResourceType.DOCUMENT, course, AUTHOR_ID, EntryMethod.MANUAL);
+
+		assertThrows(DataIntegrityViolationException.class, () -> resourceRepository.saveAndFlush(document));
+	}
+
+	@Test
+	void aDocumentIsSavedWithItsPreview() {
+		Resource document = Resource.document("Apunte con vista previa", null, PUBLISHED_AT, course, AUTHOR_ID,
+				new DocumentFile("restriccion-vista.pdf", 2048, 10));
+		DocumentPreview preview = new DocumentPreview("restriccion-vista-vista-previa.pdf", 512, 3);
+		document.attachPreview(preview);
+		Long id = resourceRepository.saveAndFlush(document).getId();
+		entityManager.clear();
+
+		assertEquals(preview, resourceRepository.findById(id).orElseThrow().getPreview());
+	}
+
+	@Test
+	void aVideoWithAPreviewIsRejected() {
+		Resource video = video("https://www.youtube.com/watch?v=restriccion-vista");
+		video.attachPreview(new DocumentPreview("video-vista-previa.pdf", 512, 3));
+
+		assertThrows(DataIntegrityViolationException.class, () -> resourceRepository.saveAndFlush(video));
+	}
+
+	@Test
+	void aPreviewWithoutItsKeyIsRejected() {
+		Resource document = Resource.document("Apunte con vista previa a medias", null, PUBLISHED_AT, course,
+				AUTHOR_ID, new DocumentFile("restriccion-media.pdf", 2048, 10));
+		document.attachPreview(new DocumentPreview(null, 512, 3));
 
 		assertThrows(DataIntegrityViolationException.class, () -> resourceRepository.saveAndFlush(document));
 	}

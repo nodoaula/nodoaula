@@ -70,6 +70,10 @@ class Resource {
 	@Embedded
 	private DocumentFile file;
 
+	// En null en un video y en un apunte de 3 páginas o menos.
+	@Embedded
+	private DocumentPreview preview;
+
 	// Retiro lógico (historia HU307): ambos en null mientras está publicado.
 	// La cuenta que lo retiró, como el autor, se guarda por identificador.
 	private Instant retiredAt;
@@ -116,6 +120,11 @@ class Resource {
 
 	void addTopic(Topic topic) {
 		topics.add(topic);
+	}
+
+	// Al subirlo, o después para los apuntes anteriores a la historia HU412.
+	void attachPreview(DocumentPreview preview) {
+		this.preview = preview;
 	}
 
 	// Para corregir sus datos (historia HU311). Enlace, archivo, tipo, autor y
@@ -199,6 +208,10 @@ class Resource {
 
 	DocumentFile getFile() {
 		return file;
+	}
+
+	DocumentPreview getPreview() {
+		return preview;
 	}
 
 	Long getRetiredBy() {

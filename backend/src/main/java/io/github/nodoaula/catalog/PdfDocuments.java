@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.nio.file.Path;
 
 import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.io.IOUtils;
+import org.apache.pdfbox.multipdf.Splitter;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
 
@@ -11,7 +13,8 @@ import io.github.nodoaula.shared.error.FieldValidationException;
 
 /**
  * Comprueba que un archivo sea un PDF que se puede abrir, sin fiarse de su
- * extensión ni del tipo que declara el navegador (historia HU302).
+ * extensión ni del tipo que declara el navegador (historia HU302), y genera
+ * su vista previa (historia HU412).
  */
 final class PdfDocuments {
 
@@ -34,6 +37,36 @@ final class PdfDocuments {
 			throw new FieldValidationException("file", "El PDF está protegido con contraseña. Súbelo sin ella.");
 		} catch (IOException _) {
 			throw invalid();
+		}
+	}
+
+	/**
+	 * Páginas de la vista previa: el 30 %, redondeando hacia abajo. Con 3
+	 * páginas o menos da 0, y el apunte no tiene vista previa.
+	 */
+	static int previewPageCount(int pageCount) {
+		return pageCount * 3 / 10;
+	}
+
+	/**
+	 * Escribe en {@code target} un PDF con las primeras {@code pages} páginas.
+	 * Splitter solo copia los recursos que esas páginas usan, y los flujos
+	 * intermedios van a archivos temporales en vez de a memoria.
+	 */
+	static void writePreview(Path source, int pages, Path target) {
+		try (PDDocument document = Loader.loadPDF(source.toFile(), IOUtils.createTempFileOnlyStreamCache())) {
+			Splitter splitter = new Splitter();
+			splitter.setStreamCacheCreateFunction(IOUtils.createTempFileOnlyStreamCache());
+			// Sin el final, también partiría el resto del apunte en documentos
+			// que nadie usa.
+			splitter.setEndPage(pages);
+			splitter.setSplitAtPage(pages);
+			try (PDDocument preview = splitter.split(document).getFirst()) {
+				preview.save(target.toFile());
+			}
+		} catch (IOException _) {
+			throw new FieldValidationException("file",
+					"No se pudo preparar la vista previa de este PDF. Guárdalo de nuevo como PDF y vuelve a subirlo.");
 		}
 	}
 
