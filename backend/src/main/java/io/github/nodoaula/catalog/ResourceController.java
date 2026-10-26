@@ -21,7 +21,8 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * El listado y la ficha deben seguir accesibles sin sesión iniciada: el catálogo se
  * consulta sin cuenta, y la sesión solo hace falta para aportar (ADR-007).
- * Registrar, corregir, retirar y volver a publicar un recurso sí la exigen,
+ * Registrar, corregir, retirar y volver a publicar un recurso, y pedir el
+ * enlace al archivo de un apunte, sí la exigen,
  * sin regla propia en SecurityConfig porque ya la cubre
  * anyRequest().authenticated().
  */
@@ -30,9 +31,11 @@ import org.springframework.web.bind.annotation.RestController;
 class ResourceController {
 
 	private final ResourceService resourceService;
+	private final DocumentLinkService documentLinkService;
 
-	ResourceController(ResourceService resourceService) {
+	ResourceController(ResourceService resourceService, DocumentLinkService documentLinkService) {
 		this.resourceService = resourceService;
+		this.documentLinkService = documentLinkService;
 	}
 
 	// Los cuatro filtros son opcionales y se combinan con AND (historias
@@ -100,6 +103,16 @@ class ResourceController {
 	@PostMapping("/{id}/retire")
 	ResourceDetailDto retireResource(@PathVariable Long id, @AuthenticationPrincipal(expression = "id") Long accountId) {
 		return resourceService.retireResource(id, accountId);
+	}
+
+	/**
+	 * Enlace firmado al archivo de un apunte (historia HU411). Es un POST y no
+	 * un GET porque cada enlace suma al tope de transferencia, y porque los GET
+	 * de /api/resources/** son públicos.
+	 */
+	@PostMapping("/{id}/document-link")
+	DocumentLinkDto issueDocumentLink(@PathVariable Long id) {
+		return documentLinkService.issueLink(id);
 	}
 
 	/** Vuelve a publicar un recurso retirado (historia HU307). Responde su ficha. */
