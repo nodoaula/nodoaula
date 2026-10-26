@@ -21,6 +21,9 @@ import java.util.List;
  * por moderación no siga a la vista por enlace directo: solo el identificador
  * y, para quien puede volver a publicarlo, el título; lo demás en null, sin
  * temas y sin permiso de corrección.
+ *
+ * pageCount y fileSizeBytes describen el archivo de un apunte (historia
+ * HU411); en un video llegan en null.
  */
 public record ResourceDetailDto(
 		Long id,
@@ -37,5 +40,7 @@ public record ResourceDetailDto(
 		boolean canEdit,
 		boolean retired,
 		boolean canRetire,
-		boolean canRepublish) {
+		boolean canRepublish,
+		Integer pageCount,
+		Long fileSizeBytes) {
 }

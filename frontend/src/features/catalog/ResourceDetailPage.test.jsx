@@ -25,6 +25,12 @@ const VIDEO = {
   topics: ['Integral Indefinida', 'Métodos de integración'],
 }
 
+// La línea de datos reparte cada dato en su propio elemento: se busca por el
+// texto completo del elemento que los reúne.
+function dataLine(text) {
+  return (_, element) => element?.tagName === 'SPAN' && element.children.length > 0 && element.textContent === text
+}
+
 function renderDetail() {
   return render(
     <MemoryRouter initialEntries={['/recursos/24']}>
@@ -57,7 +63,7 @@ describe('ResourceDetailPage', () => {
     )
     expect(screen.queryByRole('link', { name: 'Catálogo' })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(VIDEO.title)
-    expect(screen.getByText('Video · 1 h 40 min · YouTube')).toBeInTheDocument()
+    expect(screen.getByText(dataLine('Video · 1 h 40 min · YouTube'))).toBeInTheDocument()
   })
 
   it('muestra los datos en la pestaña Detalles, sin el identificador del recurso', async () => {
@@ -99,6 +105,26 @@ describe('ResourceDetailPage', () => {
     expect(screen.getByText('Pronto podrás leerlo y descargarlo aquí mismo.')).toBeInTheDocument()
     expect(screen.queryByText(/No se puede ver dentro de NodoAula/)).not.toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Apunte' })).toBeInTheDocument()
+  })
+
+  // Historia HU411: en lugar de un enlace, la ficha dice qué archivo es.
+  it('un apunte muestra sus páginas, su tamaño y su fecha', async () => {
+    getResource.mockResolvedValue({
+      ...VIDEO,
+      url: null,
+      resourceType: 'DOCUMENT',
+      channel: null,
+      durationSeconds: null,
+      publishedAt: '2026-10-06',
+      pageCount: 14,
+      fileSizeBytes: 3250586,
+    })
+    renderDetail()
+
+    expect(await screen.findByText(dataLine('PDF · 14 páginas · 3,1 MB · 6 de oct de 2026'))).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Detalles' }))
+    expect(screen.getByText('PDF · 14 páginas · 3,1 MB')).toBeInTheDocument()
+    expect(screen.queryByText('Enlace')).not.toBeInTheDocument()
   })
 
   // Historia HU311: la ficha ofrece corregir solo a quien puede hacerlo.

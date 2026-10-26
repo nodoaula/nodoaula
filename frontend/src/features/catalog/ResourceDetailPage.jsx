@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
@@ -7,7 +7,13 @@ import Notice from '../../components/ui/Notice.jsx'
 import Tabs from '../../components/ui/Tabs.jsx'
 import Tag from '../../components/ui/Tag.jsx'
 import { getResource, republishResource, retireResource } from './api.js'
-import { formatDurationText, formatPublishedAt, formatResourceType } from './format.js'
+import {
+  formatDocumentFile,
+  formatDurationText,
+  formatPublishedAt,
+  formatResourceType,
+  formatShortDate,
+} from './format.js'
 import ResourcePlayer from './ResourcePlayer.jsx'
 import { RetiredNotice, RetireAction } from './ResourceRetirement.jsx'
 import { describeRetirementFailure, RETIREMENT_ACTION } from './retirement.js'
@@ -176,11 +182,19 @@ function LoadError({ error }) {
 
 function ResourceSheet({ resource, busy, onRetire }) {
   const type = formatResourceType(resource.resourceType)
-  const summary = [
-    type,
-    resource.durationSeconds != null && formatDurationText(resource.durationSeconds),
-    getYouTubeVideoId(resource.url) !== null && 'YouTube',
-  ].filter(Boolean)
+  // Donde un video dice su duración y su plataforma, un apunte dice su archivo.
+  const summary = (
+    hasFile(resource)
+      ? [
+          formatDocumentFile(resource.pageCount, resource.fileSizeBytes),
+          resource.publishedAt && formatShortDate(resource.publishedAt),
+        ]
+      : [
+          type,
+          resource.durationSeconds != null && formatDurationText(resource.durationSeconds),
+          getYouTubeVideoId(resource.url) !== null && 'YouTube',
+        ]
+  ).filter(Boolean)
 
   return (
     <article>
@@ -208,7 +222,16 @@ function ResourceSheet({ resource, busy, onRetire }) {
         {resource.topics.map((topic) => (
           <Tag key={topic}>{topic}</Tag>
         ))}
-        <span className="ml-1.5 font-mono text-label text-content-muted tabular-nums">{summary.join(' · ')}</span>
+        {/* Cada dato es indivisible y lleva pegado su «·»: a 375 px la línea se
+            parte entre datos, nunca dentro de una fecha ni antes de un «·». */}
+        <span className="ml-1.5 font-mono text-label text-content-muted tabular-nums">
+          {summary.map((item, index) => (
+            <Fragment key={item}>
+              {index > 0 && ' '}
+              <span className="whitespace-nowrap">{index < summary.length - 1 ? `${item} ·` : item}</span>
+            </Fragment>
+          ))}
+        </span>
       </div>
 
       <div className="mt-8">
@@ -294,6 +317,9 @@ function DetailsPanel({ resource }) {
           </span>
         </Field>
         <Field label="Tipo">{formatResourceType(resource.resourceType)}</Field>
+        {hasFile(resource) && (
+          <Field label="Archivo">{formatDocumentFile(resource.pageCount, resource.fileSizeBytes)}</Field>
+        )}
         {resource.durationSeconds != null && (
           <Field label="Duración">{formatDurationText(resource.durationSeconds)}</Field>
         )}
@@ -314,6 +340,11 @@ function DetailsPanel({ resource }) {
       </dl>
     </div>
   )
+}
+
+// Solo un apunte subido tiene archivo; un video nunca.
+function hasFile(resource) {
+  return resource.pageCount != null && resource.fileSizeBytes != null
 }
 
 function Field({ label, children }) {
