@@ -1,5 +1,6 @@
 package io.github.nodoaula.catalog;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -32,6 +33,9 @@ class ResourceDetailTests {
 	@Autowired
 	private CourseRepository courseRepository;
 
+	@Autowired
+	private ResourceRepository resourceRepository;
+
 	@Test
 	void detailIncludesTheCourseIdToLinkToTheFilteredCatalog() throws Exception {
 		ResourceDto created = resourceService.createResource(new CreateResourceRequest(
@@ -49,7 +53,22 @@ class ResourceDetailTests {
 		mockMvc.perform(get("/api/resources/" + created.id()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.courseId").value(courseId))
-				.andExpect(jsonPath("$.course").value(COURSE));
+				.andExpect(jsonPath("$.course").value(COURSE))
+				.andExpect(jsonPath("$.pageCount").value(nullValue()))
+				.andExpect(jsonPath("$.fileSizeBytes").value(nullValue()));
+	}
+
+	// Historia HU411: la ficha de un apunte dice cuántas páginas tiene y cuánto pesa.
+	@Test
+	void aDocumentDetailIncludesItsPagesAndSize() throws Exception {
+		Course course = courseRepository.save(new Course(COURSE));
+		Long id = resourceRepository.saveAndFlush(Resource.document("Apunte de la prueba de la ficha", null,
+				LocalDate.of(2026, 10, 20), course, 0L, new DocumentFile("ficha-apunte.pdf", 3_250_586, 14))).getId();
+
+		mockMvc.perform(get("/api/resources/" + id))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.pageCount").value(14))
+				.andExpect(jsonPath("$.fileSizeBytes").value(3_250_586));
 	}
 
 }

@@ -36,9 +36,18 @@ export function formatDurationText(totalSeconds) {
  * local y no con `new Date("2026-09-06")`, que la interpreta como medianoche
  * UTC: en Colombia eso cae el día anterior.
  */
-export function formatPublishedAt(isoDate) {
+function toLocalDate(isoDate) {
   const [year, month, day] = isoDate.split('-').map(Number)
-  return new Date(year, month - 1, day).toLocaleDateString('es-CO', { dateStyle: 'long' })
+  return new Date(year, month - 1, day)
+}
+
+export function formatPublishedAt(isoDate) {
+  return toLocalDate(isoDate).toLocaleDateString('es-CO', { dateStyle: 'long' })
+}
+
+/** "6 de oct de 2026": la fecha en la línea de datos de la ficha. */
+export function formatShortDate(isoDate) {
+  return toLocalDate(isoDate).toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 /** "1 página" o "14 páginas". */
@@ -51,4 +60,9 @@ export function formatFileSize(bytes) {
   const megabytes = bytes / (1024 * 1024)
   if (megabytes < 1) return `${Math.max(1, Math.round(bytes / 1024))} KB`
   return `${megabytes.toLocaleString('es-CO', { maximumFractionDigits: 1 })} MB`
+}
+
+/** El archivo de un apunte: "PDF · 14 páginas · 3,1 MB". */
+export function formatDocumentFile(pageCount, sizeBytes) {
+  return `PDF · ${formatPageCount(pageCount)} · ${formatFileSize(sizeBytes)}`
 }

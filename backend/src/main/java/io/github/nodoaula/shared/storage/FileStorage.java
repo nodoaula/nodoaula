@@ -1,6 +1,8 @@
 package io.github.nodoaula.shared.storage;
 
+import java.net.URI;
 import java.nio.file.Path;
+import java.time.Duration;
 
 /**
  * Almacenamiento de archivos. Los módulos dependen de esta interfaz, y solo su
@@ -21,5 +23,13 @@ public interface FileStorage {
 	 * @throws StorageUnavailableException si no se pudo borrar
 	 */
 	void delete(String key);
+
+	/**
+	 * Enlace con el que cualquiera puede descargar el archivo, sin credenciales,
+	 * hasta que caduca. Una descarga que empezó antes de caducar termina.
+	 *
+	 * @throws StorageUnavailableException si no se pudo firmar
+	 */
+	URI signedUrl(String key, Duration validity);
 
 }

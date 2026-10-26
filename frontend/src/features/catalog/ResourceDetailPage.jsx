@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, lazy, Suspense, useEffect, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
@@ -6,14 +6,27 @@ import NodePath from '../../components/ui/NodePath.jsx'
 import Notice from '../../components/ui/Notice.jsx'
 import Tabs from '../../components/ui/Tabs.jsx'
 import Tag from '../../components/ui/Tag.jsx'
+import { SESSION_STATUS } from '../../session/SessionContext.js'
+import { useSession } from '../../session/useSession.js'
 import { getResource, republishResource, retireResource } from './api.js'
-import { formatDurationText, formatPublishedAt, formatResourceType } from './format.js'
+import DocumentLoading from './DocumentLoading.jsx'
+import DocumentSignIn from './DocumentSignIn.jsx'
+import {
+  formatDocumentFile,
+  formatDurationText,
+  formatPublishedAt,
+  formatResourceType,
+  formatShortDate,
+} from './format.js'
 import ResourcePlayer from './ResourcePlayer.jsx'
 import { RetiredNotice, RetireAction } from './ResourceRetirement.jsx'
 import { describeRetirementFailure, RETIREMENT_ACTION } from './retirement.js'
 import { getYouTubeVideoId, isWebUrl, sourceLinkLabel } from './sourcePlatform.js'
 
 const RESOURCE_NOT_FOUND = 'RESOURCE_NOT_FOUND'
+
+// PDF.js pesa: solo lo descarga quien abre un apunte con sesión.
+const DocumentViewer = lazy(() => import('./DocumentViewer.jsx'))
 
 // 404 cuando el recurso no existe y 400 cuando la dirección ni siquiera trae
 // un número, como /recursos/abc. Para quien visita, las dos son lo mismo.
@@ -176,11 +189,19 @@ function LoadError({ error }) {
 
 function ResourceSheet({ resource, busy, onRetire }) {
   const type = formatResourceType(resource.resourceType)
-  const summary = [
-    type,
-    resource.durationSeconds != null && formatDurationText(resource.durationSeconds),
-    getYouTubeVideoId(resource.url) !== null && 'YouTube',
-  ].filter(Boolean)
+  // Donde un video dice su duración y su plataforma, un apunte dice su archivo.
+  const summary = (
+    hasFile(resource)
+      ? [
+          formatDocumentFile(resource.pageCount, resource.fileSizeBytes),
+          resource.publishedAt && formatShortDate(resource.publishedAt),
+        ]
+      : [
+          type,
+          resource.durationSeconds != null && formatDurationText(resource.durationSeconds),
+          getYouTubeVideoId(resource.url) !== null && 'YouTube',
+        ]
+  ).filter(Boolean)
 
   return (
     <article>
@@ -208,7 +229,16 @@ function ResourceSheet({ resource, busy, onRetire }) {
         {resource.topics.map((topic) => (
           <Tag key={topic}>{topic}</Tag>
         ))}
-        <span className="ml-1.5 font-mono text-label text-content-muted tabular-nums">{summary.join(' · ')}</span>
+        {/* Cada dato es indivisible y lleva pegado su «·»: a 375 px la línea se
+            parte entre datos, nunca dentro de una fecha ni antes de un «·». */}
+        <span className="ml-1.5 font-mono text-label text-content-muted tabular-nums">
+          {summary.map((item, index) => (
+            <Fragment key={item}>
+              {index > 0 && ' '}
+              <span className="whitespace-nowrap">{index < summary.length - 1 ? `${item} ·` : item}</span>
+            </Fragment>
+          ))}
+        </span>
       </div>
 
       <div className="mt-8">
@@ -236,7 +266,7 @@ function pathItems(resource) {
 }
 
 function ContentPanel({ resource }) {
-  if (resource.resourceType === 'DOCUMENT') return <DocumentPending />
+  if (resource.resourceType === 'DOCUMENT') return <DocumentContent resource={resource} />
 
   const source = [resource.channel, resource.publishedAt && formatPublishedAt(resource.publishedAt)].filter(Boolean)
 
@@ -259,17 +289,17 @@ function ContentPanel({ resource }) {
   )
 }
 
-// Un apunte no tiene enlace ni reproductor: se leerá con el visor de la
-// historia HU411, que reemplaza este aviso.
-function DocumentPending() {
+// Leer el apunte completo exige sesión (historia HU411).
+function DocumentContent({ resource }) {
+  const { status, account } = useSession()
+
+  if (status === SESSION_STATUS.LOADING) return <DocumentLoading />
+  if (account === null) return <DocumentSignIn />
+
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface-raised px-6 py-14 text-center">
-      <svg viewBox="0 0 20 24" fill="none" aria-hidden="true" className="h-9 w-8 text-content-muted">
-        <path d="M2 1.5h10.5L18 7v15.5H2z M12.5 1.5V7H18" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-      </svg>
-      <p className="text-body text-content">Este apunte es un PDF.</p>
-      <p className="text-label text-content-muted">Pronto podrás leerlo y descargarlo aquí mismo.</p>
-    </div>
+    <Suspense fallback={<DocumentLoading />}>
+      <DocumentViewer resourceId={resource.id} title={resource.title} />
+    </Suspense>
   )
 }
 
@@ -294,6 +324,9 @@ function DetailsPanel({ resource }) {
           </span>
         </Field>
         <Field label="Tipo">{formatResourceType(resource.resourceType)}</Field>
+        {hasFile(resource) && (
+          <Field label="Archivo">{formatDocumentFile(resource.pageCount, resource.fileSizeBytes)}</Field>
+        )}
         {resource.durationSeconds != null && (
           <Field label="Duración">{formatDurationText(resource.durationSeconds)}</Field>
         )}
@@ -314,6 +347,11 @@ function DetailsPanel({ resource }) {
       </dl>
     </div>
   )
+}
+
+// Solo un apunte subido tiene archivo; un video nunca.
+function hasFile(resource) {
+  return resource.pageCount != null && resource.fileSizeBytes != null
 }
 
 function Field({ label, children }) {

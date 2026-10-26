@@ -20,6 +20,14 @@ export function getResource(resourceId) {
   return get(`/resources/${encodeURIComponent(resourceId)}`)
 }
 
+/**
+ * Enlace firmado al PDF de un apunte (historia HU411). Exige sesión iniciada
+ * y caduca al minuto: hay que usarlo enseguida.
+ */
+export function requestDocumentLink(resourceId) {
+  return post(`/resources/${encodeURIComponent(resourceId)}/document-link`)
+}
+
 export function listCoursesWithResources() {
   return get('/resources/courses')
 }
