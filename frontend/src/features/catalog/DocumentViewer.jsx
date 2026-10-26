@@ -5,9 +5,9 @@ import 'react-pdf/dist/Page/TextLayer.css'
 
 import { buttonClasses } from '../../components/ui/button.js'
 import Notice from '../../components/ui/Notice.jsx'
-import { requestDocumentLink } from './api.js'
+import { requestDocumentLink, requestPreviewLink } from './api.js'
 import DocumentLoading from './DocumentLoading.jsx'
-import DocumentSignIn from './DocumentSignIn.jsx'
+import DocumentSignIn, { SignInInvitation } from './DocumentSignIn.jsx'
 
 // Creado así, Vite empaqueta el worker como un .js propio. Apuntar al .mjs de
 // pdfjs-dist no basta: el sitio estático podría servirlo con un tipo que el
@@ -53,17 +53,24 @@ function describeFailure(error) {
  * Visor de un apunte (historia HU411). El enlace firmado caduca al minuto, así
  * que el PDF se descarga entero en una sola petición: PDF.js, por defecto,
  * pediría partes más tarde y fallarían. «Descargar» guarda esa misma copia.
+ *
+ * Con `previewOf`, el total de páginas del apunte, muestra su vista previa a
+ * quien no tiene sesión (historia HU412): sin «Descargar» y con la invitación
+ * a iniciarla después de la última página.
  */
-export default function DocumentViewer({ resourceId, title }) {
+export default function DocumentViewer({ resourceId, title, previewOf = null }) {
   const [file, setFile] = useState(null)
   const [failure, setFailure] = useState(null)
   const [progress, setProgress] = useState(null)
+
+  const isPreview = previewOf !== null
 
   useEffect(() => {
     const controller = new AbortController()
     let objectUrl = null
 
-    requestDocumentLink(resourceId)
+    const requestLink = isPreview ? requestPreviewLink : requestDocumentLink
+    requestLink(resourceId)
       .then(({ url }) => fetch(url, { signal: controller.signal }))
       .then((response) => {
         if (!response.ok) throw new Error(`El almacenamiento respondió ${response.status}`)
@@ -84,7 +91,7 @@ export default function DocumentViewer({ resourceId, title }) {
       controller.abort()
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [resourceId])
+  }, [resourceId, isPreview])
 
   if (failure === FAILURE.SIGNED_OUT) return <DocumentSignIn />
 
@@ -106,10 +113,10 @@ export default function DocumentViewer({ resourceId, title }) {
 
   if (file === null) return <DocumentLoading progress={progress} />
 
-  return <Reader file={file} title={title} onError={() => setFailure(FAILURE.FAILED)} />
+  return <Reader file={file} title={title} previewOf={previewOf} onError={() => setFailure(FAILURE.FAILED)} />
 }
 
-function Reader({ file, title, onError }) {
+function Reader({ file, title, previewOf, onError }) {
   // Alto entre ancho de cada página: con él, las que aún no se dibujan ocupan
   // su sitio y el desplazamiento no salta.
   const [pageRatios, setPageRatios] = useState(null)
@@ -187,9 +194,24 @@ function Reader({ file, title, onError }) {
   return (
     <section aria-label="Visor del apunte" className="rounded-2xl border border-border bg-surface-raised">
       <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 rounded-t-2xl border-b border-border bg-surface-raised/95 px-3 py-2.5 backdrop-blur sm:px-3.5">
-        <span className="font-mono text-label text-content tabular-nums">
-          {pageRatios === null ? 'Abriendo el apunte…' : `Página ${currentPage} de ${pageRatios.length}`}
-        </span>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="font-mono text-label text-content tabular-nums">
+            {pageRatios === null ? (
+              'Abriendo el apunte…'
+            ) : (
+              <PageCounter
+                current={currentPage}
+                total={previewOf ?? pageRatios.length}
+                compact={previewOf !== null}
+              />
+            )}
+          </span>
+          {previewOf !== null && pageRatios !== null && (
+            <span className="rounded-full border border-accent/35 px-2.5 py-0.5 font-mono text-xs text-accent tabular-nums">
+              Vista previa<span className="max-sm:hidden"> · {pageRatios.length} de {previewOf} páginas</span>
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <ZoomButton label="Reducir" disabled={zoomIndex === 0} onClick={() => setZoomIndex(zoomIndex - 1)}>
             <path d="M5 12h14" />
@@ -206,11 +228,12 @@ function Reader({ file, title, onError }) {
           >
             <path d="M12 5v14M5 12h14" />
           </ZoomButton>
-          <a
-            href={file.url}
-            download={`${title}.pdf`}
-            className={`${buttonClasses('primary')} ml-1 max-sm:size-11 max-sm:p-0`}
-          >
+          {previewOf === null && (
+            <a
+              href={file.url}
+              download={`${title}.pdf`}
+              className={`${buttonClasses('primary')} ml-1 max-sm:size-11 max-sm:p-0`}
+            >
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -221,10 +244,11 @@ function Reader({ file, title, onError }) {
               aria-hidden="true"
               className="size-4"
             >
-              <path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14" />
-            </svg>
-            <span className="max-sm:sr-only">Descargar</span>
-          </a>
+                <path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14" />
+              </svg>
+              <span className="max-sm:sr-only">Descargar</span>
+            </a>
+          )}
         </div>
       </div>
 
@@ -255,8 +279,61 @@ function Reader({ file, title, onError }) {
             </div>
           ))}
         </Document>
+        {previewOf !== null && pageNumbers.length > 0 && (
+          <LockedPage
+            width={pageWidth}
+            height={Math.round(pageWidth * pageRatios.at(-1))}
+            shown={pageRatios.length}
+            total={previewOf}
+          />
+        )}
       </div>
     </section>
+  )
+}
+
+// En la vista previa, el celular abrevia el contador: así la barra cabe en una
+// fila junto a la etiqueta.
+function PageCounter({ current, total, compact }) {
+  if (!compact) return `Página ${current} de ${total}`
+  return (
+    <>
+      <span className="max-sm:hidden">
+        Página {current} de {total}
+      </span>
+      <span className="sm:hidden">
+        {current} / {total}
+      </span>
+    </>
+  )
+}
+
+const BLURRED_LINES = ['62%', '100%', '92%', '97%', '78%', '95%', '54%']
+
+// Después de la última página de la vista previa, como en el prototipo: una
+// página borrosa que se funde con el fondo y, sobre ella, la invitación. La
+// invitación ocupa su sitio en vez de flotar encima: donde no cabe, como en el
+// celular o en una página apaisada, la página crece en lugar de cortarla.
+function LockedPage({ width, height, shown, total }) {
+  return (
+    <div
+      className="relative mx-auto mt-3 flex flex-col items-center pb-6 sm:mt-5"
+      style={{ width, minHeight: height, paddingTop: Math.round(height * 0.3) }}
+    >
+      <div aria-hidden="true" className="absolute inset-0 bg-white px-[14%] py-[9%] shadow-[0_18px_40px_-18px_rgb(0_0_0/0.7)]">
+        <div className="flex flex-col gap-4 opacity-45 blur-[6px]">
+          {BLURRED_LINES.map((lineWidth) => (
+            <span key={lineWidth} className="h-2.5 rounded-full bg-content-faint" style={{ width: lineWidth }} />
+          ))}
+        </div>
+      </div>
+      <div aria-hidden="true" className="absolute inset-0 bg-linear-to-b from-transparent to-surface to-58%" />
+      <div className="relative flex w-[min(400px,calc(100%-32px))] flex-col items-center gap-3 rounded-2xl border border-border-strong bg-surface-raised px-6 py-6.5 text-center shadow-[0_24px_60px_-20px_rgb(0_0_0/0.85)]">
+        <SignInInvitation title={`Estás viendo ${shown} de ${total} páginas`}>
+          Inicia sesión para leer el apunte completo y descargarlo. Crear una cuenta es gratis.
+        </SignInInvitation>
+      </div>
+    </div>
   )
 }
 

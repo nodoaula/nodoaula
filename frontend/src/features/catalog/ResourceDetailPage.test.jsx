@@ -13,9 +13,10 @@ vi.mock('../../session/useSession.js', () => ({ useSession: () => session }))
 
 // El visor usa PDF.js, que jsdom no ejecuta: tiene sus propias pruebas.
 vi.mock('./DocumentViewer.jsx', () => ({
-  default: ({ resourceId, title }) => (
+  default: ({ resourceId, title, previewOf }) => (
     <p>
       Visor del apunte {resourceId}: {title}
+      {previewOf && ` (vista previa de ${previewOf} páginas)`}
     </p>
   ),
 }))
@@ -46,6 +47,7 @@ const DOCUMENT = {
   publishedAt: '2026-10-06',
   pageCount: 14,
   fileSizeBytes: 3250586,
+  previewPageCount: null,
 }
 
 // La línea de datos reparte cada dato en su propio elemento: se busca por el
@@ -134,12 +136,23 @@ describe('ResourceDetailPage', () => {
     expect(screen.getByRole('tab', { name: 'Apunte' })).toBeInTheDocument()
   })
 
-  it('con sesión, un apunte se lee en el visor', async () => {
+  it('con sesión, un apunte se lee completo en el visor, aunque tenga vista previa', async () => {
     session = { status: 'ready', account: { id: 5, email: 'lectora@example.com' } }
-    getResource.mockResolvedValue(DOCUMENT)
+    getResource.mockResolvedValue({ ...DOCUMENT, previewPageCount: 4 })
     renderDetail()
 
     expect(await screen.findByText(`Visor del apunte 24: ${VIDEO.title}`)).toBeInTheDocument()
+    expect(screen.queryByText('Inicia sesión para leer este apunte')).not.toBeInTheDocument()
+  })
+
+  // Historia HU412: sin sesión, se leen las primeras páginas.
+  it('sin sesión, un apunte con vista previa la muestra en el visor', async () => {
+    getResource.mockResolvedValue({ ...DOCUMENT, previewPageCount: 4 })
+    renderDetail()
+
+    expect(
+      await screen.findByText(`Visor del apunte 24: ${VIDEO.title} (vista previa de 14 páginas)`),
+    ).toBeInTheDocument()
     expect(screen.queryByText('Inicia sesión para leer este apunte')).not.toBeInTheDocument()
   })
 
