@@ -43,11 +43,20 @@ class CatalogSeedDataTests {
 	@Autowired
 	private ResourceRepository resourceRepository;
 
-	@Test
-	void seedHasAtLeastFiveResourcesFromAtLeastTwoCoursesEachWithCourseAndATopic() {
-		List<Resource> seedResources = resourceRepository.findAll().stream()
+	// Los recursos semilla son videos. Desde HU302 la base también guarda
+	// apuntes, que no tienen enlace (url null), y la restricción
+	// resources_link_or_file_check garantiza que todo video sí lo tiene. Por
+	// eso se filtra por tipo antes de comparar el enlace.
+	private List<Resource> seedResources() {
+		return resourceRepository.findAll().stream()
+				.filter(resource -> resource.getResourceType() == ResourceType.VIDEO)
 				.filter(resource -> SEED_URLS.contains(resource.getUrl()))
 				.toList();
+	}
+
+	@Test
+	void seedHasAtLeastFiveResourcesFromAtLeastTwoCoursesEachWithCourseAndATopic() {
+		List<Resource> seedResources = seedResources();
 
 		assertEquals(5, seedResources.size());
 
@@ -66,9 +75,7 @@ class CatalogSeedDataTests {
 	// como manuales los recursos que ya existían, empezando por la semilla.
 	@Test
 	void seedResourcesAreMarkedAsManualEntries() {
-		List<Resource> seedResources = resourceRepository.findAll().stream()
-				.filter(resource -> SEED_URLS.contains(resource.getUrl()))
-				.toList();
+		List<Resource> seedResources = seedResources();
 
 		assertEquals(5, seedResources.size());
 		for (Resource resource : seedResources) {

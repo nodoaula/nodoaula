@@ -55,11 +55,6 @@ export function validateUrl(url) {
   return null
 }
 
-export function validateResourceType(resourceType) {
-  if (resourceType === '') return 'Elige el tipo de recurso.'
-  return null
-}
-
 export function validateCourse(course) {
   if (course === '') return 'Escribe el curso.'
   if (course.length > COURSE_MAX_LENGTH) return `El curso no puede tener más de ${COURSE_MAX_LENGTH} caracteres.`
@@ -83,9 +78,25 @@ export function parseTopics(topicsText) {
     .filter((topic) => topic !== '')
 }
 
+/**
+ * Las reglas de la corrección de un recurso (historia HU311), que son las del
+ * registro (UpdateResourceRequest en el backend). En un apunte solo se
+ * corrigen título y descripción de entre estos campos: su fecha es la de la
+ * subida, y no tiene duración ni canal. Curso y temas los controlan sus
+ * selectores. Devuelve el error de cada campo inválido; vacío si todo vale.
+ */
+export function validateCorrection({ resourceType, title, description, publishedAt, durationSeconds, channel }) {
+  const checks = { title: validateTitle(title), description: validateDescription(description) }
+  if (resourceType !== 'DOCUMENT') {
+    checks.publishedAt = validatePublishedAt(publishedAt)
+    checks.durationSeconds = validateDurationSeconds(durationSeconds)
+    checks.channel = validateChannel(channel)
+  }
+  return Object.fromEntries(Object.entries(checks).filter(([, error]) => error !== null))
+}
+
 /** Devuelve un objeto con el error de cada campo inválido; vacío si todo es válido. */
-export function validateCreateResource({ title, description, publishedAt, durationSeconds, channel, url,
-  resourceType, course, topics }) {
+export function validateCreateResource({ title, description, publishedAt, durationSeconds, channel, url, course, topics }) {
   const errors = {}
 
   const titleError = validateTitle(title)
@@ -105,9 +116,6 @@ export function validateCreateResource({ title, description, publishedAt, durati
 
   const urlError = validateUrl(url)
   if (urlError) errors.url = urlError
-
-  const resourceTypeError = validateResourceType(resourceType)
-  if (resourceTypeError) errors.resourceType = resourceTypeError
 
   const courseError = validateCourse(course)
   if (courseError) errors.course = courseError

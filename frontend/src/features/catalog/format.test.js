@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatDuration, formatPublishedAt, formatResourceType } from './format.js'
+import { formatDuration, formatDurationText, formatFileSize, formatPageCount, formatPublishedAt, formatResourceType } from './format.js'
 
 describe('formatResourceType', () => {
   it('traduce los tipos conocidos al español', () => {
     expect(formatResourceType('VIDEO')).toBe('Video')
-    expect(formatResourceType('DOCUMENT')).toBe('Documento')
+    expect(formatResourceType('DOCUMENT')).toBe('Apunte')
   })
 
   it('devuelve el valor tal cual si el tipo no está mapeado', () => {
@@ -30,5 +30,39 @@ describe('formatDuration', () => {
 describe('formatPublishedAt', () => {
   it('formatea la fecha en español sin desplazarla por zona horaria', () => {
     expect(formatPublishedAt('2026-09-06')).toBe('6 de septiembre de 2026')
+  })
+})
+
+describe('formatDurationText', () => {
+  it('usa horas y minutos cuando dura una hora o más', () => {
+    expect(formatDurationText(6011)).toBe('1 h 40 min')
+  })
+
+  it('omite los minutos cuando son cero', () => {
+    expect(formatDurationText(7200)).toBe('2 h')
+  })
+
+  it('usa solo minutos cuando dura menos de una hora', () => {
+    expect(formatDurationText(783)).toBe('13 min')
+  })
+
+  it('usa segundos cuando dura menos de un minuto', () => {
+    expect(formatDurationText(45)).toBe('45 s')
+  })
+})
+
+describe('formatFileSize', () => {
+  it('muestra KB por debajo de un mega y MB con un decimal por encima', () => {
+    expect(formatFileSize(500)).toBe('1 KB')
+    expect(formatFileSize(880 * 1024)).toBe('880 KB')
+    expect(formatFileSize(2516582)).toBe('2,4 MB')
+    expect(formatFileSize(20 * 1024 * 1024)).toBe('20 MB')
+  })
+})
+
+describe('formatPageCount', () => {
+  it('usa el singular con una página', () => {
+    expect(formatPageCount(1)).toBe('1 página')
+    expect(formatPageCount(14)).toBe('14 páginas')
   })
 })

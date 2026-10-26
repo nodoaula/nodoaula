@@ -54,7 +54,7 @@ Lo dispara la integración en `develop`. `main` conserva las versiones etiquetad
 | `nodoaula-backend` | Render | Web Service desde el Dockerfile de `backend`. Health check en `/actuator/health/liveness` |
 | `nodoaula` | Supabase | PostgreSQL 17, por el pooler en modo sesión, puerto 5432 |
 
-Las variables de entorno solo las necesita el backend y se declaran en Render; cuáles hacen falta está en [`.env.example`](.env.example).
+Las variables de entorno solo las necesita el backend y se declaran en Render; cuáles hacen falta está en [`.env.example`](.env.example). En local, las de Storage van en `backend/.env`.
 
 Reglas de reescritura del Static Site, en este orden y ambas de tipo *Rewrite*:
 

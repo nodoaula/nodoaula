@@ -68,7 +68,7 @@ export default function CatalogPreview() {
         {courses.map((course) => (
           <li key={course.id} className="shrink-0">
             <Link
-              to={`/catalogo?courseId=${course.id}`}
+              to={`/catalogo/cursos/${course.id}`}
               className="block rounded-full border border-border-strong px-3.5 py-1.5 text-label font-medium text-content-muted hover:border-content-muted hover:text-content"
             >
               {course.name}

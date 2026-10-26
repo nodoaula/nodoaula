@@ -33,7 +33,7 @@ import io.github.nodoaula.shared.error.FieldValidationException;
 class ResourceEntryMethodTests {
 
 	private static final Long AUTHOR_ID = 999L;
-	private static final String YOUTUBE_URL = "https://www.youtube.com/watch?v=FWQi5MJ1erQ";
+	private static final String YOUTUBE_URL = "https://www.youtube.com/watch?v=Zi_XLOBDo_Y";
 
 	@Autowired
 	private MockMvc mockMvc;

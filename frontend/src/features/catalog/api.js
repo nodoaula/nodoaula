@@ -1,32 +1,18 @@
-import { get, post } from '../../lib/apiClient.js'
+import { get, post, put } from '../../lib/apiClient.js'
 
 /** Llamadas del módulo catalog: todas pasan por el cliente único de la API. */
 
-// Normaliza un filtro a lista: acepta un solo id (uso histórico, p. ej. desde
-// el formulario de alta de recurso) o varios (selección múltiple del
-// catálogo, historia HU206); undefined/null/'' se queda en lista vacía.
-function toIdList(value) {
-  if (value === undefined || value === null || value === '') return []
-  return Array.isArray(value) ? value : [value]
-}
-
 /**
- * Lista el catálogo. Los cuatro filtros son opcionales y se combinan entre sí
- * (historias HU206 y HU207): un objeto vacío o sin alguno de ellos no
- * restringe nada. courseIds, topicIds y resourceTypes admiten varios valores
- * a la vez.
+ * Lista el catálogo, entero o de un curso, y con búsqueda de texto si se da
+ * `q`. Pública, como la ficha.
  */
-export function listResources({ courseIds, topicIds, resourceTypes, q } = {}) {
+export function listResources({ courseId, q } = {}) {
   const params = new URLSearchParams()
-  for (const id of toIdList(courseIds)) params.append('courseId', id)
-  for (const id of toIdList(topicIds)) params.append('topicId', id)
+  if (courseId !== undefined) params.set('courseId', courseId)
   if (q) params.set('q', q)
-  for (const type of resourceTypes ?? []) {
-    params.append('resourceType', type)
-  }
 
   const query = params.toString()
-  return get(`/resources${query ? `?${query}` : ''}`)
+  return get(query ? `/resources?${query}` : '/resources')
 }
 
 /** Ficha de un recurso. Pública, como el listado. */
@@ -38,16 +24,9 @@ export function listCoursesWithResources() {
   return get('/resources/courses')
 }
 
-/**
- * Temas con al menos un recurso, para poblar un selector. Con courseIds,
- * solo los de esos cursos; sin ellos, los de todos (historia HU206). Admite
- * un único id (formulario de alta, historia HU105) o varios (catálogo).
- */
-export function listTopicsWithResources(courseIds) {
-  const params = new URLSearchParams()
-  for (const id of toIdList(courseIds)) params.append('courseId', id)
-  const query = params.toString()
-  return get(`/resources/topics${query ? `?${query}` : ''}`)
+/** Temas de un curso con al menos un recurso, para sugerirlos al registrar otro. */
+export function listTopicsWithResources(courseId) {
+  return get(`/resources/topics?${new URLSearchParams({ courseId })}`)
 }
 
 // El intento y el plazo total coinciden para que el cliente no reintente: un
@@ -74,4 +53,65 @@ export function getYouTubeMetadata(link) {
  */
 export function createResource(resource) {
   return post('/resources', resource)
+}
+
+// Un campo opcional vacío se envía como null: así el backend lo borra.
+const orNull = (value) => (value === '' ? null : value)
+
+/**
+ * Corrige los datos de un recurso (historia HU311). Exige sesión y que quien
+ * corrige sea quien lo aportó o una cuenta del equipo. Un apunte solo envía
+ * título, descripción, curso y temas: su fecha es la de la subida, y el
+ * backend rechaza la fecha, la duración y el canal en un apunte. El enlace y
+ * el archivo no se corrigen y nunca se envían. Devuelve la ficha corregida.
+ */
+export function updateResource(resourceId, { resourceType, title, description, publishedAt, durationSeconds, channel, course, topics }) {
+  const data = { title, description: orNull(description), course, topics }
+  if (resourceType !== 'DOCUMENT') {
+    data.publishedAt = publishedAt
+    data.durationSeconds = durationSeconds === '' ? null : Number(durationSeconds)
+    data.channel = orNull(channel)
+  }
+  return put(`/resources/${encodeURIComponent(resourceId)}`, data)
+}
+
+/**
+ * Retira un recurso del catálogo (historia HU307). Exige sesión y que quien
+ * lo retira sea quien lo aportó o una cuenta del equipo. El retiro es lógico:
+ * no se borra y se puede volver a publicar. Devuelve la ficha retirada.
+ */
+export function retireResource(resourceId) {
+  return post(`/resources/${encodeURIComponent(resourceId)}/retire`)
+}
+
+/**
+ * Vuelve a publicar un recurso retirado (historia HU307). Solo puede la
+ * cuenta que lo retiró. Devuelve la ficha completa, ya publicada.
+ */
+export function republishResource(resourceId) {
+  return post(`/resources/${encodeURIComponent(resourceId)}/republish`)
+}
+
+// Un PDF de 20 MB tarda minutos con una conexión lenta: con el plazo de una
+// petición ordinaria, el navegador la cortaría aunque el backend la estuviera
+// recibiendo. Cinco minutos cubren unos 0,5 Mbit/s.
+const UPLOAD_TIMEOUT_MS = 5 * 60_000
+
+/**
+ * Sube un apunte (historia HU302). Exige sesión iniciada; el backend toma el
+ * autor de ella. Devuelve el recurso creado, con la misma forma que el listado.
+ */
+export function createDocument({ file, title, description, course, topics, rightsDeclared }) {
+  const form = new FormData()
+  form.append('file', file)
+  form.append('title', title)
+  if (description) form.append('description', description)
+  form.append('course', course)
+  topics.forEach((topic) => form.append('topics', topic))
+  form.append('rightsDeclared', String(rightsDeclared))
+
+  return post('/resources/documents', form, {
+    attemptTimeoutMs: UPLOAD_TIMEOUT_MS,
+    totalTimeoutMs: UPLOAD_TIMEOUT_MS,
+  })
 }

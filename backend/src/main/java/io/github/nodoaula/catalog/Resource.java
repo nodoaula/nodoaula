@@ -1,9 +1,12 @@
 package io.github.nodoaula.catalog;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -37,6 +40,11 @@ class Resource {
 
 	private String url;
 
+	// Identificador del video de YouTube del enlace (HU308): la base de datos
+	// impide registrar dos veces el mismo video, se pegue como se pegue.
+	@Column(name = "video_id")
+	private String videoId;
+
 	@Enumerated(EnumType.STRING)
 	private ResourceType resourceType;
 
@@ -58,6 +66,16 @@ class Resource {
 			inverseJoinColumns = @JoinColumn(name = "topic_id"))
 	private Set<Topic> topics = new LinkedHashSet<>();
 
+	// Solo los apuntes tienen archivo; en un video queda en null.
+	@Embedded
+	private DocumentFile file;
+
+	// Retiro lógico (historia HU307): ambos en null mientras está publicado.
+	// La cuenta que lo retiró, como el autor, se guarda por identificador.
+	private Instant retiredAt;
+
+	private Long retiredBy;
+
 	protected Resource() {
 	}
 
@@ -73,14 +91,62 @@ class Resource {
 		this.durationSeconds = durationSeconds;
 		this.channel = channel;
 		this.url = url;
+		this.videoId = YouTubeVideoIds.extract(url).orElse(null);
 		this.resourceType = resourceType;
 		this.course = course;
 		this.authorId = authorId;
 		this.entryMethod = entryMethod;
 	}
 
+	// Para registrar un apunte subido (historia HU302). Siempre entra por el
+	// formulario, así que su vía de ingreso es manual.
+	static Resource document(String title, String description, LocalDate publishedAt, Course course,
+			Long authorId, DocumentFile file) {
+		Resource resource = new Resource();
+		resource.title = title;
+		resource.description = description;
+		resource.publishedAt = publishedAt;
+		resource.resourceType = ResourceType.DOCUMENT;
+		resource.course = course;
+		resource.authorId = authorId;
+		resource.entryMethod = EntryMethod.MANUAL;
+		resource.file = file;
+		return resource;
+	}
+
 	void addTopic(Topic topic) {
 		topics.add(topic);
+	}
+
+	// Para corregir sus datos (historia HU311). Enlace, archivo, tipo, autor y
+	// vía de ingreso no tienen cómo cambiar desde aquí. Los temas se quitan
+	// todos, y los corregidos se añaden después con addTopic.
+	void correct(String title, String description, LocalDate publishedAt, Integer durationSeconds,
+			String channel, Course course) {
+		this.title = title;
+		this.description = description;
+		this.publishedAt = publishedAt;
+		this.durationSeconds = durationSeconds;
+		this.channel = channel;
+		this.course = course;
+		this.topics.clear();
+	}
+
+	// Para retirarlo del catálogo (historia HU307). Es lógico: la fila, sus
+	// temas y el archivo de un apunte se conservan.
+	void retire(Long accountId, Instant at) {
+		this.retiredBy = accountId;
+		this.retiredAt = at;
+	}
+
+	// Para volver a publicarlo (historia HU307): reaparece donde estaba.
+	void republish() {
+		this.retiredBy = null;
+		this.retiredAt = null;
+	}
+
+	boolean isRetired() {
+		return retiredAt != null;
 	}
 
 	Long getId() {
@@ -129,6 +195,14 @@ class Resource {
 
 	Set<Topic> getTopics() {
 		return topics;
+	}
+
+	DocumentFile getFile() {
+		return file;
+	}
+
+	Long getRetiredBy() {
+		return retiredBy;
 	}
 
 }

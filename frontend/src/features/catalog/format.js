@@ -2,7 +2,7 @@
 
 export const RESOURCE_TYPE_LABELS = {
   VIDEO: 'Video',
-  DOCUMENT: 'Documento',
+  DOCUMENT: 'Apunte',
 }
 
 export function formatResourceType(resourceType) {
@@ -21,6 +21,16 @@ export function formatDuration(totalSeconds) {
   return hours > 0 ? `${hours}:${paddedMinutes}:${paddedSeconds}` : `${minutes}:${paddedSeconds}`
 }
 
+/** Duración para leer, no para medir: "1 h 40 min", "13 min" o "45 s". */
+export function formatDurationText(totalSeconds) {
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+
+  if (hours > 0) return minutes > 0 ? `${hours} h ${minutes} min` : `${hours} h`
+  if (minutes > 0) return `${minutes} min`
+  return `${totalSeconds} s`
+}
+
 /**
  * La API envía la fecha como "2026-09-06", sin hora. Se arma con la fecha
  * local y no con `new Date("2026-09-06")`, que la interpreta como medianoche
@@ -29,4 +39,16 @@ export function formatDuration(totalSeconds) {
 export function formatPublishedAt(isoDate) {
   const [year, month, day] = isoDate.split('-').map(Number)
   return new Date(year, month - 1, day).toLocaleDateString('es-CO', { dateStyle: 'long' })
+}
+
+/** "1 página" o "14 páginas". */
+export function formatPageCount(pages) {
+  return pages === 1 ? '1 página' : `${pages} páginas`
+}
+
+/** Tamaño de un archivo para leer: "860 KB" o "2,4 MB". */
+export function formatFileSize(bytes) {
+  const megabytes = bytes / (1024 * 1024)
+  if (megabytes < 1) return `${Math.max(1, Math.round(bytes / 1024))} KB`
+  return `${megabytes.toLocaleString('es-CO', { maximumFractionDigits: 1 })} MB`
 }

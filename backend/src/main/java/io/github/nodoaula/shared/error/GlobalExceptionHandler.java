@@ -18,6 +18,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 /**
@@ -56,6 +57,14 @@ class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 			HttpStatusCode status,
 			WebRequest request) {
 
+		// Un cuerpo sin Content-Length que sobrepasa el límite se corta mientras
+		// Jackson lo lee, y Jackson envuelve ese corte en esta excepción.
+		for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+			if (cause instanceof PayloadTooLargeException) {
+				return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).body(payloadTooLarge());
+			}
+		}
+
 		return ResponseEntity.badRequest().body(problem(HttpStatus.BAD_REQUEST, "MALFORMED_REQUEST",
 				"Petición mal formada", "El cuerpo de la petición no es un JSON válido."));
 	}
@@ -71,6 +80,18 @@ class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
 		return ResponseEntity.badRequest().body(problem(HttpStatus.BAD_REQUEST, "INVALID_PARAMETER",
 				"Parámetro no válido", "Algún dato de la dirección no tiene el formato esperado."));
+	}
+
+	// Un archivo que pasa de spring.servlet.multipart.max-file-size, con la
+	// misma respuesta que un cuerpo que pasa del límite del filtro.
+	@Override
+	protected ResponseEntity<Object> handleMaxUploadSizeExceededException(
+			MaxUploadSizeExceededException exception,
+			HttpHeaders headers,
+			HttpStatusCode status,
+			WebRequest request) {
+
+		return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE).body(payloadTooLarge());
 	}
 
 	// Una regla del producto sobre un campo, comprobada en el servicio. Sale
@@ -101,9 +122,24 @@ class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return problem(HttpStatus.CONFLICT, exception.getCode(), "Conflicto", exception.getMessage());
 	}
 
+	@ExceptionHandler(PayloadTooLargeException.class)
+	ProblemDetail handlePayloadTooLarge(PayloadTooLargeException exception) {
+		return payloadTooLarge();
+	}
+
+	private static ProblemDetail payloadTooLarge() {
+		return problem(HttpStatus.CONTENT_TOO_LARGE, "PAYLOAD_TOO_LARGE",
+				"Petición demasiado grande", "Lo que enviaste supera el tamaño máximo permitido.");
+	}
+
 	@ExceptionHandler(NotFoundException.class)
 	ProblemDetail handleNotFound(NotFoundException exception) {
 		return problem(HttpStatus.NOT_FOUND, exception.getCode(), "No encontrado", exception.getMessage());
+	}
+
+	@ExceptionHandler(ForbiddenException.class)
+	ProblemDetail handleForbidden(ForbiddenException exception) {
+		return problem(HttpStatus.FORBIDDEN, exception.getCode(), "Acceso denegado", exception.getMessage());
 	}
 
 	// El mismo mensaje para un correo sin cuenta y para una contraseña

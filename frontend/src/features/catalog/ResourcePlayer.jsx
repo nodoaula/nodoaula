@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
+import Notice from '../../components/ui/Notice.jsx'
 import { getYouTubeVideoId } from './sourcePlatform.js'
 import { loadYouTubeIframeApi } from './youtubeIframeApi.js'
 
@@ -7,7 +8,7 @@ import { loadYouTubeIframeApi } from './youtubeIframeApi.js'
  * Reproduce el video dentro de la ficha con el reproductor oficial de YouTube
  * (historia HU108). NodoAula no descarga ni aloja el archivo. Si el enlace no
  * es de YouTube, o el video no permite incrustarse, no hay reproductor: la
- * ficha ofrece el enlace a la plataforma de origen, que siempre está visible.
+ * ficha ofrece el botón a la plataforma de origen, que siempre está visible.
  */
 export default function ResourcePlayer({ url, title }) {
   const videoId = getYouTubeVideoId(url)
@@ -72,10 +73,9 @@ export default function ResourcePlayer({ url, title }) {
 
   if (videoId === null) {
     return (
-      <p className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-        Este recurso no se puede reproducir dentro de NodoAula. Ábrelo en su plataforma de origen con el enlace de
-        abajo.
-      </p>
+      <Notice title="Este recurso se abre en su sitio de origen">
+        No se puede ver dentro de NodoAula. Ábrelo con el botón de abajo.
+      </Notice>
     )
   }
 
@@ -86,13 +86,13 @@ export default function ResourcePlayer({ url, title }) {
       <div
         ref={wrapperRef}
         hidden={embedFailed}
-        className="aspect-video w-full overflow-hidden rounded-md bg-slate-900"
+        className="aspect-video w-full overflow-hidden rounded-2xl border border-border bg-surface-raised"
       />
 
       {embedFailed && (
-        <p className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
-          Este video no permite reproducirse fuera de YouTube. Ábrelo en su plataforma de origen con el enlace de abajo.
-        </p>
+        <Notice title="Este video solo se puede ver en YouTube">
+          Quien lo publicó no permite verlo fuera de YouTube. Ábrelo allí con el botón de abajo.
+        </Notice>
       )}
     </div>
   )

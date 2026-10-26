@@ -13,6 +13,7 @@
   --color-content-muted: #98a1b5;
   --color-content-faint: #7c859b;
   --color-accent: #4fd1c5;
+  --color-document: #f5c26b;
 
   --text-caption: 0.6875rem; /* 11px */
   --text-label: 0.8125rem; /* 13px */
@@ -27,5 +28,18 @@
     to {
       stroke-dashoffset: -22;
     }
+  }
+}
+
+/* Lo que el navegador dibuja por su cuenta también lleva la identidad: la
+   selección de texto y el anillo de foco del teclado. */
+@layer base {
+  ::selection {
+    background-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
   }
 }
