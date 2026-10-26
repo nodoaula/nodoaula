@@ -125,6 +125,27 @@ describe('DocumentViewer', () => {
     expect(screen.queryByText('Página dibujada 3')).not.toBeInTheDocument()
   })
 
+  it('mientras llega el PDF muestra cuánto lleva', async () => {
+    let body
+    const stream = new ReadableStream({
+      start(controller) {
+        body = controller
+      },
+    })
+    fetch.mockResolvedValue(new Response(stream, { status: 200, headers: { 'Content-Length': '8' } }))
+    requestDocumentLink.mockResolvedValue({ url: SIGNED_URL })
+    renderViewer()
+
+    body.enqueue(new TextEncoder().encode('%PDF'))
+    const progress = await screen.findByRole('progressbar', { name: 'Descarga del apunte' })
+    await vi.waitFor(() => expect(progress).toHaveAttribute('value', '50'))
+    expect(screen.getByText('50 %')).toBeInTheDocument()
+
+    body.enqueue(new TextEncoder().encode('-1.7'))
+    body.close()
+    expect(await screen.findByText('Página dibujada 1')).toBeInTheDocument()
+  })
+
   it('descarga la misma copia con el título como nombre', async () => {
     requestDocumentLink.mockResolvedValue({ url: SIGNED_URL })
     renderViewer()

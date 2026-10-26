@@ -22,6 +22,27 @@ const BASE_PAGE_WIDTH = 680
 
 const FAILURE = { SIGNED_OUT: 'signedOut', UNAVAILABLE: 'unavailable', FAILED: 'failed' }
 
+// Lee el PDF por partes para mostrar cuánto ha llegado. Sin tamaño conocido
+// no hay porcentaje que dar, y se lee de una vez.
+async function readWithProgress(response, onProgress) {
+  const total = Number(response.headers.get('Content-Length'))
+  if (!total || !response.body) return response.blob()
+
+  const chunks = []
+  let received = 0
+  onProgress(0)
+  await response.body.pipeTo(
+    new WritableStream({
+      write(chunk) {
+        chunks.push(chunk)
+        received += chunk.length
+        onProgress(Math.min(100, Math.floor((received * 100) / total)))
+      },
+    }),
+  )
+  return new Blob(chunks, { type: 'application/pdf' })
+}
+
 function describeFailure(error) {
   if (error.status === 401) return FAILURE.SIGNED_OUT
   if (error.code === 'DOCUMENT_TRANSFER_EXHAUSTED') return FAILURE.UNAVAILABLE
@@ -36,6 +57,7 @@ function describeFailure(error) {
 export default function DocumentViewer({ resourceId, title }) {
   const [file, setFile] = useState(null)
   const [failure, setFailure] = useState(null)
+  const [progress, setProgress] = useState(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -45,7 +67,7 @@ export default function DocumentViewer({ resourceId, title }) {
       .then(({ url }) => fetch(url, { signal: controller.signal }))
       .then((response) => {
         if (!response.ok) throw new Error(`El almacenamiento respondió ${response.status}`)
-        return response.blob()
+        return readWithProgress(response, setProgress)
       })
       .then((blob) => {
         if (controller.signal.aborted) return
@@ -82,7 +104,7 @@ export default function DocumentViewer({ resourceId, title }) {
     )
   }
 
-  if (file === null) return <DocumentLoading />
+  if (file === null) return <DocumentLoading progress={progress} />
 
   return <Reader file={file} title={title} onError={() => setFailure(FAILURE.FAILED)} />
 }
@@ -172,7 +194,9 @@ function Reader({ file, title, onError }) {
           <ZoomButton label="Reducir" disabled={zoomIndex === 0} onClick={() => setZoomIndex(zoomIndex - 1)}>
             <path d="M5 12h14" />
           </ZoomButton>
-          <span className="min-w-12 text-center font-mono text-xs text-content-muted tabular-nums">
+          {/* En el celular, sin el porcentaje la barra cabe en una fila: el
+              tamaño de la página ya dice cuánto se amplió. */}
+          <span className="min-w-12 text-center font-mono text-xs text-content-muted tabular-nums max-sm:hidden">
             {Math.round(zoom * 100)} %
           </span>
           <ZoomButton
@@ -182,7 +206,11 @@ function Reader({ file, title, onError }) {
           >
             <path d="M12 5v14M5 12h14" />
           </ZoomButton>
-          <a href={file.url} download={`${title}.pdf`} className={`${buttonClasses('primary')} ml-1`}>
+          <a
+            href={file.url}
+            download={`${title}.pdf`}
+            className={`${buttonClasses('primary')} ml-1 max-sm:size-11 max-sm:p-0`}
+          >
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -195,7 +223,7 @@ function Reader({ file, title, onError }) {
             >
               <path d="M12 4v11m0 0-4-4m4 4 4-4M5 19h14" />
             </svg>
-            Descargar
+            <span className="max-sm:sr-only">Descargar</span>
           </a>
         </div>
       </div>
