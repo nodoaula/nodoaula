@@ -411,8 +411,8 @@ public class ResourceService {
 			int previewPages = PdfDocuments.previewPageCount(pageCount);
 			if (previewPages > 0) {
 				previewPdf = createTempFile("vista-previa-");
-				PdfDocuments.writePreview(pdf, previewPages, previewPdf);
-				preview = new DocumentPreview(name + "-vista-previa.pdf", sizeOf(previewPdf), previewPages);
+				long previewBytes = PdfDocuments.writePreview(pdf, previewPages, previewPdf);
+				preview = new DocumentPreview(DocumentPreview.keyFor(file.key()), previewBytes, previewPages);
 				staged.add(new StagedFile(preview.key(), previewPdf));
 				newBytes += preview.sizeBytes();
 			}
@@ -508,17 +508,10 @@ public class ResourceService {
 		}
 	}
 
-	private static Path createTempFile(String prefix) {
+	// También para la vista previa de los apuntes anteriores a HU412.
+	static Path createTempFile(String prefix) {
 		try {
 			return Files.createTempFile(prefix, ".pdf");
-		} catch (IOException exception) {
-			throw new UncheckedIOException(exception);
-		}
-	}
-
-	private static long sizeOf(Path file) {
-		try {
-			return Files.size(file);
 		} catch (IOException exception) {
 			throw new UncheckedIOException(exception);
 		}
@@ -540,7 +533,7 @@ public class ResourceService {
 		}
 	}
 
-	private static void deleteTempFile(Path pdf) {
+	static void deleteTempFile(Path pdf) {
 		try {
 			Files.deleteIfExists(pdf);
 		} catch (IOException exception) {

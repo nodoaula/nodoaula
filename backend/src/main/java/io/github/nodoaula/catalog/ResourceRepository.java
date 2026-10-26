@@ -42,6 +42,10 @@ interface ResourceRepository extends JpaRepository<Resource, Long> {
 	@Query("select coalesce(sum(r.file.sizeBytes), 0) + coalesce(sum(r.preview.sizeBytes), 0) from Resource r")
 	long totalStoredBytes();
 
+	/** Apuntes sin vista previa (historia HU412), también los retirados. */
+	@Query("select r from Resource r where r.file.key is not null and r.preview.key is null")
+	List<Resource> findDocumentsWithoutPreview();
+
 	/** Si ya hay un apunte con ese contenido (SHA-256 en hexadecimal). */
 	@Query("select count(r) > 0 from Resource r where r.file.sha256 = :sha256")
 	boolean existsByFileSha256(@Param("sha256") String sha256);

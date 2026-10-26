@@ -1,6 +1,7 @@
 package io.github.nodoaula.catalog;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import org.apache.pdfbox.Loader;
@@ -49,11 +50,12 @@ final class PdfDocuments {
 	}
 
 	/**
-	 * Escribe en {@code target} un PDF con las primeras {@code pages} páginas.
-	 * Splitter solo copia los recursos que esas páginas usan, y los flujos
-	 * intermedios van a archivos temporales en vez de a memoria.
+	 * Escribe en {@code target} un PDF con las primeras {@code pages} páginas y
+	 * devuelve su tamaño en bytes. Splitter solo copia los recursos que esas
+	 * páginas usan, y los flujos intermedios van a archivos temporales en vez
+	 * de a memoria.
 	 */
-	static void writePreview(Path source, int pages, Path target) {
+	static long writePreview(Path source, int pages, Path target) {
 		try (PDDocument document = Loader.loadPDF(source.toFile(), IOUtils.createTempFileOnlyStreamCache())) {
 			Splitter splitter = new Splitter();
 			splitter.setStreamCacheCreateFunction(IOUtils.createTempFileOnlyStreamCache());
@@ -64,6 +66,7 @@ final class PdfDocuments {
 			try (PDDocument preview = splitter.split(document).getFirst()) {
 				preview.save(target.toFile());
 			}
+			return Files.size(target);
 		} catch (IOException _) {
 			throw new FieldValidationException("file",
 					"No se pudo preparar la vista previa de este PDF. Guárdalo de nuevo como PDF y vuelve a subirlo.");
