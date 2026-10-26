@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 
 import TextField from '../../components/ui/TextField.jsx'
 import { CSRF_ERROR_CODE } from '../../lib/apiClient.js'
@@ -50,6 +50,8 @@ function describeFailure(error) {
 /** Pantalla de registro. Registrarse no inicia sesión: al terminar lleva al inicio de sesión. */
 export default function RegisterPage() {
   const navigate = useNavigate()
+  // La página a la que volver al iniciar sesión pasa intacta al inicio de sesión.
+  const from = useLocation().state?.from
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -62,7 +64,7 @@ export default function RegisterPage() {
 
   // Con la sesión iniciada, crear otra cuenta no tiene sentido desde aquí.
   if (account !== null) {
-    return <Navigate to="/catalogo" replace />
+    return <Navigate to={from ?? '/catalogo'} replace />
   }
 
   // Al editar un campo su error deja de aplicar; los de los demás se quedan.
@@ -98,7 +100,7 @@ export default function RegisterPage() {
     setSubmitting(true)
     try {
       const account = await registerAccount(data)
-      navigate('/iniciar-sesion', { state: { email: account.email, justRegistered: true } })
+      navigate('/iniciar-sesion', { state: { email: account.email, justRegistered: true, from } })
     } catch (error) {
       console.error('No se pudo crear la cuenta', error)
       const failure = describeFailure(error)
@@ -114,7 +116,7 @@ export default function RegisterPage() {
       <div className="mx-auto max-w-md">
         <h1 className="text-2xl font-semibold text-slate-900">Crear una cuenta</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Con una cuenta puedes aportar recursos al catálogo. Para consultarlo no necesitas una.
+          Con una cuenta puedes aportar recursos y leer los apuntes completos. Para consultar el catálogo no necesitas una.
         </p>
 
         <form className="mt-6 space-y-4" onSubmit={handleSubmit} noValidate>
@@ -132,7 +134,7 @@ export default function RegisterPage() {
               ¿Es tuya?{' '}
               <Link
                 to="/iniciar-sesion"
-                state={{ email: email.trim() }}
+                state={{ email: email.trim(), from }}
                 className="font-medium text-slate-900 underline"
               >
                 Inicia sesión
@@ -179,7 +181,7 @@ export default function RegisterPage() {
 
         <p className="mt-6 text-sm text-slate-600">
           ¿Ya tienes cuenta?{' '}
-          <Link to="/iniciar-sesion" className="font-medium text-slate-900 underline">
+          <Link to="/iniciar-sesion" state={{ from }} className="font-medium text-slate-900 underline">
             Inicia sesión
           </Link>
         </p>

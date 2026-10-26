@@ -8,6 +8,18 @@ import ResourceDetailPage from './ResourceDetailPage.jsx'
 
 vi.mock('./api.js', () => ({ getResource: vi.fn(), retireResource: vi.fn(), republishResource: vi.fn() }))
 
+let session = { status: 'ready', account: null }
+vi.mock('../../session/useSession.js', () => ({ useSession: () => session }))
+
+// El visor usa PDF.js, que jsdom no ejecuta: tiene sus propias pruebas.
+vi.mock('./DocumentViewer.jsx', () => ({
+  default: ({ resourceId, title }) => (
+    <p>
+      Visor del apunte {resourceId}: {title}
+    </p>
+  ),
+}))
+
 // El reproductor carga el script de YouTube; aquí basta con que nunca termine.
 vi.mock('./youtubeIframeApi.js', () => ({ loadYouTubeIframeApi: () => new Promise(() => {}) }))
 
@@ -23,6 +35,17 @@ const VIDEO = {
   courseId: 7,
   course: 'Cálculo Integral',
   topics: ['Integral Indefinida', 'Métodos de integración'],
+}
+
+const DOCUMENT = {
+  ...VIDEO,
+  url: null,
+  resourceType: 'DOCUMENT',
+  channel: null,
+  durationSeconds: null,
+  publishedAt: '2026-10-06',
+  pageCount: 14,
+  fileSizeBytes: 3250586,
 }
 
 // La línea de datos reparte cada dato en su propio elemento: se busca por el
@@ -44,6 +67,7 @@ function renderDetail() {
 describe('ResourceDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    session = { status: 'ready', account: null }
   })
 
   afterEach(() => {
@@ -97,28 +121,31 @@ describe('ResourceDetailPage', () => {
     expect(screen.getByRole('link', { name: 'Volver al catálogo' })).toHaveAttribute('href', '/catalogo')
   })
 
-  it('un apunte no muestra el aviso del reproductor, que remite a un botón que no tiene', async () => {
-    getResource.mockResolvedValue({ ...VIDEO, url: null, resourceType: 'DOCUMENT', channel: null, durationSeconds: null })
+  // Historia HU411: leer el apunte completo exige sesión.
+  it('sin sesión, un apunte invita a iniciarla en lugar de mostrar el visor', async () => {
+    getResource.mockResolvedValue(DOCUMENT)
     renderDetail()
 
-    expect(await screen.findByText('Este apunte es un PDF.')).toBeInTheDocument()
-    expect(screen.getByText('Pronto podrás leerlo y descargarlo aquí mismo.')).toBeInTheDocument()
+    expect(await screen.findByText('Inicia sesión para leer este apunte')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Iniciar sesión' })).toHaveAttribute('href', '/iniciar-sesion')
+    expect(screen.getByRole('link', { name: 'Crear cuenta' })).toHaveAttribute('href', '/registro')
+    expect(screen.queryByText(/Visor del apunte/)).not.toBeInTheDocument()
     expect(screen.queryByText(/No se puede ver dentro de NodoAula/)).not.toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Apunte' })).toBeInTheDocument()
   })
 
+  it('con sesión, un apunte se lee en el visor', async () => {
+    session = { status: 'ready', account: { id: 5, email: 'lectora@example.com' } }
+    getResource.mockResolvedValue(DOCUMENT)
+    renderDetail()
+
+    expect(await screen.findByText(`Visor del apunte 24: ${VIDEO.title}`)).toBeInTheDocument()
+    expect(screen.queryByText('Inicia sesión para leer este apunte')).not.toBeInTheDocument()
+  })
+
   // Historia HU411: en lugar de un enlace, la ficha dice qué archivo es.
   it('un apunte muestra sus páginas, su tamaño y su fecha', async () => {
-    getResource.mockResolvedValue({
-      ...VIDEO,
-      url: null,
-      resourceType: 'DOCUMENT',
-      channel: null,
-      durationSeconds: null,
-      publishedAt: '2026-10-06',
-      pageCount: 14,
-      fileSizeBytes: 3250586,
-    })
+    getResource.mockResolvedValue(DOCUMENT)
     renderDetail()
 
     expect(await screen.findByText(dataLine('PDF · 14 páginas · 3,1 MB · 6 de oct de 2026'))).toBeInTheDocument()

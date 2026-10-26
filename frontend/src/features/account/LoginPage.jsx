@@ -36,11 +36,13 @@ function describeFailure(error) {
 /**
  * Pantalla de inicio de sesión. Recibe el correo del registro en el estado de
  * la navegación, no en la dirección, para que no quede en el historial ni en
- * los registros del servidor. Con la sesión ya iniciada lleva al catálogo.
+ * los registros del servidor. Con la sesión ya iniciada lleva a la página de
+ * la que se venía, si la hay (`from`, por el mismo canal), o al catálogo.
  */
 export default function LoginPage() {
   const location = useLocation()
   const justRegistered = location.state?.justRegistered === true
+  const from = location.state?.from
   const { account, login } = useSession()
 
   const [email, setEmail] = useState(location.state?.email ?? '')
@@ -53,7 +55,7 @@ export default function LoginPage() {
   // Cubre tanto a quien llega con la sesión iniciada como el final de un
   // inicio de sesión correcto: al guardarse la cuenta, esta pantalla se va.
   if (account !== null) {
-    return <Navigate to="/catalogo" replace />
+    return <Navigate to={from ?? '/catalogo'} replace />
   }
 
   function changeEmail(value) {
@@ -153,7 +155,7 @@ export default function LoginPage() {
 
         <p className="mt-6 text-sm text-slate-600">
           ¿No tienes cuenta?{' '}
-          <Link to="/registro" className="font-medium text-slate-900 underline">
+          <Link to="/registro" state={{ from }} className="font-medium text-slate-900 underline">
             Crea una
           </Link>
         </p>
