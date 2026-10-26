@@ -23,7 +23,8 @@ import java.util.List;
  * temas y sin permiso de corrección.
  *
  * pageCount y fileSizeBytes describen el archivo de un apunte (historia
- * HU411); en un video llegan en null.
+ * HU411); en un video llegan en null. previewPageCount son las páginas de su
+ * vista previa (historia HU412), en null si no la tiene.
  */
 public record ResourceDetailDto(
 		Long id,
@@ -42,5 +43,6 @@ public record ResourceDetailDto(
 		boolean canRetire,
 		boolean canRepublish,
 		Integer pageCount,
-		Long fileSizeBytes) {
+		Long fileSizeBytes,
+		Integer previewPageCount) {
 }

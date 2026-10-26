@@ -595,6 +595,7 @@ public class ResourceService {
 
 		boolean canChange = canChange(resource, viewerId);
 		DocumentFile file = resource.getFile();
+		DocumentPreview preview = resource.getPreview();
 		return new ResourceDetailDto(
 				resource.getId(),
 				resource.getTitle(),
@@ -612,7 +613,8 @@ public class ResourceService {
 				canChange,
 				false,
 				file == null ? null : file.pageCount(),
-				file == null ? null : file.sizeBytes());
+				file == null ? null : file.sizeBytes(),
+				preview == null ? null : preview.pageCount());
 	}
 
 	// Sin su contenido: lo retirado por moderación no sigue a la vista por
@@ -635,6 +637,7 @@ public class ResourceService {
 				true,
 				false,
 				canRepublish,
+				null,
 				null,
 				null);
 	}

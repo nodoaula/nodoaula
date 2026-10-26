@@ -8,8 +8,9 @@ import io.github.nodoaula.shared.storage.FileStorage;
 import io.github.nodoaula.shared.storage.TransferQuota;
 
 /**
- * Enlaces firmados al archivo de un apunte (historia HU411). Cada enlace cuenta
- * el archivo entero para el tope de transferencia, y si ya no cabe no se firma.
+ * Enlaces firmados al archivo de un apunte (historia HU411) y a su vista previa
+ * (historia HU412). Cada enlace cuenta el archivo entero para el tope de
+ * transferencia, y si ya no cabe no se firma.
  *
  * Sin @Transactional: el contador confirma su suma por su cuenta, y la llamada
  * a Supabase no debe retener una conexión de la base.
@@ -30,18 +31,34 @@ class DocumentLinkService {
 	}
 
 	DocumentLinkDto issueLink(Long resourceId) {
+		DocumentFile file = findPublished(resourceId).getFile();
+		if (file == null) {
+			throw new DocumentFileNotFoundException();
+		}
+		return sign(file.key(), file.sizeBytes());
+	}
+
+	DocumentLinkDto issuePreviewLink(Long resourceId) {
+		DocumentPreview preview = findPublished(resourceId).getPreview();
+		if (preview == null) {
+			throw new DocumentPreviewNotFoundException();
+		}
+		return sign(preview.key(), preview.sizeBytes());
+	}
+
+	private Resource findPublished(Long resourceId) {
 		Resource resource = resourceRepository.findById(resourceId).orElseThrow(ResourceNotFoundException::new);
 		if (resource.isRetired()) {
 			throw new ResourceRetiredException();
 		}
-		DocumentFile file = resource.getFile();
-		if (file == null) {
-			throw new DocumentFileNotFoundException();
-		}
-		if (!transferQuota.reserve(file.sizeBytes())) {
+		return resource;
+	}
+
+	private DocumentLinkDto sign(String key, long sizeBytes) {
+		if (!transferQuota.reserve(sizeBytes)) {
 			throw new DocumentTransferExhaustedException();
 		}
-		return new DocumentLinkDto(fileStorage.signedUrl(file.key(), LINK_VALIDITY).toString());
+		return new DocumentLinkDto(fileStorage.signedUrl(key, LINK_VALIDITY).toString());
 	}
 
 }
