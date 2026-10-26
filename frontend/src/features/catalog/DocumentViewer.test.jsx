@@ -14,7 +14,9 @@ vi.hoisted(() => {
 
 vi.mock('react-pdf', () => ({
   pdfjs: { GlobalWorkerOptions: {} },
-  Document: function Document({ file, onLoadSuccess, children }) {
+  Document: function Document({ file, suspense, onLoadSuccess, children }) {
+    // Con Suspense, react-pdf ignoraría onLoadError y escondería el visor.
+    if (suspense !== false) throw new Error('El visor debe usar react-pdf sin Suspense')
     const pdf = {
       numPages: 3,
       getPage: () => Promise.resolve({ getViewport: () => ({ width: 595, height: 842 }) }),
@@ -68,10 +70,16 @@ describe('DocumentViewer', () => {
         disconnect() {}
       },
     )
+    // El visor mide el ancho disponible antes de pintar las páginas.
     vi.stubGlobal(
       'ResizeObserver',
       class {
-        observe() {}
+        constructor(callback) {
+          this.callback = callback
+        }
+        observe() {
+          this.callback([{ contentRect: { width: 640 } }])
+        }
         disconnect() {}
       },
     )

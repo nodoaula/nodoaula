@@ -94,12 +94,15 @@ function Reader({ file, title, onError }) {
   const [zoomIndex, setZoomIndex] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
   const [nearPages, setNearPages] = useState(() => new Set())
-  const [availableWidth, setAvailableWidth] = useState(BASE_PAGE_WIDTH)
+  // Hasta medirlo no se pinta ninguna página: suponer un ancho y corregirlo
+  // después haría saltar la página en el celular.
+  const [availableWidth, setAvailableWidth] = useState(null)
   const pagesRef = useRef(null)
   const slotsRef = useRef(new Map())
 
   const zoom = ZOOM_LEVELS[zoomIndex]
-  const pageWidth = Math.floor(Math.min(BASE_PAGE_WIDTH, availableWidth) * zoom)
+  const pageWidth = availableWidth === null ? null : Math.floor(Math.min(BASE_PAGE_WIDTH, availableWidth) * zoom)
+  const pageNumbers = pageRatios === null || pageWidth === null ? [] : pageRatios.map((_, index) => index + 1)
 
   useEffect(() => {
     const observer = new ResizeObserver(([entry]) => setAvailableWidth(entry.contentRect.width))
@@ -111,7 +114,7 @@ function Reader({ file, title, onError }) {
   // la vez agotarían la memoria de un celular con un apunte largo. La página
   // actual es la que cruza la mitad de la pantalla.
   useEffect(() => {
-    if (pageRatios === null) return undefined
+    if (pageNumbers.length === 0) return undefined
 
     const near = new IntersectionObserver(
       (entries) => {
@@ -142,7 +145,7 @@ function Reader({ file, title, onError }) {
       near.disconnect()
       reading.disconnect()
     }
-  }, [pageRatios])
+  }, [pageNumbers.length])
 
   async function measurePages(pdf) {
     try {
@@ -158,8 +161,6 @@ function Reader({ file, title, onError }) {
       onError()
     }
   }
-
-  const pageNumbers = pageRatios === null ? [] : pageRatios.map((_, index) => index + 1)
 
   return (
     <section aria-label="Visor del apunte" className="rounded-2xl border border-border bg-surface-raised">
@@ -200,7 +201,17 @@ function Reader({ file, title, onError }) {
       </div>
 
       <div ref={pagesRef} className="overflow-x-auto rounded-b-2xl bg-surface p-3 sm:p-6">
-        <Document file={file.blob} onLoadSuccess={measurePages} onLoadError={onError} loading={null} error={null}>
+        {/* Sin Suspense: con él, react-pdf esconde el visor entero mientras
+            prepara cada página e ignora onLoadError, y un PDF que no abre
+            dejaría la ficha en blanco. Las páginas heredan el ajuste. */}
+        <Document
+          file={file.blob}
+          suspense={false}
+          onLoadSuccess={measurePages}
+          onLoadError={onError}
+          loading={null}
+          error={null}
+        >
           {pageNumbers.map((pageNumber) => (
             <div
               key={pageNumber}
