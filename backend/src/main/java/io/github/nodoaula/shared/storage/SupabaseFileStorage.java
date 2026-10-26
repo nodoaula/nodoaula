@@ -1,8 +1,10 @@
 package io.github.nodoaula.shared.storage;
 
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +38,7 @@ class SupabaseFileStorage implements FileStorage {
 	private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(60);
 
 	private final RestClient restClient;
+	private final String storageUrl;
 	private final String secretKey;
 	private final String bucket;
 	private final boolean configured;
@@ -48,7 +51,8 @@ class SupabaseFileStorage implements FileStorage {
 
 	// Las pruebas pasan un builder enlazado a MockRestServiceServer.
 	SupabaseFileStorage(RestClient.Builder builder, String url, String secretKey, String bucket) {
-		this.restClient = builder.baseUrl(url + "/storage/v1/object").build();
+		this.storageUrl = url + "/storage/v1";
+		this.restClient = builder.baseUrl(storageUrl + "/object").build();
 		this.secretKey = secretKey;
 		this.bucket = bucket;
 		this.configured = !url.isBlank() && !secretKey.isBlank() && !bucket.isBlank();
@@ -101,8 +105,35 @@ class SupabaseFileStorage implements FileStorage {
 		}
 	}
 
+	@Override
+	public URI signedUrl(String key, Duration validity) {
+		requireConfiguration(key);
+		SignedUrl signed;
+		try {
+			signed = restClient.post()
+					.uri("/sign/{bucket}/{key}", bucket, key)
+					.header(API_KEY_HEADER, secretKey)
+					.contentType(MediaType.APPLICATION_JSON)
+					.body(Map.of("expiresIn", validity.toSeconds()))
+					.retrieve()
+					.body(SignedUrl.class);
+		} catch (RestClientException exception) {
+			log.error("No se pudo firmar un enlace al archivo {} en Supabase Storage", key, exception);
+			throw new StorageUnavailableException(exception);
+		}
+		if (signed == null || signed.signedURL() == null) {
+			log.error("Supabase Storage respondió sin el enlace firmado del archivo {}", key);
+			throw new StorageUnavailableException(null);
+		}
+		// Supabase devuelve la ruta desde /storage/v1, con la firma en la consulta.
+		return URI.create(storageUrl + signed.signedURL());
+	}
+
+	private record SignedUrl(String signedURL) {
+	}
+
 	// Sin configuración la aplicación arranca igual (CI y entornos locales), y
-	// guardar o borrar responde como no disponible.
+	// guardar, borrar o firmar responde como no disponible.
 	private void requireConfiguration(String key) {
 		if (!configured) {
 			log.warn("Supabase Storage sin configurar (SUPABASE_*): no se procesa el archivo {}", key);

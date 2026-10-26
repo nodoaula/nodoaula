@@ -1,10 +1,12 @@
 package io.github.nodoaula.shared.storage;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
@@ -13,6 +15,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -28,8 +31,8 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
 /**
- * Cubre el cliente de Supabase Storage: la petición que envía al guardar y al
- * borrar, y el trato de los errores. Supabase nunca se llama: se sustituye el
+ * Cubre el cliente de Supabase Storage: la petición que envía al guardar, al
+ * borrar y al firmar un enlace, y el trato de los errores. Supabase nunca se llama: se sustituye el
  * RestClient con MockRestServiceServer.
  */
 class SupabaseFileStorageTests {
@@ -38,6 +41,7 @@ class SupabaseFileStorageTests {
 	private static final String SECRET_KEY = "clave-de-prueba";
 	private static final String BUCKET = "notes-dev";
 	private static final String OBJECT_URL = URL + "/storage/v1/object/" + BUCKET + "/apunte.pdf";
+	private static final String SIGN_URL = URL + "/storage/v1/object/sign/" + BUCKET + "/apunte.pdf";
 
 	@TempDir
 	private Path tempDir;
@@ -90,12 +94,42 @@ class SupabaseFileStorageTests {
 	}
 
 	@Test
+	void signsATemporaryLinkToTheFileWithTheSecretKey() {
+		server.expect(requestTo(SIGN_URL))
+				.andExpect(method(HttpMethod.POST))
+				.andExpect(header("apikey", SECRET_KEY))
+				.andExpect(jsonPath("$.expiresIn").value(60))
+				.andRespond(withSuccess("{\"signedURL\":\"/object/sign/notes-dev/apunte.pdf?token=firma\"}",
+						MediaType.APPLICATION_JSON));
+
+		URI link = storage.signedUrl("apunte.pdf", Duration.ofSeconds(60));
+
+		assertEquals(URI.create(URL + "/storage/v1/object/sign/notes-dev/apunte.pdf?token=firma"), link);
+	}
+
+	@Test
+	void aSigningErrorBecomesUnavailable() {
+		server.expect(requestTo(SIGN_URL)).andRespond(withServerError());
+
+		assertThrows(StorageUnavailableException.class, () -> storage.signedUrl("apunte.pdf", Duration.ofSeconds(60)));
+	}
+
+	@Test
+	void aSignatureWithoutTheLinkIsUnavailable() {
+		server.expect(requestTo(SIGN_URL)).andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+		assertThrows(StorageUnavailableException.class, () -> storage.signedUrl("apunte.pdf", Duration.ofSeconds(60)));
+	}
+
+	@Test
 	void withoutConfigurationNothingIsSentAndItIsUnavailable() {
 		RestClient.Builder builder = RestClient.builder();
 		MockRestServiceServer unusedServer = MockRestServiceServer.bindTo(builder).build();
 		SupabaseFileStorage unconfigured = new SupabaseFileStorage(builder, "", "", "");
 
 		assertThrows(StorageUnavailableException.class, () -> unconfigured.delete("apunte.pdf"));
+		assertThrows(StorageUnavailableException.class,
+				() -> unconfigured.signedUrl("apunte.pdf", Duration.ofSeconds(60)));
 		unusedServer.verify();
 	}
 
