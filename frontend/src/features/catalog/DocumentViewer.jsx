@@ -128,10 +128,14 @@ function Reader({ file, title, previewOf, onError }) {
   const [availableWidth, setAvailableWidth] = useState(null)
   const pagesRef = useRef(null)
   const slotsRef = useRef(new Map())
+  const lockedPageRef = useRef(null)
 
   const zoom = ZOOM_LEVELS[zoomIndex]
   const pageWidth = availableWidth === null ? null : Math.floor(Math.min(BASE_PAGE_WIDTH, availableWidth) * zoom)
   const pageNumbers = pageRatios === null || pageWidth === null ? [] : pageRatios.map((_, index) => index + 1)
+  // Con zoom, la invitación no se amplía más allá del espacio visible: en el
+  // celular quedaría cortada dentro del desplazamiento horizontal.
+  const lockedPageWidth = pageWidth === null ? null : Math.min(pageWidth, Math.floor(availableWidth))
 
   useEffect(() => {
     const observer = new ResizeObserver(([entry]) => setAvailableWidth(entry.contentRect.width))
@@ -170,6 +174,10 @@ function Reader({ file, title, previewOf, onError }) {
       near.observe(slot)
       reading.observe(slot)
     }
+    // Quien salta hasta la invitación, con Tab o por encabezados, sigue en la
+    // última página de la vista previa. Solo cuenta para el contador: no es
+    // una página que dibujar.
+    if (lockedPageRef.current) reading.observe(lockedPageRef.current)
     return () => {
       near.disconnect()
       reading.disconnect()
@@ -208,7 +216,7 @@ function Reader({ file, title, previewOf, onError }) {
           </span>
           {previewOf !== null && pageRatios !== null && (
             <span className="rounded-full border border-accent/35 px-2.5 py-0.5 font-mono text-xs text-accent tabular-nums">
-              Vista previa<span className="max-sm:hidden"> · {pageRatios.length} de {previewOf} páginas</span>
+              Vista previa<span className="max-sm:sr-only"> · {pageRatios.length} de {previewOf} páginas</span>
             </span>
           )}
         </div>
@@ -281,8 +289,9 @@ function Reader({ file, title, previewOf, onError }) {
         </Document>
         {previewOf !== null && pageNumbers.length > 0 && (
           <LockedPage
-            width={pageWidth}
-            height={Math.round(pageWidth * pageRatios.at(-1))}
+            ref={lockedPageRef}
+            width={lockedPageWidth}
+            height={Math.round(lockedPageWidth * pageRatios.at(-1))}
             shown={pageRatios.length}
             total={previewOf}
           />
@@ -293,15 +302,15 @@ function Reader({ file, title, previewOf, onError }) {
 }
 
 // En la vista previa, el celular abrevia el contador: así la barra cabe en una
-// fila junto a la etiqueta.
+// fila junto a la etiqueta. El lector de pantalla oye siempre la forma completa.
 function PageCounter({ current, total, compact }) {
   if (!compact) return `Página ${current} de ${total}`
   return (
     <>
-      <span className="max-sm:hidden">
+      <span className="max-sm:sr-only">
         Página {current} de {total}
       </span>
-      <span className="sm:hidden">
+      <span aria-hidden="true" className="sm:hidden">
         {current} / {total}
       </span>
     </>
@@ -314,9 +323,11 @@ const BLURRED_LINES = ['62%', '100%', '92%', '97%', '78%', '95%', '54%']
 // página borrosa que se funde con el fondo y, sobre ella, la invitación. La
 // invitación ocupa su sitio en vez de flotar encima: donde no cabe, como en el
 // celular o en una página apaisada, la página crece en lugar de cortarla.
-function LockedPage({ width, height, shown, total }) {
+function LockedPage({ ref, width, height, shown, total }) {
   return (
     <div
+      ref={ref}
+      data-page={shown}
       className="relative mx-auto mt-3 flex flex-col items-center pb-6 sm:mt-5"
       style={{ width, minHeight: height, paddingTop: Math.round(height * 0.3) }}
     >

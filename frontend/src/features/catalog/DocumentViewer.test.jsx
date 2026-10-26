@@ -227,6 +227,48 @@ describe('DocumentViewer', () => {
     expect(screen.getByText('Volverá a /recursos/36')).toBeInTheDocument()
   })
 
+  it('con zoom, la invitación no es más ancha que el espacio visible', async () => {
+    requestPreviewLink.mockResolvedValue({ url: SIGNED_URL })
+    renderViewer({ previewOf: 14 })
+
+    const zoomIn = await screen.findByRole('button', { name: 'Ampliar' })
+    fireEvent.click(zoomIn)
+    fireEvent.click(zoomIn)
+
+    const lockedPage = screen.getByRole('heading', { name: 'Estás viendo 3 de 14 páginas' }).closest('[data-page]')
+    expect(lockedPage.style.width).toBe('640px')
+  })
+
+  it('si se salta hasta la invitación, el contador marca la última página de la vista previa', async () => {
+    // Solo la invitación cruza la mitad de la pantalla, como tras un Tab hasta sus enlaces.
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(callback, { rootMargin }) {
+          this.callback = callback
+          this.reading = rootMargin.startsWith('-50%')
+        }
+        observe(target) {
+          const isIntersecting = !this.reading || target.querySelector('h2') !== null
+          queueMicrotask(() => this.callback([{ target, isIntersecting }]))
+        }
+        disconnect() {}
+      },
+    )
+    requestPreviewLink.mockResolvedValue({ url: SIGNED_URL })
+    renderViewer({ previewOf: 14 })
+
+    expect(await screen.findByText('Página 3 de 14')).toBeInTheDocument()
+  })
+
+  it('en el celular el lector de pantalla oye el contador completo, no su forma corta', async () => {
+    requestPreviewLink.mockResolvedValue({ url: SIGNED_URL })
+    renderViewer({ previewOf: 14 })
+
+    expect(await screen.findByText('1 / 14')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByText('Página 1 de 14')).not.toHaveAttribute('aria-hidden')
+  })
+
   it('si falla la descarga del archivo lo dice', async () => {
     requestDocumentLink.mockResolvedValue({ url: SIGNED_URL })
     fetch.mockResolvedValue(new Response('', { status: 400 }))

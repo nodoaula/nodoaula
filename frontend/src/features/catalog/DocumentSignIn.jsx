@@ -30,7 +30,7 @@ export function SignInInvitation({ title, children }) {
           <path d="M8 11V8a4 4 0 0 1 8 0v3" />
         </svg>
       </span>
-      <h2 className="mt-1 text-lead font-semibold tracking-tight text-content">{title}</h2>
+      <h2 className="mt-1 text-lead font-semibold tracking-tight text-balance text-content">{title}</h2>
       <p className="max-w-sm text-body text-content-muted">{children}</p>
       <div className="mt-3 flex flex-wrap justify-center gap-3">
         <Link to="/iniciar-sesion" state={origin} className={buttonClasses('primary')}>

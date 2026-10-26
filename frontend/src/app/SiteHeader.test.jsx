@@ -1,13 +1,12 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import SiteHeader from './SiteHeader.jsx'
 
-vi.mock('../session/useSession.js', () => ({
-  useSession: () => ({ status: 'ready', account: { id: 7, email: 'aporte@ejemplo.com' } }),
-}))
+let session = { status: 'ready', account: { id: 7, email: 'aporte@ejemplo.com' } }
+vi.mock('../session/useSession.js', () => ({ useSession: () => session }))
 vi.mock('../session/useLogout.js', () => ({
   useLogout: () => ({ loggingOut: false, logoutFailed: false, handleLogout: vi.fn() }),
 }))
@@ -21,8 +20,50 @@ function renderHeader() {
   )
 }
 
+// Las pantallas de la cuenta muestran a dónde volverán después.
+function AccountPage() {
+  const { state } = useLocation()
+  return <p>Volverá a {state?.from}</p>
+}
+
+function renderSignedOutHeaderAt(entry) {
+  session = { status: 'ready', account: null }
+  return render(
+    <MemoryRouter initialEntries={[entry]}>
+      <SiteHeader />
+      <Routes>
+        <Route path="iniciar-sesion" element={<AccountPage />} />
+        <Route path="registro" element={<AccountPage />} />
+        <Route path="*" element={null} />
+      </Routes>
+    </MemoryRouter>,
+  )
+}
+
 describe('SiteHeader', () => {
-  afterEach(cleanup)
+  afterEach(() => {
+    cleanup()
+    session = { status: 'ready', account: { id: 7, email: 'aporte@ejemplo.com' } }
+  })
+
+  // Historia HU412: quien se convence leyendo la vista previa no pierde el apunte.
+  it('sin sesión, iniciar sesión y crear cuenta vuelven a la página donde se estaba', async () => {
+    const user = userEvent.setup()
+    renderSignedOutHeaderAt('/catalogo/cursos/7?topic=Integral')
+
+    await user.click(screen.getByRole('link', { name: 'Crear cuenta' }))
+
+    expect(screen.getByText('Volverá a /catalogo/cursos/7?topic=Integral')).toBeInTheDocument()
+  })
+
+  it('desde una pantalla de la cuenta conserva a dónde se volvía', async () => {
+    const user = userEvent.setup()
+    renderSignedOutHeaderAt({ pathname: '/registro', state: { from: '/recursos/6' } })
+
+    await user.click(screen.getByRole('link', { name: 'Iniciar sesión' }))
+
+    expect(screen.getByText('Volverá a /recursos/6')).toBeInTheDocument()
+  })
 
   it('«Aportar» abre las dos formas de aportar', async () => {
     const user = userEvent.setup()

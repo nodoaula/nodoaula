@@ -1,10 +1,20 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { Link, NavLink } from 'react-router'
+import { Link, NavLink, useLocation } from 'react-router'
 
 import { buttonClasses } from '../components/ui/button.js'
 import { SESSION_STATUS } from '../session/SessionContext.js'
 import { useLogout } from '../session/useLogout.js'
 import { useSession } from '../session/useSession.js'
+
+const ACCOUNT_PAGES = new Set(['/iniciar-sesion', '/registro'])
+
+// Al iniciar sesión o crear la cuenta se vuelve a la página donde se estaba,
+// con sus filtros. Desde las propias pantallas de la cuenta se conserva a dónde
+// volvían ellas.
+function useReturnOrigin() {
+  const { pathname, search, state } = useLocation()
+  return { from: ACCOUNT_PAGES.has(pathname) ? state?.from : pathname + search }
+}
 
 /** Cabecera de todo el sitio: la usan la página de entrada y AppLayout. */
 export default function SiteHeader() {
@@ -13,6 +23,7 @@ export default function SiteHeader() {
   // Mientras no se sabe si hay sesión no se ofrece crear cuenta ni iniciarla,
   // para no enseñárselo a quien ya la tiene.
   const signedOut = status !== SESSION_STATUS.LOADING && account === null
+  const origin = useReturnOrigin()
 
   return (
     <header className="relative mx-auto flex h-18 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
@@ -29,10 +40,10 @@ export default function SiteHeader() {
         </NavLink>
         {signedOut && (
           <>
-            <Link to="/iniciar-sesion" className="hover:text-content">
+            <Link to="/iniciar-sesion" state={origin} className="hover:text-content">
               Iniciar sesión
             </Link>
-            <Link to="/registro" className={buttonClasses('primary')}>
+            <Link to="/registro" state={origin} className={buttonClasses('primary')}>
               Crear cuenta
             </Link>
           </>
