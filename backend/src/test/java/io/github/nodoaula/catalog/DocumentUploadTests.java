@@ -351,6 +351,18 @@ class DocumentUploadTests {
 	}
 
 	@Test
+	void withTheStorageFullTheUploadIsRejectedBeforeReadingTheFile() throws Exception {
+		Course course = courseRepository.save(new Course(COURSE));
+		resourceRepository.save(Resource.document("Apunte que llena el almacenamiento", null, LocalDate.now(BOGOTA),
+				course, AUTHOR_ID, new DocumentFile("lleno.pdf", ResourceService.STORAGE_LIMIT_BYTES, 1)));
+
+		// No es un PDF: si se leyera, la respuesta sería el error del archivo.
+		mockMvc.perform(upload(file("apunte.pdf", "no soy un pdf".getBytes(StandardCharsets.UTF_8))))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(jsonPath("$.code").value("DOCUMENT_STORAGE_FULL"));
+	}
+
+	@Test
 	void theStoredBytesIncludeThePreviews() {
 		Course course = courseRepository.save(new Course(COURSE));
 		Resource document = Resource.document("Apunte con vista previa", null, LocalDate.now(BOGOTA), course,

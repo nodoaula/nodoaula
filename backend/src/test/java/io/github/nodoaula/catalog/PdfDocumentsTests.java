@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
@@ -48,6 +49,28 @@ class PdfDocumentsTests {
 
 		FieldValidationException exception = assertThrows(FieldValidationException.class,
 				() -> PdfDocuments.writePreview(notAPdf, 1, tempDir.resolve("vista-previa.pdf")));
+
+		assertEquals("file", exception.getField());
+	}
+
+	// Un PDF que declara más páginas de las que trae: countPages se fía de lo
+	// declarado, y la vista previa saldría con menos páginas de las que se
+	// registrarían.
+	@ParameterizedTest
+	@CsvSource({ "1, 10", "0, 10" })
+	void aPdfThatDeclaresPagesItDoesNotHaveHasNoPreview(int realPages, int declaredPages) throws IOException {
+		Path source = tempDir.resolve("roto.pdf");
+		try (PDDocument document = new PDDocument()) {
+			for (int i = 0; i < realPages; i++) {
+				document.addPage(new PDPage());
+			}
+			document.getDocumentCatalog().getCOSObject().getCOSDictionary(COSName.PAGES)
+					.setInt(COSName.COUNT, declaredPages);
+			document.save(source.toFile());
+		}
+
+		FieldValidationException exception = assertThrows(FieldValidationException.class,
+				() -> PdfDocuments.writePreview(source, 3, tempDir.resolve("vista-previa.pdf")));
 
 		assertEquals("file", exception.getField());
 	}

@@ -391,6 +391,11 @@ public class ResourceService {
 	 */
 	public ResourceDto createDocument(DocumentUploadRequest request, Long authorId) {
 		MultipartFile upload = request.file();
+		// Si ni el archivo cabe, se rechaza antes de procesarlo. La vista previa
+		// se suma después, cuando se conoce su tamaño.
+		if (resourceRepository.totalStoredBytes() + upload.getSize() > STORAGE_LIMIT_BYTES) {
+			throw new DocumentStorageFullException();
+		}
 		// PDFBox necesita leer el archivo desde el disco, y el almacenamiento lo
 		// sube desde esa misma copia.
 		Path pdf = copyToTempFile(upload);
