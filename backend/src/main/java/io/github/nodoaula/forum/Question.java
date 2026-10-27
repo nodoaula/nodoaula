@@ -40,6 +40,9 @@ class Question {
 
 	private Long retiredBy;
 
+	// La respuesta que quien preguntó marcó como útil, o null.
+	private Long usefulAnswerId;
+
 	protected Question() {
 	}
 
@@ -55,6 +58,14 @@ class Question {
 	void retire(Long accountId, Instant at) {
 		this.retiredBy = accountId;
 		this.retiredAt = at;
+	}
+
+	void markUseful(Answer answer) {
+		this.usefulAnswerId = answer.getId();
+	}
+
+	void clearUseful() {
+		this.usefulAnswerId = null;
 	}
 
 	Long getId() {
@@ -87,6 +98,10 @@ class Question {
 
 	boolean isRetired() {
 		return retiredAt != null;
+	}
+
+	Long getUsefulAnswerId() {
+		return usefulAnswerId;
 	}
 
 }
