@@ -74,7 +74,46 @@ function readCsrfToken() {
   return cookie === undefined ? null : decodeURIComponent(cookie.slice(prefix.length))
 }
 
-function sendOnce(path, method, body, csrfToken, attemptTimeoutMs) {
+function readResponseHeaders(xhr) {
+  const headers = new Headers()
+  for (const line of xhr.getAllResponseHeaders().trim().split('\r\n')) {
+    const separator = line.indexOf(': ')
+    if (separator > 0) headers.append(line.slice(0, separator), line.slice(separator + 2))
+  }
+  return headers
+}
+
+// `fetch` no informa de cuánto lleva enviado una subida; XMLHttpRequest sí.
+// Se comporta como `fetch` (devuelve un Response, falla con TypeError si falla
+// la red y con AbortError si se aborta) para que el resto del cliente trate
+// la respuesta y los errores igual, venga de uno o de otro.
+function sendWithProgress(url, { method, signal, headers, body }, onUploadProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open(method, url)
+    for (const [name, value] of Object.entries(headers)) xhr.setRequestHeader(name, value)
+
+    // Sin pasar por la fracción: 0,29 × 100 da 28,999… y se mostraría 28 %.
+    xhr.upload.onprogress = (event) => onUploadProgress(Math.floor((event.loaded * 100) / event.total))
+    xhr.onload = () => resolve(xhr)
+    xhr.onerror = () => reject(new TypeError('Falló la red durante el envío'))
+    xhr.onabort = () => reject(new DOMException('Se abortó el envío', 'AbortError'))
+    signal.addEventListener('abort', () => xhr.abort())
+
+    xhr.send(body)
+  }).then((xhr) => (
+    // Fuera del manejador de onload: si Response rechaza la respuesta, la
+    // promesa falla en el acto en vez de quedar pendiente hasta el plazo.
+    // Un 204 no admite cuerpo, ni siquiera vacío.
+    new Response(xhr.responseText === '' ? null : xhr.responseText, {
+      status: xhr.status,
+      statusText: xhr.statusText,
+      headers: readResponseHeaders(xhr),
+    })
+  ))
+}
+
+function sendOnce(path, method, body, csrfToken, attemptTimeoutMs, onUploadProgress) {
   // `fetch` no tiene tiempo de espera propio: sin esto, una petición que el
   // servidor nunca contesta deja la promesa pendiente para siempre.
   const controller = new AbortController()
@@ -85,12 +124,14 @@ function sendOnce(path, method, body, csrfToken, attemptTimeoutMs) {
   // cuerpos van como JSON.
   const isForm = body instanceof URLSearchParams || body instanceof FormData
 
-  return fetch(`${API_PREFIX}${path}`, {
+  const url = `${API_PREFIX}${path}`
+  const init = {
     method,
     signal: controller.signal,
 
     // El navegador ve un solo sitio, de modo que la cookie de sesión es de
-    // primera parte y este valor basta para enviarla.
+    // primera parte y este valor basta para enviarla. XMLHttpRequest la envía
+    // igual sin que se le pida.
     credentials: 'same-origin',
 
     headers: {
@@ -99,7 +140,10 @@ function sendOnce(path, method, body, csrfToken, attemptTimeoutMs) {
       ...(csrfToken === null ? {} : { [CSRF_HEADER]: csrfToken }),
     },
     body: body === undefined || isForm ? body : JSON.stringify(body),
-  }).finally(() => clearTimeout(timer))
+  }
+
+  const sent = onUploadProgress === undefined ? fetch(url, init) : sendWithProgress(url, init, onUploadProgress)
+  return sent.finally(() => clearTimeout(timer))
 }
 
 async function readBody(response) {
@@ -165,6 +209,7 @@ async function request(path, {
   body,
   attemptTimeoutMs = DEFAULT_ATTEMPT_TIMEOUT_MS,
   totalTimeoutMs = DEFAULT_TOTAL_TIMEOUT_MS,
+  onUploadProgress,
 } = {}) {
   // Solo se reintentan los GET: tras un tiempo agotado no puede saberse si el
   // backend procesó la petición, y repetir un POST crearía dos veces.
@@ -185,7 +230,7 @@ async function request(path, {
 
     try {
       const csrfToken = needsCsrf ? readCsrfToken() : null
-      response = await sendOnce(path, method, body, csrfToken, attemptTimeoutMs)
+      response = await sendOnce(path, method, body, csrfToken, attemptTimeoutMs, onUploadProgress)
     } catch (error) {
       failure = error
     }

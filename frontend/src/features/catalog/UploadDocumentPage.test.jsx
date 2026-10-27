@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -48,6 +48,21 @@ async function fillValidForm(user) {
   await user.click(await screen.findByLabelText('Escribe un tema'))
   await user.click(await screen.findByRole('option', { name: 'Series' }))
   await user.click(screen.getByLabelText(/Declaro que este apunte es de mi autoría/))
+}
+
+// Deja la subida a medias para que la prueba haga de red: informa del
+// progreso y la termina cuando quiere.
+function pendingUpload() {
+  const { promise, resolve, reject } = Promise.withResolvers()
+  const upload = {
+    finish: (resource) => act(async () => resolve(resource)),
+    fail: (error) => act(async () => reject(error)),
+  }
+  createDocument.mockImplementation(({ onProgress }) => {
+    upload.progress = (percent) => act(() => onProgress(percent))
+    return promise
+  })
+  return upload
 }
 
 describe('UploadDocumentPage', () => {
@@ -133,6 +148,7 @@ describe('UploadDocumentPage', () => {
       course: 'Cálculo Integral',
       topics: ['Series'],
       rightsDeclared: true,
+      onProgress: expect.any(Function),
     })
     const heading = await screen.findByRole('heading', { name: 'Publicaste «Series y sucesiones»' })
     expect(heading).toHaveFocus()
@@ -141,6 +157,7 @@ describe('UploadDocumentPage', () => {
     await user.click(screen.getByRole('button', { name: 'Subir otro apunte' }))
     await chooseFile(user)
     expect(screen.getByRole('button', { name: 'Cambiar de curso' }).parentElement).toHaveTextContent('Cálculo Integral')
+    expect(screen.getByRole('button', { name: 'Publicar apunte' })).toBeEnabled()
   })
 
   it('crear un curso nuevo lo envía con su nombre', async () => {
@@ -188,6 +205,73 @@ describe('UploadDocumentPage', () => {
     expect(await screen.findByText(/Este apunte ya está en el catálogo/)).toBeInTheDocument()
     expect(screen.getByLabelText('Cambiar archivo')).toHaveFocus()
     expect(screen.getByLabelText('Título')).toHaveValue('Series y sucesiones')
+  })
+
+  it('mientras envía muestra el porcentaje real y, al terminar el envío, que se está procesando', async () => {
+    const user = userEvent.setup()
+    const upload = pendingUpload()
+    renderPage()
+
+    await fillValidForm(user)
+    await user.click(screen.getByRole('button', { name: 'Publicar apunte' }))
+    upload.progress(45)
+
+    expect(screen.getByRole('progressbar', { name: 'Envío del apunte' })).toHaveAttribute('value', '45')
+    expect(screen.getByText('45 %')).toBeInTheDocument()
+    expect(screen.getByText('Subiendo 2,4 MB. No cierres esta pestaña.')).toBeInTheDocument()
+
+    upload.progress(100)
+    expect(screen.getByRole('progressbar', { name: 'Envío del apunte' })).toHaveAttribute('value', '100')
+    expect(screen.getByText('Enviado. Revisando el PDF y guardándolo. No cierres esta pestaña.')).toBeInTheDocument()
+
+    await upload.finish({ id: 40, title: 'Series y sucesiones' })
+    expect(screen.getByRole('heading', { name: 'Publicaste «Series y sucesiones»' })).toBeInTheDocument()
+  })
+
+  it('mientras envía no deja cambiar ni quitar el archivo que se está subiendo', async () => {
+    const user = userEvent.setup()
+    const upload = pendingUpload()
+    renderPage()
+
+    await fillValidForm(user)
+    await user.click(screen.getByRole('button', { name: 'Publicar apunte' }))
+
+    expect(screen.getByLabelText('Cambiar archivo')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Quitar' })).toBeDisabled()
+
+    await upload.fail(new ApiError('red', { status: null }))
+    expect(screen.getByLabelText('Cambiar archivo')).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Quitar' })).toBeEnabled()
+  })
+
+  it('si la subida falla, la barra se queda donde se detuvo y se muestra el error', async () => {
+    const user = userEvent.setup()
+    const upload = pendingUpload()
+    renderPage()
+
+    await fillValidForm(user)
+    await user.click(screen.getByRole('button', { name: 'Publicar apunte' }))
+    upload.progress(62)
+    await upload.fail(new ApiError('red', { status: null }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent('No se pudo contactar con el servidor. Revisa tu conexión e inténtalo de nuevo.')
+    expect(screen.getByRole('progressbar', { name: 'Envío del apunte' })).toHaveAttribute('value', '62')
+    expect(screen.getByRole('button', { name: 'Publicar apunte' })).toBeEnabled()
+    expect(screen.queryByText(/No cierres esta pestaña/)).not.toBeInTheDocument()
+  })
+
+  it('al elegir otro archivo tras un fallo, la barra del intento anterior desaparece', async () => {
+    const user = userEvent.setup()
+    const upload = pendingUpload()
+    renderPage()
+
+    await fillValidForm(user)
+    await user.click(screen.getByRole('button', { name: 'Publicar apunte' }))
+    upload.progress(62)
+    await upload.fail(new ApiError('red', { status: null }))
+    await user.upload(screen.getByLabelText('Cambiar archivo'), pdf('otro.pdf'))
+
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
   })
 
   it('sin espacio en el almacenamiento lo explica y no pierde lo escrito', async () => {

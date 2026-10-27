@@ -1,10 +1,12 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Link, Navigate, useSearchParams } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
 import CoursePicker from '../../components/ui/CoursePicker.jsx'
 import NodePath from '../../components/ui/NodePath.jsx'
 import Notice from '../../components/ui/Notice.jsx'
+import ProgressBar from '../../components/ui/ProgressBar.jsx'
 import TextInput from '../../components/ui/TextInput.jsx'
 import TopicPicker from '../../components/ui/TopicPicker.jsx'
 import { CSRF_ERROR_CODE } from '../../lib/apiClient.js'
@@ -95,6 +97,8 @@ export default function UploadDocumentPage() {
   const [fieldErrors, setFieldErrors] = useState({})
   const [formError, setFormError] = useState(null)
   const [sending, setSending] = useState(false)
+  // Porcentaje enviado del último intento; null antes de publicar.
+  const [progress, setProgress] = useState(null)
   const [published, setPublished] = useState(null)
 
   useEffect(() => {
@@ -151,6 +155,7 @@ export default function UploadDocumentPage() {
       return
     }
     setFile(picked)
+    setProgress(null)
     clearFieldError('file')
     // El título propuesto sigue al archivo hasta que el usuario lo escriba él.
     if (title === '' || titleFromFile) {
@@ -193,6 +198,7 @@ export default function UploadDocumentPage() {
     }
 
     setSending(true)
+    setProgress(0)
     try {
       const resource = await createDocument({
         file,
@@ -201,16 +207,21 @@ export default function UploadDocumentPage() {
         course: course.name,
         topics,
         rightsDeclared,
+        onProgress: setProgress,
       })
       setPublished({ resource, courseName: course.name, topics })
+      setSending(false)
     } catch (error) {
       console.error('No se pudo publicar el apunte', error)
       const failure = describeFailure(error)
-      setFieldErrors(failure.fieldErrors ?? {})
-      setFormError(failure.formError ?? null)
+      // El archivo no se puede cambiar mientras se envía: el fin del envío
+      // tiene que estar ya en la página para que el foco llegue a él.
+      flushSync(() => {
+        setSending(false)
+        setFieldErrors(failure.fieldErrors ?? {})
+        setFormError(failure.formError ?? null)
+      })
       focusFirstInvalid(failure.fieldErrors ?? {})
-    } finally {
-      setSending(false)
     }
   }
 
@@ -229,6 +240,8 @@ export default function UploadDocumentPage() {
   const pathItems = [{ label: 'Catálogo', to: '/catalogo' }]
   if (entryCourse) pathItems.push({ label: entryCourse.name, to: `/catalogo/cursos/${entryCourse.id}` })
   const hasErrors = Object.values(fieldErrors).some(Boolean)
+  // Enviado por completo: el servidor revisa el PDF y lo guarda antes de responder.
+  const processing = sending && progress === 100
 
   return (
     <main className="mx-auto max-w-6xl px-4 pt-9 pb-18 sm:px-6">
@@ -246,7 +259,7 @@ export default function UploadDocumentPage() {
         <>
           <WherePath course={course} topics={topics} title={title.trim()} />
           <div className="mt-7 grid items-start gap-7 md:grid-cols-[15rem_minmax(0,1fr)] md:gap-14">
-            <FileSheet file={file} onFile={pickFile} onRemove={removeFile} error={fieldErrors.file} />
+            <FileSheet file={file} onFile={pickFile} onRemove={removeFile} disabled={sending} error={fieldErrors.file} />
 
             <form onSubmit={handleSubmit} noValidate className="flex max-w-3xl flex-col">
               <Step done={course !== null} title="¿De qué curso es?" intro="Elígelo para que tu apunte aparezca junto a sus videos.">
@@ -342,15 +355,22 @@ export default function UploadDocumentPage() {
                   <button type="submit" disabled={sending} className={buttonClasses('primary', 'lg')}>
                     {sending ? 'Publicando…' : 'Publicar apunte'}
                   </button>
+                  {/* La frase no lleva el porcentaje: es una región viva y el
+                      lector de pantalla la leería en cada avance. */}
                   {sending && (
                     <output className="text-label text-content-muted">
-                      Subiendo {formatFileSize(file.size)}. No cierres esta pestaña.
+                      {processing
+                        ? 'Enviado. Revisando el PDF y guardándolo. No cierres esta pestaña.'
+                        : `Subiendo ${formatFileSize(file.size)}. No cierres esta pestaña.`}
                     </output>
                   )}
                   {hasErrors && !sending && (
                     <p role="alert" className="text-label text-red-400">Revisa los campos marcados.</p>
                   )}
                 </div>
+
+                {/* Tras un fallo se queda donde se detuvo, en gris. */}
+                {progress !== null && <ProgressBar value={progress} label="Envío del apunte" stopped={!sending} />}
               </Step>
             </form>
           </div>
@@ -362,13 +382,14 @@ export default function UploadDocumentPage() {
 
 // El input queda oculto a la vista pero no al teclado: el foco llega a él con
 // Tab y el anillo se dibuja en la etiqueta, que es lo que se ve como botón.
-function FilePicker({ id, className, onFile, children }) {
+function FilePicker({ id, className, onFile, disabled = false, children }) {
   return (
     <>
       <input
         id={id}
         type="file"
         accept="application/pdf,.pdf"
+        disabled={disabled}
         className="peer sr-only"
         onChange={(event) => {
           onFile(event.target.files[0])
@@ -378,7 +399,7 @@ function FilePicker({ id, className, onFile, children }) {
       />
       <label
         htmlFor={id}
-        className={`${className} cursor-pointer peer-focus-visible:outline-2 peer-focus-visible:outline-offset-3 peer-focus-visible:outline-accent`}
+        className={`${className} cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-60 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-3 peer-focus-visible:outline-accent`}
       >
         {children}
       </label>
@@ -426,7 +447,9 @@ function DropZone({ onFile, error }) {
   )
 }
 
-function FileSheet({ file, onFile, onRemove, error }) {
+// Mientras se envía, el archivo no se cambia: lo que se publica es lo que ya
+// está subiendo.
+function FileSheet({ file, onFile, onRemove, disabled, error }) {
   return (
     <aside aria-label="Archivo elegido" className="flex items-center gap-4 md:flex-col md:items-stretch">
       <div
@@ -446,10 +469,15 @@ function FileSheet({ file, onFile, onRemove, error }) {
         <p className="text-body font-medium break-words text-content">{file.name}</p>
         <p className="font-mono text-label text-content-muted">PDF · {formatFileSize(file.size)}</p>
         <div className="mt-1 flex gap-4 text-label font-medium">
-          <FilePicker id="pdf-cambiar" className="text-accent underline underline-offset-4" onFile={onFile}>
+          <FilePicker id="pdf-cambiar" className="text-accent underline underline-offset-4" onFile={onFile} disabled={disabled}>
             Cambiar archivo
           </FilePicker>
-          <button type="button" onClick={onRemove} className="text-accent underline underline-offset-4">
+          <button
+            type="button"
+            onClick={onRemove}
+            disabled={disabled}
+            className="text-accent underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-60"
+          >
             Quitar
           </button>
         </div>

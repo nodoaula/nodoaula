@@ -115,9 +115,10 @@ const UPLOAD_TIMEOUT_MS = 5 * 60_000
 
 /**
  * Sube un apunte (historia HU302). Exige sesión iniciada; el backend toma el
- * autor de ella. Devuelve el recurso creado, con la misma forma que el listado.
+ * autor de ella. `onProgress` recibe el porcentaje enviado, de 0 a 100
+ * (historia HU414). Devuelve el recurso creado, con la misma forma que el listado.
  */
-export function createDocument({ file, title, description, course, topics, rightsDeclared }) {
+export function createDocument({ file, title, description, course, topics, rightsDeclared, onProgress }) {
   const form = new FormData()
   form.append('file', file)
   form.append('title', title)
@@ -129,5 +130,6 @@ export function createDocument({ file, title, description, course, topics, right
   return post('/resources/documents', form, {
     attemptTimeoutMs: UPLOAD_TIMEOUT_MS,
     totalTimeoutMs: UPLOAD_TIMEOUT_MS,
+    onUploadProgress: onProgress,
   })
 }
