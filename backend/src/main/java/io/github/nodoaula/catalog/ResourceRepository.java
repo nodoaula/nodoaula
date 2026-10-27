@@ -35,11 +35,16 @@ interface ResourceRepository extends JpaRepository<Resource, Long> {
 			@Param("resourceTypes") List<ResourceType> resourceTypes);
 
 	/**
-	 * Bytes que ocupan en el almacenamiento los archivos de todos los apuntes,
-	 * también los retirados: el retiro es lógico y su archivo se conserva.
+	 * Bytes que ocupan en el almacenamiento los archivos de todos los apuntes y
+	 * sus vistas previas, también los retirados: el retiro es lógico y sus
+	 * archivos se conservan.
 	 */
-	@Query("select coalesce(sum(r.file.sizeBytes), 0) from Resource r")
+	@Query("select coalesce(sum(r.file.sizeBytes), 0) + coalesce(sum(r.preview.sizeBytes), 0) from Resource r")
 	long totalStoredBytes();
+
+	/** Apuntes sin vista previa (historia HU412), también los retirados, en el orden en que se subieron. */
+	@Query("select r from Resource r where r.file.key is not null and r.preview.key is null order by r.id")
+	List<Resource> findDocumentsWithoutPreview();
 
 	/** Si ya hay un apunte con ese contenido (SHA-256 en hexadecimal). */
 	@Query("select count(r) > 0 from Resource r where r.file.sha256 = :sha256")

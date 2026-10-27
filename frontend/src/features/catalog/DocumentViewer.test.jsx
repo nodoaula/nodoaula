@@ -1,9 +1,9 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { MemoryRouter } from 'react-router'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../../lib/apiClient.js'
-import { requestDocumentLink } from './api.js'
+import { requestDocumentLink, requestPreviewLink } from './api.js'
 import DocumentViewer from './DocumentViewer.jsx'
 
 // jsdom no tiene workers ni puede ejecutar PDF.js: se sustituyen el worker y
@@ -30,15 +30,27 @@ vi.mock('react-pdf', () => ({
   Page: ({ pageNumber }) => <p>Página dibujada {pageNumber}</p>,
 }))
 
-vi.mock('./api.js', () => ({ requestDocumentLink: vi.fn() }))
+vi.mock('./api.js', () => ({ requestDocumentLink: vi.fn(), requestPreviewLink: vi.fn() }))
 
 const PDF = new Blob(['%PDF-1.7'], { type: 'application/pdf' })
 const SIGNED_URL = 'https://proyecto.supabase.co/storage/v1/object/sign/notes/apunte.pdf?token=firma'
 
-function renderViewer() {
+// Iniciar sesión muestra la ruta a la que volverá después.
+function SignInPage() {
+  const { state } = useLocation()
+  return <p>Volverá a {state?.from}</p>
+}
+
+function renderViewer({ previewOf } = {}) {
   return render(
     <MemoryRouter initialEntries={['/recursos/36']}>
-      <DocumentViewer resourceId={36} title="Integración por partes" />
+      <Routes>
+        <Route
+          path="recursos/:resourceId"
+          element={<DocumentViewer resourceId={36} title="Integración por partes" previewOf={previewOf} />}
+        />
+        <Route path="iniciar-sesion" element={<SignInPage />} />
+      </Routes>
     </MemoryRouter>,
   )
 }
@@ -183,6 +195,78 @@ describe('DocumentViewer', () => {
     renderViewer()
 
     expect(await screen.findByText('Inicia sesión para leer este apunte')).toBeInTheDocument()
+  })
+
+  // Historia HU412: la vista previa, sin sesión.
+  it('en la vista previa pide su enlace, dice cuántas páginas son y no ofrece descargar', async () => {
+    requestPreviewLink.mockResolvedValue({ url: SIGNED_URL })
+    renderViewer({ previewOf: 14 })
+
+    expect(await screen.findByText('Página dibujada 3')).toBeInTheDocument()
+    expect(requestPreviewLink).toHaveBeenCalledWith(36)
+    expect(requestDocumentLink).not.toHaveBeenCalled()
+    // En el celular se oculta la cuenta de la etiqueta: se busca por su texto completo.
+    expect(
+      screen.getByText((_, element) => element?.textContent === 'Vista previa · 3 de 14 páginas' && element.tagName === 'SPAN'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Página 1 de 14')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Descargar' })).not.toBeInTheDocument()
+  })
+
+  it('al final de la vista previa invita a iniciar sesión y a volver a esta ficha', async () => {
+    requestPreviewLink.mockResolvedValue({ url: SIGNED_URL })
+    renderViewer({ previewOf: 14 })
+
+    expect(await screen.findByRole('heading', { name: 'Estás viendo 3 de 14 páginas' })).toBeInTheDocument()
+    expect(
+      screen.getByText('Inicia sesión para leer el apunte completo y descargarlo. Crear una cuenta es gratis.'),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Crear cuenta' })).toHaveAttribute('href', '/registro')
+
+    fireEvent.click(screen.getByRole('link', { name: 'Iniciar sesión' }))
+    expect(screen.getByText('Volverá a /recursos/36')).toBeInTheDocument()
+  })
+
+  it('con zoom, la invitación no es más ancha que el espacio visible', async () => {
+    requestPreviewLink.mockResolvedValue({ url: SIGNED_URL })
+    renderViewer({ previewOf: 14 })
+
+    const zoomIn = await screen.findByRole('button', { name: 'Ampliar' })
+    fireEvent.click(zoomIn)
+    fireEvent.click(zoomIn)
+
+    const lockedPage = screen.getByRole('heading', { name: 'Estás viendo 3 de 14 páginas' }).closest('[data-page]')
+    expect(lockedPage.style.width).toBe('640px')
+  })
+
+  it('si se salta hasta la invitación, el contador marca la última página de la vista previa', async () => {
+    // Solo la invitación cruza la mitad de la pantalla, como tras un Tab hasta sus enlaces.
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(callback, { rootMargin }) {
+          this.callback = callback
+          this.reading = rootMargin.startsWith('-50%')
+        }
+        observe(target) {
+          const isIntersecting = !this.reading || target.querySelector('h2') !== null
+          queueMicrotask(() => this.callback([{ target, isIntersecting }]))
+        }
+        disconnect() {}
+      },
+    )
+    requestPreviewLink.mockResolvedValue({ url: SIGNED_URL })
+    renderViewer({ previewOf: 14 })
+
+    expect(await screen.findByText('Página 3 de 14')).toBeInTheDocument()
+  })
+
+  it('en el celular el lector de pantalla oye el contador completo, no su forma corta', async () => {
+    requestPreviewLink.mockResolvedValue({ url: SIGNED_URL })
+    renderViewer({ previewOf: 14 })
+
+    expect(await screen.findByText('1 / 14')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByText('Página 1 de 14')).not.toHaveAttribute('aria-hidden')
   })
 
   it('si falla la descarga del archivo lo dice', async () => {

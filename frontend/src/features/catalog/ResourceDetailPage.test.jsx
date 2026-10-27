@@ -11,14 +11,23 @@ vi.mock('./api.js', () => ({ getResource: vi.fn(), retireResource: vi.fn(), repu
 let session = { status: 'ready', account: null }
 vi.mock('../../session/useSession.js', () => ({ useSession: () => session }))
 
-// El visor usa PDF.js, que jsdom no ejecuta: tiene sus propias pruebas.
-vi.mock('./DocumentViewer.jsx', () => ({
-  default: ({ resourceId, title }) => (
-    <p>
-      Visor del apunte {resourceId}: {title}
-    </p>
-  ),
-}))
+// El visor usa PDF.js, que jsdom no ejecuta: tiene sus propias pruebas. Cada
+// visor montado de cero recibe un número nuevo.
+let viewerMounts = 0
+vi.mock('./DocumentViewer.jsx', async () => {
+  const { useState } = await import('react')
+  return {
+    default: function DocumentViewer({ resourceId, title, previewOf }) {
+      const [mount] = useState(() => ++viewerMounts)
+      return (
+        <p data-mount={mount}>
+          Visor del apunte {resourceId}: {title}
+          {previewOf && ` (vista previa de ${previewOf} páginas)`}
+        </p>
+      )
+    },
+  }
+})
 
 // El reproductor carga el script de YouTube; aquí basta con que nunca termine.
 vi.mock('./youtubeIframeApi.js', () => ({ loadYouTubeIframeApi: () => new Promise(() => {}) }))
@@ -46,6 +55,7 @@ const DOCUMENT = {
   publishedAt: '2026-10-06',
   pageCount: 14,
   fileSizeBytes: 3250586,
+  previewPageCount: null,
 }
 
 // La línea de datos reparte cada dato en su propio elemento: se busca por el
@@ -54,14 +64,18 @@ function dataLine(text) {
   return (_, element) => element?.tagName === 'SPAN' && element.children.length > 0 && element.textContent === text
 }
 
-function renderDetail() {
-  return render(
+function detailTree() {
+  return (
     <MemoryRouter initialEntries={['/recursos/24']}>
       <Routes>
         <Route path="recursos/:resourceId" element={<ResourceDetailPage />} />
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>
   )
+}
+
+function renderDetail() {
+  return render(detailTree())
 }
 
 describe('ResourceDetailPage', () => {
@@ -134,12 +148,37 @@ describe('ResourceDetailPage', () => {
     expect(screen.getByRole('tab', { name: 'Apunte' })).toBeInTheDocument()
   })
 
-  it('con sesión, un apunte se lee en el visor', async () => {
+  it('con sesión, un apunte se lee completo en el visor, aunque tenga vista previa', async () => {
     session = { status: 'ready', account: { id: 5, email: 'lectora@example.com' } }
-    getResource.mockResolvedValue(DOCUMENT)
+    getResource.mockResolvedValue({ ...DOCUMENT, previewPageCount: 4 })
     renderDetail()
 
     expect(await screen.findByText(`Visor del apunte 24: ${VIDEO.title}`)).toBeInTheDocument()
+    expect(screen.queryByText('Inicia sesión para leer este apunte')).not.toBeInTheDocument()
+  })
+
+  // Del apunte completo a la vista previa no queda nada del visor anterior.
+  it('al cerrar la sesión mientras se lee, el visor vuelve a empezar con la vista previa', async () => {
+    session = { status: 'ready', account: { id: 5, email: 'lectora@example.com' } }
+    getResource.mockResolvedValue({ ...DOCUMENT, previewPageCount: 4 })
+    const { rerender } = renderDetail()
+    const full = await screen.findByText(`Visor del apunte 24: ${VIDEO.title}`)
+
+    session = { status: 'ready', account: null }
+    rerender(detailTree())
+
+    const preview = await screen.findByText(`Visor del apunte 24: ${VIDEO.title} (vista previa de 14 páginas)`)
+    expect(preview.dataset.mount).not.toBe(full.dataset.mount)
+  })
+
+  // Historia HU412: sin sesión, se leen las primeras páginas.
+  it('sin sesión, un apunte con vista previa la muestra en el visor', async () => {
+    getResource.mockResolvedValue({ ...DOCUMENT, previewPageCount: 4 })
+    renderDetail()
+
+    expect(
+      await screen.findByText(`Visor del apunte 24: ${VIDEO.title} (vista previa de 14 páginas)`),
+    ).toBeInTheDocument()
     expect(screen.queryByText('Inicia sesión para leer este apunte')).not.toBeInTheDocument()
   })
 

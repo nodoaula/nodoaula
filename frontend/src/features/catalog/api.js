@@ -28,6 +28,14 @@ export function requestDocumentLink(resourceId) {
   return post(`/resources/${encodeURIComponent(resourceId)}/document-link`)
 }
 
+/**
+ * Enlace firmado a la vista previa de un apunte (historia HU412). No exige
+ * sesión y, como el del apunte, caduca al minuto.
+ */
+export function requestPreviewLink(resourceId) {
+  return post(`/resources/${encodeURIComponent(resourceId)}/preview-link`)
+}
+
 export function listCoursesWithResources() {
   return get('/resources/courses')
 }

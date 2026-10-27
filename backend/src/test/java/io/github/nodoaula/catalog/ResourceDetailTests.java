@@ -55,7 +55,8 @@ class ResourceDetailTests {
 				.andExpect(jsonPath("$.courseId").value(courseId))
 				.andExpect(jsonPath("$.course").value(COURSE))
 				.andExpect(jsonPath("$.pageCount").value(nullValue()))
-				.andExpect(jsonPath("$.fileSizeBytes").value(nullValue()));
+				.andExpect(jsonPath("$.fileSizeBytes").value(nullValue()))
+				.andExpect(jsonPath("$.previewPageCount").value(nullValue()));
 	}
 
 	// Historia HU411: la ficha de un apunte dice cuántas páginas tiene y cuánto pesa.
@@ -68,7 +69,23 @@ class ResourceDetailTests {
 		mockMvc.perform(get("/api/resources/" + id))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.pageCount").value(14))
-				.andExpect(jsonPath("$.fileSizeBytes").value(3_250_586));
+				.andExpect(jsonPath("$.fileSizeBytes").value(3_250_586))
+				.andExpect(jsonPath("$.previewPageCount").value(nullValue()));
+	}
+
+	// Historia HU412: y cuántas páginas tiene su vista previa, si la tiene.
+	@Test
+	void aDocumentDetailIncludesThePagesOfItsPreview() throws Exception {
+		Course course = courseRepository.save(new Course(COURSE));
+		Resource document = Resource.document("Apunte de la prueba de la vista previa", null,
+				LocalDate.of(2026, 10, 20), course, 0L, new DocumentFile("ficha-vista.pdf", 3_250_586, 14));
+		document.attachPreview(new DocumentPreview("ficha-vista-vista-previa.pdf", 900_000, 4));
+		Long id = resourceRepository.saveAndFlush(document).getId();
+
+		mockMvc.perform(get("/api/resources/" + id))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.pageCount").value(14))
+				.andExpect(jsonPath("$.previewPageCount").value(4));
 	}
 
 }

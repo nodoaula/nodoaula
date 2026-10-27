@@ -289,16 +289,24 @@ function ContentPanel({ resource }) {
   )
 }
 
-// Leer el apunte completo exige sesión (historia HU411).
+// Leer el apunte completo exige sesión (historia HU411). Sin ella se leen las
+// primeras páginas, si el apunte tiene vista previa (historia HU412).
 function DocumentContent({ resource }) {
   const { status, account } = useSession()
 
   if (status === SESSION_STATUS.LOADING) return <DocumentLoading />
-  if (account === null) return <DocumentSignIn />
+  if (account === null && resource.previewPageCount == null) return <DocumentSignIn />
 
+  // Con otra clave al cambiar de modo, como al cerrar la sesión mientras se lee,
+  // el visor vuelve a empezar en vez de mezclar el apunte con su vista previa.
   return (
     <Suspense fallback={<DocumentLoading />}>
-      <DocumentViewer resourceId={resource.id} title={resource.title} />
+      <DocumentViewer
+        key={account === null ? 'vista-previa' : 'completo'}
+        resourceId={resource.id}
+        title={resource.title}
+        previewOf={account === null ? resource.pageCount : null}
+      />
     </Suspense>
   )
 }

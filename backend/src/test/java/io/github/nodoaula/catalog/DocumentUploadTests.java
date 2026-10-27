@@ -10,7 +10,9 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -27,7 +29,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -35,7 +40,9 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.encryption.AccessPermission;
 import org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
+import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -53,13 +60,15 @@ import org.springframework.transaction.support.TransactionTemplate;
 import com.jayway.jsonpath.JsonPath;
 
 import io.github.nodoaula.catalog.ResourceEntryMethodTests.TestAuthor;
+import io.github.nodoaula.shared.error.FieldValidationException;
 import io.github.nodoaula.shared.storage.FileStorage;
 import io.github.nodoaula.shared.storage.StorageUnavailableException;
 
 /**
  * Cubre la subida de un apunte (historia HU302): la sesión, la validación del
  * PDF y del formulario, el nombre que genera el servidor, lo que se guarda,
- * la compensación si falla el registro y el tope del almacenamiento.
+ * la compensación si falla el registro y el tope del almacenamiento. También
+ * la vista previa que se genera al subirlo (historia HU412).
  *
  * El almacenamiento real nunca se llama: se sustituye esa frontera,
  * FileStorage, igual que VideoMetadataProvider en las pruebas de YouTube.
@@ -81,6 +90,8 @@ class DocumentUploadTests {
 
 	@MockitoBean private FileStorage fileStorage;
 	@MockitoSpyBean private TransactionTemplate transactionTemplate;
+
+	@TempDir private Path tempDir;
 
 	@Test
 	void uploadsAValidPdfUnderAGeneratedNameAndRegistersIt() throws Exception {
@@ -266,7 +277,7 @@ class DocumentUploadTests {
 				.andExpect(jsonPath("$.code").value("DOCUMENT_ALREADY_UPLOADED"));
 
 		assertEquals(resources, resourceRepository.count());
-		verify(fileStorage, org.mockito.Mockito.times(1)).store(anyString(), any(), anyString());
+		verify(fileStorage, times(1)).store(anyString(), any(), anyString());
 	}
 
 	@Test
@@ -283,6 +294,133 @@ class DocumentUploadTests {
 
 		Resource saved = resourceRepository.findById(JsonPath.<Number>read(body, "$.id").longValue()).orElseThrow();
 		assertEquals(sha256Of(pdf), saved.getFile().sha256());
+	}
+
+	@Test
+	void aDocumentOfMoreThanThreePagesIsStoredWithAPreviewOfItsFirstPages() throws Exception {
+		byte[] pdf = Files.readAllBytes(
+				PdfDocumentsTests.pagesOfWidths(tempDir.resolve("diez.pdf"), 200, 201, 202, 203, 204, 205, 206, 207, 208, 209));
+		// El temporal se borra al terminar la subida: se lee mientras se guarda.
+		Map<String, List<Float>> storedWidths = new HashMap<>();
+		Map<String, Long> storedSizes = new HashMap<>();
+		doAnswer(invocation -> {
+			Path stored = invocation.getArgument(1);
+			storedWidths.put(invocation.getArgument(0), PdfDocumentsTests.widthsOf(stored));
+			storedSizes.put(invocation.getArgument(0), Files.size(stored));
+			return null;
+		}).when(fileStorage).store(anyString(), any(), eq(MediaType.APPLICATION_PDF_VALUE));
+
+		String body = mockMvc.perform(upload(file("diez páginas.pdf", pdf)))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+
+		Resource saved = resourceRepository.findById(JsonPath.<Number>read(body, "$.id").longValue()).orElseThrow();
+		String fileKey = saved.getFile().key();
+		String previewKey = fileKey.replace(".pdf", "-vista-previa.pdf");
+		assertEquals(Set.of(fileKey, previewKey), storedWidths.keySet());
+		assertEquals(List.of(200f, 201f, 202f), storedWidths.get(previewKey));
+		assertEquals(new DocumentPreview(previewKey, storedSizes.get(previewKey), 3), saved.getPreview());
+	}
+
+	@Test
+	void aDocumentOfThreePagesOrFewerHasNoPreview() throws Exception {
+		String body = mockMvc.perform(upload(file("tres páginas.pdf", pdf(3))))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+
+		verify(fileStorage, times(1)).store(anyString(), any(), anyString());
+		assertNull(resourceRepository.findById(JsonPath.<Number>read(body, "$.id").longValue()).orElseThrow()
+				.getPreview());
+	}
+
+	@Test
+	void theStorageLimitCountsThePreview() throws Exception {
+		byte[] pdf = pdf(10);
+		// Cabe el original, pero no el original con su vista previa.
+		Course course = courseRepository.save(new Course(COURSE));
+		resourceRepository.save(Resource.document("Apunte que casi llena el almacenamiento", null,
+				LocalDate.now(BOGOTA), course, AUTHOR_ID,
+				new DocumentFile("casi-lleno.pdf", ResourceService.STORAGE_LIMIT_BYTES - pdf.length, 1)));
+
+		mockMvc.perform(upload(file("apunte.pdf", pdf)))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(jsonPath("$.code").value("DOCUMENT_STORAGE_FULL"));
+
+		verify(fileStorage, never()).store(anyString(), any(), anyString());
+	}
+
+	@Test
+	void withTheStorageFullTheUploadIsRejectedBeforeReadingTheFile() throws Exception {
+		Course course = courseRepository.save(new Course(COURSE));
+		resourceRepository.save(Resource.document("Apunte que llena el almacenamiento", null, LocalDate.now(BOGOTA),
+				course, AUTHOR_ID, new DocumentFile("lleno.pdf", ResourceService.STORAGE_LIMIT_BYTES, 1)));
+
+		// No es un PDF: si se leyera, la respuesta sería el error del archivo.
+		mockMvc.perform(upload(file("apunte.pdf", "no soy un pdf".getBytes(StandardCharsets.UTF_8))))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(jsonPath("$.code").value("DOCUMENT_STORAGE_FULL"));
+	}
+
+	@Test
+	void theStoredBytesIncludeThePreviews() {
+		Course course = courseRepository.save(new Course(COURSE));
+		Resource document = Resource.document("Apunte con vista previa", null, LocalDate.now(BOGOTA), course,
+				AUTHOR_ID, new DocumentFile("con-vista-previa.pdf", 1_000, 10));
+		document.attachPreview(new DocumentPreview("con-vista-previa-vista-previa.pdf", 300, 3));
+		long before = resourceRepository.totalStoredBytes();
+
+		resourceRepository.saveAndFlush(document);
+
+		assertEquals(before + 1_300, resourceRepository.totalStoredBytes());
+	}
+
+	@Test
+	void ifStoringThePreviewFailsNothingIsRegisteredAndBothFilesAreDeleted() throws Exception {
+		doAnswer(invocation -> {
+			if (invocation.<String>getArgument(0).endsWith("-vista-previa.pdf")) {
+				throw new StorageUnavailableException(null);
+			}
+			return null;
+		}).when(fileStorage).store(anyString(), any(), anyString());
+		long before = resourceRepository.count();
+
+		mockMvc.perform(upload(file("apunte.pdf", pdf(10))))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(jsonPath("$.code").value("STORAGE_UNAVAILABLE"));
+
+		assertEquals(before, resourceRepository.count());
+		expectEveryStoredFileDeleted(2);
+	}
+
+	@Test
+	void ifTheRegistrationFailsTheDocumentAndItsPreviewAreDeleted() throws IOException {
+		doThrow(new DataIntegrityViolationException("registro simulado")).when(transactionTemplate).execute(any());
+		DocumentUploadRequest request = new DocumentUploadRequest(file("apunte.pdf", pdf(10)), TITLE, null, COURSE,
+				List.of("Tema A"), true);
+
+		assertThrows(DataIntegrityViolationException.class, () -> resourceService.createDocument(request, AUTHOR_ID));
+
+		expectEveryStoredFileDeleted(2);
+	}
+
+	@Test
+	void ifThePreviewCannotBeGeneratedNothingIsStoredOrRegistered() throws Exception {
+		Answer<Object> failingPreview = invocation -> {
+			if (invocation.getMethod().getName().equals("writePreview")) {
+				throw new FieldValidationException("file", "Fallo simulado al generar la vista previa.");
+			}
+			return invocation.callRealMethod();
+		};
+
+		try (var _ = mockStatic(PdfDocuments.class, failingPreview)) {
+			expectFileRejected(file("apunte.pdf", pdf(10)));
+		}
+	}
+
+	private void expectEveryStoredFileDeleted(int files) {
+		ArgumentCaptor<String> keys = ArgumentCaptor.forClass(String.class);
+		verify(fileStorage, times(files)).store(keys.capture(), any(), anyString());
+		keys.getAllValues().forEach(key -> verify(fileStorage).delete(key));
 	}
 
 	private static String sha256Of(byte[] content) throws Exception {

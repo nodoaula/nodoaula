@@ -1,18 +1,11 @@
 package io.github.nodoaula.catalog;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.text.Normalizer;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -384,49 +377,81 @@ public class ResourceService {
 	}
 
 	/**
-	 * Sube un apunte y lo registra (historia HU302). El archivo se guarda antes
-	 * que el registro y fuera de la transacción, para no retener una conexión
-	 * de la base mientras se sube; si después el registro falla, se borra.
+	 * Sube un apunte y lo registra (historia HU302), con su vista previa
+	 * (historia HU412). Los archivos se guardan antes que el registro y fuera
+	 * de la transacción, para no retener una conexión de la base mientras se
+	 * suben; si después algo falla, se borran.
 	 */
 	public ResourceDto createDocument(DocumentUploadRequest request, Long authorId) {
 		MultipartFile upload = request.file();
-		if (resourceRepository.totalStoredBytes() + upload.getSize() > STORAGE_LIMIT_BYTES) {
+		// Si ni el archivo cabe, se rechaza antes de procesarlo. La vista previa
+		// se suma después, cuando se conoce su tamaño.
+		long storedBytes = resourceRepository.totalStoredBytes();
+		if (storedBytes + upload.getSize() > STORAGE_LIMIT_BYTES) {
 			throw new DocumentStorageFullException();
 		}
-
 		// PDFBox necesita leer el archivo desde el disco, y el almacenamiento lo
 		// sube desde esa misma copia.
-		Path pdf = copyToTempFile(upload);
+		Path pdf = TempFiles.copyOf(upload);
+		Path previewPdf = null;
 		try {
 			int pageCount = PdfDocuments.countPages(pdf);
-			String sha256 = sha256Of(pdf);
+			String sha256 = TempFiles.sha256Of(pdf);
 			if (resourceRepository.existsByFileSha256(sha256)) {
 				throw new DocumentAlreadyUploadedException();
 			}
-			DocumentFile file = new DocumentFile(UUID.randomUUID() + ".pdf", upload.getSize(), pageCount, sha256);
-			storeOrDeleteFile(file.key(), pdf);
-			return saveDocumentOrDeleteFile(request, file, authorId);
+			String name = UUID.randomUUID().toString();
+			DocumentFile file = new DocumentFile(name + ".pdf", upload.getSize(), pageCount, sha256);
+			List<StagedFile> staged = new ArrayList<>(List.of(new StagedFile(file.key(), pdf)));
+			long newBytes = file.sizeBytes();
+
+			// Se genera antes de guardar nada: si falla, no queda ningún archivo.
+			DocumentPreview preview = null;
+			int previewPages = PdfDocuments.previewPageCount(pageCount);
+			if (previewPages > 0) {
+				previewPdf = TempFiles.create("vista-previa-");
+				long previewBytes = PdfDocuments.writePreview(pdf, previewPages, previewPdf);
+				preview = new DocumentPreview(DocumentPreview.keyFor(file.key()), previewBytes, previewPages);
+				staged.add(new StagedFile(preview.key(), previewPdf));
+				newBytes += preview.sizeBytes();
+			}
+
+			if (storedBytes + newBytes > STORAGE_LIMIT_BYTES) {
+				throw new DocumentStorageFullException();
+			}
+			storeOrDeleteFiles(staged);
+			return saveDocumentOrDeleteFiles(staged, request, file, preview, authorId);
 		} finally {
-			deleteTempFile(pdf);
+			TempFiles.delete(pdf);
+			if (previewPdf != null) {
+				TempFiles.delete(previewPdf);
+			}
 		}
 	}
 
-	// Que la subida falle al esperar la respuesta no prueba que el archivo no
-	// se guardara: se intenta borrar para no dejarlo sin registro.
-	private void storeOrDeleteFile(String key, Path pdf) {
+	// Un archivo en el disco, listo para guardarse con esa clave.
+	private record StagedFile(String key, Path path) {
+	}
+
+	// Que una subida falle al esperar la respuesta no prueba que el archivo no
+	// se guardara: se intentan borrar todos, también el que dio el error.
+	private void storeOrDeleteFiles(List<StagedFile> staged) {
 		try {
-			fileStorage.store(key, pdf, MediaType.APPLICATION_PDF_VALUE);
+			for (StagedFile file : staged) {
+				fileStorage.store(file.key(), file.path(), MediaType.APPLICATION_PDF_VALUE);
+			}
 		} catch (StorageUnavailableException exception) {
-			deleteStoredFile(key);
+			deleteStoredFiles(staged);
 			throw exception;
 		}
 	}
 
-	private ResourceDto saveDocumentOrDeleteFile(DocumentUploadRequest request, DocumentFile file, Long authorId) {
+	private ResourceDto saveDocumentOrDeleteFiles(List<StagedFile> staged, DocumentUploadRequest request,
+			DocumentFile file, DocumentPreview preview, Long authorId) {
 		try {
-			return transactionTemplate.execute(status -> saveDocument(request, file, authorId));
+			return transactionTemplate.execute(status -> saveDocument(request, file, preview, authorId));
 		} catch (RuntimeException exception) {
-			deleteStoredFile(file.key());
+			deleteStoredFiles(staged);
 			// Dos subidas simultáneas del mismo archivo pasan la comprobación
 			// previa: la segunda la detiene la restricción única de la tabla.
 			if (exception instanceof DataIntegrityViolationException
@@ -437,7 +462,8 @@ public class ResourceService {
 		}
 	}
 
-	private ResourceDto saveDocument(DocumentUploadRequest request, DocumentFile file, Long authorId) {
+	private ResourceDto saveDocument(DocumentUploadRequest request, DocumentFile file, DocumentPreview preview,
+			Long authorId) {
 		Course course = findOrCreateCourse(request.course().strip());
 
 		Resource resource = Resource.document(
@@ -447,6 +473,9 @@ public class ResourceService {
 				course,
 				authorId,
 				file);
+		if (preview != null) {
+			resource.attachPreview(preview);
+		}
 
 		addTopics(resource, course, request.topics());
 		resourceRepository.save(resource);
@@ -456,51 +485,14 @@ public class ResourceService {
 
 	// Un fallo al borrar no debe tapar el error del registro, que es el que
 	// recibe el usuario: el archivo queda sin registro y el log lo dice.
-	private void deleteStoredFile(String key) {
-		try {
-			fileStorage.delete(key);
-		} catch (StorageUnavailableException exception) {
-			log.error("El archivo {} quedó en el almacenamiento sin un recurso que lo registre", key, exception);
-		}
-	}
-
-	private static Path copyToTempFile(MultipartFile upload) {
-		Path pdf;
-		try {
-			pdf = Files.createTempFile("apunte-", ".pdf");
-		} catch (IOException exception) {
-			throw new UncheckedIOException(exception);
-		}
-		try {
-			upload.transferTo(pdf);
-			return pdf;
-		} catch (IOException exception) {
-			deleteTempFile(pdf);
-			throw new UncheckedIOException(exception);
-		}
-	}
-
-	private static String sha256Of(Path file) {
-		try (InputStream in = Files.newInputStream(file)) {
-			MessageDigest digest = MessageDigest.getInstance("SHA-256");
-			byte[] buffer = new byte[8192];
-			for (int read = in.read(buffer); read != -1; read = in.read(buffer)) {
-				digest.update(buffer, 0, read);
+	private void deleteStoredFiles(List<StagedFile> staged) {
+		for (StagedFile file : staged) {
+			try {
+				fileStorage.delete(file.key());
+			} catch (StorageUnavailableException exception) {
+				log.error("El archivo {} quedó en el almacenamiento sin un recurso que lo registre", file.key(),
+						exception);
 			}
-			return HexFormat.of().formatHex(digest.digest());
-		} catch (IOException exception) {
-			throw new UncheckedIOException(exception);
-		} catch (NoSuchAlgorithmException exception) {
-			// SHA-256 viene en todas las JVM: no puede faltar.
-			throw new IllegalStateException(exception);
-		}
-	}
-
-	private static void deleteTempFile(Path pdf) {
-		try {
-			Files.deleteIfExists(pdf);
-		} catch (IOException exception) {
-			log.warn("No se pudo borrar el temporal {}", pdf, exception);
 		}
 	}
 
@@ -551,6 +543,7 @@ public class ResourceService {
 
 		boolean canChange = canChange(resource, viewerId);
 		DocumentFile file = resource.getFile();
+		DocumentPreview preview = resource.getPreview();
 		return new ResourceDetailDto(
 				resource.getId(),
 				resource.getTitle(),
@@ -568,7 +561,8 @@ public class ResourceService {
 				canChange,
 				false,
 				file == null ? null : file.pageCount(),
-				file == null ? null : file.sizeBytes());
+				file == null ? null : file.sizeBytes(),
+				preview == null ? null : preview.pageCount());
 	}
 
 	// Sin su contenido: lo retirado por moderación no sigue a la vista por
@@ -591,6 +585,7 @@ public class ResourceService {
 				true,
 				false,
 				canRepublish,
+				null,
 				null,
 				null);
 	}

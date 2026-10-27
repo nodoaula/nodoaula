@@ -48,6 +48,10 @@ class SecurityConfig {
 						// El catálogo se consulta sin cuenta; la cuenta hace
 						// falta para aportar.
 						.requestMatchers(HttpMethod.GET, "/api/resources", "/api/resources/**").permitAll()
+						// La vista previa de un apunte es para quien no tiene
+						// cuenta (HU412). Un POST, porque suma al tope de
+						// transferencia: exige el token CSRF.
+						.requestMatchers(HttpMethod.POST, "/api/resources/*/preview-link").permitAll()
 						// El foro se lee sin cuenta y se escribe con ella (HU401).
 						.requestMatchers(HttpMethod.GET, "/api/forum/**").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/health", "/api/csrf").permitAll()

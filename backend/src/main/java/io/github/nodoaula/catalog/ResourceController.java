@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  * Registrar, corregir, retirar y volver a publicar un recurso, y pedir el
  * enlace al archivo de un apunte, sí la exigen,
  * sin regla propia en SecurityConfig porque ya la cubre
- * anyRequest().authenticated().
+ * anyRequest().authenticated(). El enlace a la vista previa es público.
  */
 @RestController
 @RequestMapping("/api/resources")
@@ -113,6 +113,16 @@ class ResourceController {
 	@PostMapping("/{id}/document-link")
 	DocumentLinkDto issueDocumentLink(@PathVariable Long id) {
 		return documentLinkService.issueLink(id);
+	}
+
+	/**
+	 * Enlace firmado a la vista previa de un apunte (historia HU412). Es para
+	 * quien no tiene sesión, y SecurityConfig la deja pública; como el enlace
+	 * al archivo, es un POST porque suma al tope de transferencia.
+	 */
+	@PostMapping("/{id}/preview-link")
+	DocumentLinkDto issuePreviewLink(@PathVariable Long id) {
+		return documentLinkService.issuePreviewLink(id);
 	}
 
 	/** Vuelve a publicar un recurso retirado (historia HU307). Responde su ficha. */
