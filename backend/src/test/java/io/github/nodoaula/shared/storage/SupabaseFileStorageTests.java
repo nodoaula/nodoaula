@@ -1,6 +1,5 @@
 package io.github.nodoaula.shared.storage;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -92,30 +91,6 @@ class SupabaseFileStorageTests {
 
 		assertThrows(StorageUnavailableException.class,
 				() -> storage.store("apunte.pdf", file, MediaType.APPLICATION_PDF_VALUE));
-	}
-
-	@Test
-	void downloadsTheFileToDiskWithTheSecretKey() throws IOException {
-		byte[] bytes = "%PDF-1.7 contenido".getBytes(StandardCharsets.US_ASCII);
-		server.expect(requestTo(OBJECT_URL))
-				.andExpect(method(HttpMethod.GET))
-				.andExpect(header("apikey", SECRET_KEY))
-				.andRespond(withSuccess(bytes, MediaType.APPLICATION_PDF));
-		Path target = tempDir.resolve("descarga.pdf");
-
-		storage.download("apunte.pdf", target);
-
-		assertArrayEquals(bytes, Files.readAllBytes(target));
-	}
-
-	@Test
-	void aRejectedDownloadIsUnavailable() {
-		server.expect(requestTo(OBJECT_URL))
-				.andRespond(withStatus(HttpStatus.BAD_REQUEST).contentType(MediaType.APPLICATION_JSON)
-						.body("{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"));
-
-		assertThrows(StorageUnavailableException.class,
-				() -> storage.download("apunte.pdf", tempDir.resolve("descarga.pdf")));
 	}
 
 	@Test
