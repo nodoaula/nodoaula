@@ -11,6 +11,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.env.Environment;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -54,6 +56,7 @@ class PendingPreviewsTaskTests {
 	@Autowired private PendingPreviewsTask task;
 	@Autowired private ResourceRepository resourceRepository;
 	@Autowired private CourseRepository courseRepository;
+	@Autowired private Environment environment;
 
 	@MockitoBean private FileStorage fileStorage;
 	@MockitoBean private TransferQuota transferQuota;
@@ -130,16 +133,28 @@ class PendingPreviewsTaskTests {
 		verify(fileStorage, never()).download(anyString(), any());
 	}
 
+	// Con el almacenamiento lleno, descargar los siguientes solo gastaría
+	// transferencia para rechazarlos también.
 	@Test
-	void aPreviewThatWouldPassTheStorageLimitIsNotStored() throws IOException {
+	void withTheStorageFullNoMoreDocumentsAreDownloaded() throws IOException {
 		Path original = PdfDocumentsTests.pagesOfWidths(tempDir.resolve("original.pdf"), 200, 201, 202, 203);
 		Resource document = saveDocument("lleno.pdf", ResourceService.STORAGE_LIMIT_BYTES, 4);
+		saveDocument("siguiente.pdf", Files.size(original), 4);
 		downloadsAs("lleno.pdf", original);
+		downloadsAs("siguiente.pdf", original);
 
 		task.generatePendingPreviews();
 
+		verify(fileStorage, times(1)).download(anyString(), any());
 		verify(fileStorage, never()).store(anyString(), any(), anyString());
 		assertNull(resourceRepository.findById(document.getId()).orElseThrow().getPreview());
+	}
+
+	@Test
+	void inTheTestsItDoesNotRunOnStartup() {
+		// La configuración de las pruebas se suma a la principal, no la reemplaza.
+		assertEquals("false", environment.getProperty("pending-previews.on-startup"));
+		assertEquals("20MB", environment.getProperty("spring.servlet.multipart.max-file-size"));
 	}
 
 	@Test

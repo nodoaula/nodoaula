@@ -4,6 +4,7 @@ import java.nio.file.Path;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.task.TaskExecutor;
@@ -31,25 +32,32 @@ class PendingPreviewsTask {
 	private final TransferQuota transferQuota;
 	private final TransactionTemplate transactionTemplate;
 	private final TaskExecutor taskExecutor;
+	// Las pruebas la apagan: con la base local de un desarrollador descargaría
+	// de Supabase en cada contexto.
+	private final boolean onStartup;
 
 	PendingPreviewsTask(ResourceRepository resourceRepository, FileStorage fileStorage, TransferQuota transferQuota,
-			TransactionTemplate transactionTemplate, TaskExecutor taskExecutor) {
+			TransactionTemplate transactionTemplate, TaskExecutor taskExecutor,
+			@Value("${pending-previews.on-startup:true}") boolean onStartup) {
 		this.resourceRepository = resourceRepository;
 		this.fileStorage = fileStorage;
 		this.transferQuota = transferQuota;
 		this.transactionTemplate = transactionTemplate;
 		this.taskExecutor = taskExecutor;
+		this.onStartup = onStartup;
 	}
 
 	@EventListener(ApplicationReadyEvent.class)
 	void onApplicationReady() {
-		taskExecutor.execute(this::generatePendingPreviews);
+		if (onStartup) {
+			taskExecutor.execute(this::generatePendingPreviews);
+		}
 	}
 
 	/**
 	 * Un apunte que falla queda en el log y no detiene a los demás. Sin
-	 * transferencia no se descarga ninguno: se intentará en el próximo
-	 * arranque.
+	 * transferencia o sin espacio no se descarga ninguno más: se intentará en
+	 * el próximo arranque.
 	 */
 	void generatePendingPreviews() {
 		for (Resource document : resourceRepository.findDocumentsWithoutPreview()) {
@@ -60,6 +68,9 @@ class PendingPreviewsTask {
 				generatePreview(document);
 			} catch (DocumentTransferExhaustedException _) {
 				log.warn("Sin transferencia para generar las vistas previas pendientes");
+				return;
+			} catch (DocumentStorageFullException _) {
+				log.warn("Sin espacio en el almacenamiento para las vistas previas pendientes");
 				return;
 			} catch (RuntimeException exception) {
 				log.error("No se pudo generar la vista previa del apunte {}", document.getId(), exception);
