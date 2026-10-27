@@ -33,7 +33,6 @@ class SupabaseFileStorage implements FileStorage {
 	private static final Logger log = LoggerFactory.getLogger(SupabaseFileStorage.class);
 
 	private static final String API_KEY_HEADER = "apikey";
-	private static final String OBJECT_PATH = "/{bucket}/{key}";
 
 	private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
 	// Plazo de la petición entera, envío incluido: un Supabase que deja de leer
@@ -76,7 +75,7 @@ class SupabaseFileStorage implements FileStorage {
 		requireConfiguration(key);
 		try {
 			restClient.post()
-					.uri(OBJECT_PATH, bucket, key)
+					.uri(uri -> uri.pathSegment(bucket, key).build())
 					.header(API_KEY_HEADER, secretKey)
 					.contentType(MediaType.parseMediaType(contentType))
 					.body(new FileSystemResource(file))
@@ -93,7 +92,7 @@ class SupabaseFileStorage implements FileStorage {
 		requireConfiguration(key);
 		try {
 			restClient.delete()
-					.uri(OBJECT_PATH, bucket, key)
+					.uri(uri -> uri.pathSegment(bucket, key).build())
 					.header(API_KEY_HEADER, secretKey)
 					.retrieve()
 					.toBodilessEntity();
@@ -114,7 +113,7 @@ class SupabaseFileStorage implements FileStorage {
 		requireConfiguration(key);
 		try {
 			restClient.get()
-					.uri(OBJECT_PATH, bucket, key)
+					.uri(uri -> uri.pathSegment(bucket, key).build())
 					.header(API_KEY_HEADER, secretKey)
 					.exchange((request, response) -> {
 						if (response.getStatusCode().isError()) {
