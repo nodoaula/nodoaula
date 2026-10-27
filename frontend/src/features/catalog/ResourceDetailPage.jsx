@@ -297,9 +297,12 @@ function DocumentContent({ resource }) {
   if (status === SESSION_STATUS.LOADING) return <DocumentLoading />
   if (account === null && resource.previewPageCount == null) return <DocumentSignIn />
 
+  // Con otra clave al cambiar de modo, como al cerrar la sesión mientras se lee,
+  // el visor vuelve a empezar en vez de mezclar el apunte con su vista previa.
   return (
     <Suspense fallback={<DocumentLoading />}>
       <DocumentViewer
+        key={account === null ? 'vista-previa' : 'completo'}
         resourceId={resource.id}
         title={resource.title}
         previewOf={account === null ? resource.pageCount : null}

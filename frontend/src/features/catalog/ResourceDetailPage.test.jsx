@@ -11,15 +11,23 @@ vi.mock('./api.js', () => ({ getResource: vi.fn(), retireResource: vi.fn(), repu
 let session = { status: 'ready', account: null }
 vi.mock('../../session/useSession.js', () => ({ useSession: () => session }))
 
-// El visor usa PDF.js, que jsdom no ejecuta: tiene sus propias pruebas.
-vi.mock('./DocumentViewer.jsx', () => ({
-  default: ({ resourceId, title, previewOf }) => (
-    <p>
-      Visor del apunte {resourceId}: {title}
-      {previewOf && ` (vista previa de ${previewOf} páginas)`}
-    </p>
-  ),
-}))
+// El visor usa PDF.js, que jsdom no ejecuta: tiene sus propias pruebas. Cada
+// visor montado de cero recibe un número nuevo.
+let viewerMounts = 0
+vi.mock('./DocumentViewer.jsx', async () => {
+  const { useState } = await import('react')
+  return {
+    default: function DocumentViewer({ resourceId, title, previewOf }) {
+      const [mount] = useState(() => ++viewerMounts)
+      return (
+        <p data-mount={mount}>
+          Visor del apunte {resourceId}: {title}
+          {previewOf && ` (vista previa de ${previewOf} páginas)`}
+        </p>
+      )
+    },
+  }
+})
 
 // El reproductor carga el script de YouTube; aquí basta con que nunca termine.
 vi.mock('./youtubeIframeApi.js', () => ({ loadYouTubeIframeApi: () => new Promise(() => {}) }))
@@ -143,6 +151,26 @@ describe('ResourceDetailPage', () => {
 
     expect(await screen.findByText(`Visor del apunte 24: ${VIDEO.title}`)).toBeInTheDocument()
     expect(screen.queryByText('Inicia sesión para leer este apunte')).not.toBeInTheDocument()
+  })
+
+  // Del apunte completo a la vista previa no queda nada del visor anterior.
+  it('al cerrar la sesión mientras se lee, el visor vuelve a empezar con la vista previa', async () => {
+    session = { status: 'ready', account: { id: 5, email: 'lectora@example.com' } }
+    getResource.mockResolvedValue({ ...DOCUMENT, previewPageCount: 4 })
+    const { rerender } = renderDetail()
+    const full = await screen.findByText(`Visor del apunte 24: ${VIDEO.title}`)
+
+    session = { status: 'ready', account: null }
+    rerender(
+      <MemoryRouter initialEntries={['/recursos/24']}>
+        <Routes>
+          <Route path="recursos/:resourceId" element={<ResourceDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const preview = await screen.findByText(`Visor del apunte 24: ${VIDEO.title} (vista previa de 14 páginas)`)
+    expect(preview.dataset.mount).not.toBe(full.dataset.mount)
   })
 
   // Historia HU412: sin sesión, se leen las primeras páginas.
