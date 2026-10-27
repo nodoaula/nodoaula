@@ -122,7 +122,6 @@ class Resource {
 		topics.add(topic);
 	}
 
-	// Al subirlo, o después para los apuntes anteriores a la historia HU412.
 	void attachPreview(DocumentPreview preview) {
 		this.preview = preview;
 	}

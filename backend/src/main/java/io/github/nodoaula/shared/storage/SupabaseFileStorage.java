@@ -2,9 +2,7 @@ package io.github.nodoaula.shared.storage;
 
 import java.net.URI;
 import java.net.http.HttpClient;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.Map;
 
@@ -19,7 +17,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestClientResponseException;
 
 /**
  * Única clase del backend que conoce a Supabase Storage.
@@ -109,27 +106,6 @@ class SupabaseFileStorage implements FileStorage {
 	}
 
 	@Override
-	public void download(String key, Path target) {
-		requireConfiguration(key);
-		try {
-			restClient.get()
-					.uri(uri -> uri.pathSegment(bucket, key).build())
-					.header(API_KEY_HEADER, secretKey)
-					.exchange((request, response) -> {
-						if (response.getStatusCode().isError()) {
-							throw new RestClientResponseException("Supabase Storage rechazó la descarga",
-									response.getStatusCode(), response.getStatusText(), response.getHeaders(), null, null);
-						}
-						Files.copy(response.getBody(), target, StandardCopyOption.REPLACE_EXISTING);
-						return null;
-					});
-		} catch (RestClientException exception) {
-			log.error("No se pudo descargar el archivo {} de Supabase Storage", key, exception);
-			throw new StorageUnavailableException(exception);
-		}
-	}
-
-	@Override
 	public URI signedUrl(String key, Duration validity) {
 		requireConfiguration(key);
 		SignedUrl signed;
@@ -157,7 +133,7 @@ class SupabaseFileStorage implements FileStorage {
 	}
 
 	// Sin configuración la aplicación arranca igual (CI y entornos locales), y
-	// guardar, borrar, descargar o firmar responde como no disponible.
+	// guardar, borrar o firmar responde como no disponible.
 	private void requireConfiguration(String key) {
 		if (!configured) {
 			log.warn("Supabase Storage sin configurar (SUPABASE_*): no se procesa el archivo {}", key);
