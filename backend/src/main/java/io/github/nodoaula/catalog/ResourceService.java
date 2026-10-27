@@ -393,7 +393,8 @@ public class ResourceService {
 		MultipartFile upload = request.file();
 		// Si ni el archivo cabe, se rechaza antes de procesarlo. La vista previa
 		// se suma después, cuando se conoce su tamaño.
-		if (resourceRepository.totalStoredBytes() + upload.getSize() > STORAGE_LIMIT_BYTES) {
+		long storedBytes = resourceRepository.totalStoredBytes();
+		if (storedBytes + upload.getSize() > STORAGE_LIMIT_BYTES) {
 			throw new DocumentStorageFullException();
 		}
 		// PDFBox necesita leer el archivo desde el disco, y el almacenamiento lo
@@ -422,7 +423,7 @@ public class ResourceService {
 				newBytes += preview.sizeBytes();
 			}
 
-			if (resourceRepository.totalStoredBytes() + newBytes > STORAGE_LIMIT_BYTES) {
+			if (storedBytes + newBytes > STORAGE_LIMIT_BYTES) {
 				throw new DocumentStorageFullException();
 			}
 			storeOrDeleteFiles(staged);

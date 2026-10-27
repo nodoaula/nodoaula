@@ -9,6 +9,7 @@ import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.io.IOUtils;
 import org.apache.pdfbox.multipdf.Splitter;
 import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
 
 import io.github.nodoaula.shared.error.FieldValidationException;
@@ -26,11 +27,16 @@ final class PdfDocuments {
 	/**
 	 * PDFBox lee del disco a medida que lo necesita, sin cargar el archivo
 	 * entero en memoria. Un PDF que solo restringe permisos, como imprimir,
-	 * se abre sin contraseña y se acepta.
+	 * se abre sin contraseña y se acepta. Las páginas se recorren en vez de
+	 * leer el total que declara el PDF: uno mal formado puede declarar páginas
+	 * que no trae.
 	 */
 	static int countPages(Path file) {
 		try (PDDocument document = Loader.loadPDF(file.toFile())) {
-			int pages = document.getNumberOfPages();
+			int pages = 0;
+			for (PDPage _ : document.getPages()) {
+				pages++;
+			}
 			if (pages == 0) {
 				throw invalid();
 			}
@@ -54,8 +60,8 @@ final class PdfDocuments {
 	 * Escribe en {@code target} un PDF con las primeras {@code pages} páginas y
 	 * devuelve su tamaño en bytes. Splitter solo copia los recursos que esas
 	 * páginas usan, y los flujos intermedios van a archivos temporales en vez
-	 * de a memoria. Un PDF que declara más páginas de las que trae se rechaza:
-	 * su vista previa saldría con menos páginas de las que se registrarían.
+	 * de a memoria. Si no salen exactamente esas páginas, el PDF está dañado y
+	 * se rechaza.
 	 */
 	static long writePreview(Path source, int pages, Path target) {
 		try (PDDocument document = Loader.loadPDF(source.toFile(), IOUtils.createTempFileOnlyStreamCache())) {

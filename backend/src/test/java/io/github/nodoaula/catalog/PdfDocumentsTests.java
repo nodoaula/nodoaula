@@ -59,20 +59,29 @@ class PdfDocumentsTests {
 	@ParameterizedTest
 	@CsvSource({ "1, 10", "0, 10" })
 	void aPdfThatDeclaresPagesItDoesNotHaveHasNoPreview(int realPages, int declaredPages) throws IOException {
-		Path source = tempDir.resolve("roto.pdf");
+		Path source = declaringPages(tempDir.resolve("roto.pdf"), realPages, declaredPages);
+
+		FieldValidationException exception = assertThrows(FieldValidationException.class,
+				() -> PdfDocuments.writePreview(source, 3, tempDir.resolve("vista-previa.pdf")));
+
+		assertEquals("file", exception.getField());
+	}
+
+	@Test
+	void thePagesCountedAreTheRealOnesNotTheDeclaredOnes() throws IOException {
+		assertEquals(5, PdfDocuments.countPages(declaringPages(tempDir.resolve("roto.pdf"), 5, 10)));
+	}
+
+	private static Path declaringPages(Path target, int realPages, int declaredPages) throws IOException {
 		try (PDDocument document = new PDDocument()) {
 			for (int i = 0; i < realPages; i++) {
 				document.addPage(new PDPage());
 			}
 			document.getDocumentCatalog().getCOSObject().getCOSDictionary(COSName.PAGES)
 					.setInt(COSName.COUNT, declaredPages);
-			document.save(source.toFile());
+			document.save(target.toFile());
 		}
-
-		FieldValidationException exception = assertThrows(FieldValidationException.class,
-				() -> PdfDocuments.writePreview(source, 3, tempDir.resolve("vista-previa.pdf")));
-
-		assertEquals("file", exception.getField());
+		return target;
 	}
 
 	/** Un PDF cuyas páginas se distinguen por su ancho, en puntos. */
