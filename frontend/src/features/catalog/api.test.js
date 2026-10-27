@@ -55,6 +55,7 @@ describe('updateResource', () => {
 describe('createDocument', () => {
   it('envía el archivo y los campos como multipart, con los nombres que espera el backend', () => {
     const file = new File(['%PDF-1.7'], 'notas.pdf', { type: 'application/pdf' })
+    const onProgress = vi.fn()
 
     createDocument({
       file,
@@ -63,6 +64,7 @@ describe('createDocument', () => {
       course: 'Cálculo Integral',
       topics: ['Series', 'Convergencia'],
       rightsDeclared: true,
+      onProgress,
     })
 
     const [path, form, options] = post.mock.calls[0]
@@ -76,5 +78,6 @@ describe('createDocument', () => {
     expect(form.get('rightsDeclared')).toBe('true')
     expect(options.attemptTimeoutMs).toBe(options.totalTimeoutMs)
     expect(options.attemptTimeoutMs).toBeGreaterThanOrEqual(5 * 60_000)
+    expect(options.onUploadProgress).toBe(onProgress)
   })
 })

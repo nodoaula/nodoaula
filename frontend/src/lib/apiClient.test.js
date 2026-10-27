@@ -95,4 +95,126 @@ describe('apiClient', () => {
     expect(error.timedOut).toBe(false)
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
+
+  describe('con progreso de subida', () => {
+    // Lo mínimo de XMLHttpRequest que usa el cliente, con métodos para que la
+    // prueba haga de red: informar del envío, responder o fallar.
+    class FakeXhr {
+      static sent = []
+      upload = {}
+      headers = {}
+      constructor() {
+        FakeXhr.sent.push(this)
+      }
+      open(method, url) {
+        this.method = method
+        this.url = url
+      }
+      setRequestHeader(name, value) {
+        this.headers[name] = value
+      }
+      send(body) {
+        this.body = body
+      }
+      abort() {
+        this.aborted = true
+        this.onabort()
+      }
+      getAllResponseHeaders() {
+        return 'content-type: application/problem+json\r\ncache-control: no-store\r\n'
+      }
+      progress(loaded, total) {
+        this.upload.onprogress({ loaded, total })
+      }
+      respond(status, body) {
+        this.status = status
+        this.statusText = ''
+        this.responseText = body === undefined ? '' : JSON.stringify(body)
+        this.onload()
+      }
+    }
+
+    beforeEach(() => {
+      FakeXhr.sent = []
+      vi.stubGlobal('XMLHttpRequest', FakeXhr)
+    })
+
+    async function upload(options) {
+      const result = post('/resources/documents', new FormData(), options).catch((failure) => failure)
+      await vi.waitFor(() => expect(FakeXhr.sent).toHaveLength(1))
+      return { result, xhr: FakeXhr.sent[0] }
+    }
+
+    it('envía por XMLHttpRequest con el token CSRF e informa del porcentaje enviado', async () => {
+      const onUploadProgress = vi.fn()
+      const { result, xhr } = await upload({ onUploadProgress })
+
+      // 0,29 × 100 da 28,999… en coma flotante: el porcentaje se calcula sin pasar por la fracción.
+      xhr.progress(29, 100)
+      xhr.progress(1024, 1024)
+      xhr.respond(201, { id: 40 })
+
+      await expect(result).resolves.toEqual({ id: 40 })
+      expect(onUploadProgress.mock.calls).toEqual([[29], [100]])
+      expect(xhr.method).toBe('POST')
+      expect(xhr.url).toBe('/api/resources/documents')
+      expect(xhr.body).toBeInstanceOf(FormData)
+      expect(xhr.headers).toEqual({ Accept: 'application/json', 'X-XSRF-TOKEN': CSRF_TOKEN })
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('una respuesta sin cuerpo se resuelve en null', async () => {
+      const { result, xhr } = await upload({ onUploadProgress: vi.fn() })
+
+      xhr.respond(204)
+
+      await expect(result).resolves.toBeNull()
+    })
+
+    it('una respuesta que no puede leerse falla en el acto, sin esperar al plazo', async () => {
+      const { result, xhr } = await upload({ onUploadProgress: vi.fn() })
+
+      // Un 205 no admite cuerpo: Response lo rechaza.
+      xhr.respond(205, { id: 40 })
+
+      const error = await result
+      expect(error).toBeInstanceOf(ApiError)
+      expect(error.timedOut).toBe(false)
+    })
+
+    it('un error del servidor llega con su código, como en el resto de peticiones', async () => {
+      const { result, xhr } = await upload({ onUploadProgress: vi.fn() })
+
+      xhr.respond(409, { code: 'DOCUMENT_ALREADY_UPLOADED' })
+
+      const error = await result
+      expect(error).toBeInstanceOf(ApiError)
+      expect(error.status).toBe(409)
+      expect(error.code).toBe('DOCUMENT_ALREADY_UPLOADED')
+      expect(FakeXhr.sent).toHaveLength(1)
+    })
+
+    it('un fallo de red se informa sin código y sin reintentar', async () => {
+      const { result, xhr } = await upload({ onUploadProgress: vi.fn() })
+
+      xhr.onerror()
+
+      const error = await result
+      expect(error).toBeInstanceOf(ApiError)
+      expect(error.status).toBeNull()
+      expect(error.timedOut).toBe(false)
+      expect(FakeXhr.sent).toHaveLength(1)
+    })
+
+    it('corta el envío al agotarse el plazo y lo informa como tiempo agotado', async () => {
+      vi.useFakeTimers()
+      const { result, xhr } = await upload({ onUploadProgress: vi.fn(), attemptTimeoutMs: 1_000, totalTimeoutMs: 1_000 })
+
+      await vi.advanceTimersByTimeAsync(1_000)
+
+      const error = await result
+      expect(xhr.aborted).toBe(true)
+      expect(error.timedOut).toBe(true)
+    })
+  })
 })
