@@ -1,18 +1,11 @@
 package io.github.nodoaula.catalog;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.text.Normalizer;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -399,11 +392,11 @@ public class ResourceService {
 		}
 		// PDFBox necesita leer el archivo desde el disco, y el almacenamiento lo
 		// sube desde esa misma copia.
-		Path pdf = copyToTempFile(upload);
+		Path pdf = TempFiles.copyOf(upload);
 		Path previewPdf = null;
 		try {
 			int pageCount = PdfDocuments.countPages(pdf);
-			String sha256 = sha256Of(pdf);
+			String sha256 = TempFiles.sha256Of(pdf);
 			if (resourceRepository.existsByFileSha256(sha256)) {
 				throw new DocumentAlreadyUploadedException();
 			}
@@ -416,7 +409,7 @@ public class ResourceService {
 			DocumentPreview preview = null;
 			int previewPages = PdfDocuments.previewPageCount(pageCount);
 			if (previewPages > 0) {
-				previewPdf = createTempFile("vista-previa-");
+				previewPdf = TempFiles.create("vista-previa-");
 				long previewBytes = PdfDocuments.writePreview(pdf, previewPages, previewPdf);
 				preview = new DocumentPreview(DocumentPreview.keyFor(file.key()), previewBytes, previewPages);
 				staged.add(new StagedFile(preview.key(), previewPdf));
@@ -429,9 +422,9 @@ public class ResourceService {
 			storeOrDeleteFiles(staged);
 			return saveDocumentOrDeleteFiles(staged, request, file, preview, authorId);
 		} finally {
-			deleteTempFile(pdf);
+			TempFiles.delete(pdf);
 			if (previewPdf != null) {
-				deleteTempFile(previewPdf);
+				TempFiles.delete(previewPdf);
 			}
 		}
 	}
@@ -500,50 +493,6 @@ public class ResourceService {
 				log.error("El archivo {} quedó en el almacenamiento sin un recurso que lo registre", file.key(),
 						exception);
 			}
-		}
-	}
-
-	private static Path copyToTempFile(MultipartFile upload) {
-		Path pdf = createTempFile("apunte-");
-		try {
-			upload.transferTo(pdf);
-			return pdf;
-		} catch (IOException exception) {
-			deleteTempFile(pdf);
-			throw new UncheckedIOException(exception);
-		}
-	}
-
-	// También para la vista previa de los apuntes anteriores a HU412.
-	static Path createTempFile(String prefix) {
-		try {
-			return Files.createTempFile(prefix, ".pdf");
-		} catch (IOException exception) {
-			throw new UncheckedIOException(exception);
-		}
-	}
-
-	private static String sha256Of(Path file) {
-		try (InputStream in = Files.newInputStream(file)) {
-			MessageDigest digest = MessageDigest.getInstance("SHA-256");
-			byte[] buffer = new byte[8192];
-			for (int read = in.read(buffer); read != -1; read = in.read(buffer)) {
-				digest.update(buffer, 0, read);
-			}
-			return HexFormat.of().formatHex(digest.digest());
-		} catch (IOException exception) {
-			throw new UncheckedIOException(exception);
-		} catch (NoSuchAlgorithmException exception) {
-			// SHA-256 viene en todas las JVM: no puede faltar.
-			throw new IllegalStateException(exception);
-		}
-	}
-
-	static void deleteTempFile(Path pdf) {
-		try {
-			Files.deleteIfExists(pdf);
-		} catch (IOException exception) {
-			log.warn("No se pudo borrar el temporal {}", pdf, exception);
 		}
 	}
 

@@ -84,9 +84,9 @@ class PendingPreviewsTask {
 		if (!transferQuota.reserve(file.sizeBytes())) {
 			throw new DocumentTransferExhaustedException();
 		}
-		Path original = ResourceService.createTempFile("apunte-");
+		Path original = TempFiles.create("apunte-");
 		try {
-			Path previewPdf = ResourceService.createTempFile("vista-previa-");
+			Path previewPdf = TempFiles.create("vista-previa-");
 			try {
 				fileStorage.download(file.key(), original);
 				int pages = PdfDocuments.previewPageCount(file.pageCount());
@@ -103,10 +103,10 @@ class PendingPreviewsTask {
 				log.info("Vista previa del apunte {} generada: {} de {} páginas", document.getId(), pages,
 						file.pageCount());
 			} finally {
-				ResourceService.deleteTempFile(previewPdf);
+				TempFiles.delete(previewPdf);
 			}
 		} finally {
-			ResourceService.deleteTempFile(original);
+			TempFiles.delete(original);
 		}
 	}
 

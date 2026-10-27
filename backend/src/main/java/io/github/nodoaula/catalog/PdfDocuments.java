@@ -9,7 +9,6 @@ import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.io.IOUtils;
 import org.apache.pdfbox.multipdf.Splitter;
 import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.encryption.InvalidPasswordException;
 
 import io.github.nodoaula.shared.error.FieldValidationException;
@@ -34,7 +33,7 @@ final class PdfDocuments {
 	static int countPages(Path file) {
 		try (PDDocument document = Loader.loadPDF(file.toFile())) {
 			int pages = 0;
-			for (PDPage _ : document.getPages()) {
+			for (var _ : document.getPages()) {
 				pages++;
 			}
 			if (pages == 0) {

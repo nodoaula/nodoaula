@@ -42,7 +42,6 @@ import org.apache.pdfbox.pdmodel.encryption.StandardProtectionPolicy;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
-import org.mockito.MockedStatic;
 import org.mockito.stubbing.Answer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -413,7 +412,7 @@ class DocumentUploadTests {
 			return invocation.callRealMethod();
 		};
 
-		try (MockedStatic<PdfDocuments> _ = mockStatic(PdfDocuments.class, failingPreview)) {
+		try (var _ = mockStatic(PdfDocuments.class, failingPreview)) {
 			expectFileRejected(file("apunte.pdf", pdf(10)));
 		}
 	}

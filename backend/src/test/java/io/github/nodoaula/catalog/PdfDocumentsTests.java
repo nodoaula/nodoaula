@@ -88,7 +88,7 @@ class PdfDocumentsTests {
 	static Path pagesOfWidths(Path target, int... widths) throws IOException {
 		try (PDDocument document = new PDDocument()) {
 			for (int width : widths) {
-				document.addPage(new PDPage(new PDRectangle(width, 300)));
+				document.addPage(new PDPage(new PDRectangle((float) width, 300)));
 			}
 			document.save(target.toFile());
 		}
