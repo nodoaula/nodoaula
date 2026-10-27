@@ -55,22 +55,23 @@ class PendingPreviewsTask {
 	}
 
 	/**
-	 * Un apunte que falla queda en el log y no detiene a los demás. Sin
-	 * transferencia o sin espacio no se descarga ninguno más: se intentará en
-	 * el próximo arranque.
+	 * Un apunte que falla, también uno cuya vista previa no cabe, queda en el
+	 * log y no detiene a los demás. Sin transferencia o con el almacenamiento
+	 * lleno no se descarga ninguno más: se intentará en el próximo arranque.
 	 */
 	void generatePendingPreviews() {
 		for (Resource document : resourceRepository.findDocumentsWithoutPreview()) {
 			if (PdfDocuments.previewPageCount(document.getFile().pageCount()) == 0) {
 				continue;
 			}
+			if (resourceRepository.totalStoredBytes() >= ResourceService.STORAGE_LIMIT_BYTES) {
+				log.warn("Sin espacio en el almacenamiento para las vistas previas pendientes");
+				return;
+			}
 			try {
 				generatePreview(document);
 			} catch (DocumentTransferExhaustedException _) {
 				log.warn("Sin transferencia para generar las vistas previas pendientes");
-				return;
-			} catch (DocumentStorageFullException _) {
-				log.warn("Sin espacio en el almacenamiento para las vistas previas pendientes");
 				return;
 			} catch (RuntimeException exception) {
 				log.error("No se pudo generar la vista previa del apunte {}", document.getId(), exception);

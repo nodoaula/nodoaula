@@ -11,7 +11,6 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -133,28 +132,42 @@ class PendingPreviewsTaskTests {
 		verify(fileStorage, never()).download(anyString(), any());
 	}
 
-	// Con el almacenamiento lleno, descargar los siguientes solo gastaría
-	// transferencia para rechazarlos también.
+	// Con el almacenamiento lleno, descargar los apuntes solo gastaría
+	// transferencia para rechazarlos.
 	@Test
-	void withTheStorageFullNoMoreDocumentsAreDownloaded() throws IOException {
-		Path original = PdfDocumentsTests.pagesOfWidths(tempDir.resolve("original.pdf"), 200, 201, 202, 203);
-		Resource document = saveDocument("lleno.pdf", ResourceService.STORAGE_LIMIT_BYTES, 4);
-		saveDocument("siguiente.pdf", Files.size(original), 4);
-		downloadsAs("lleno.pdf", original);
-		downloadsAs("siguiente.pdf", original);
+	void withTheStorageFullNothingIsDownloaded() {
+		saveDocument("lleno.pdf", ResourceService.STORAGE_LIMIT_BYTES, 4);
+		saveDocument("siguiente.pdf", 2048, 4);
 
 		task.generatePendingPreviews();
 
-		verify(fileStorage, times(1)).download(anyString(), any());
-		verify(fileStorage, never()).store(anyString(), any(), anyString());
-		assertNull(resourceRepository.findById(document.getId()).orElseThrow().getPreview());
+		verify(fileStorage, never()).download(anyString(), any());
+	}
+
+	@Test
+	void aPreviewThatDoesNotFitDoesNotStopASmallerOne() throws IOException {
+		Path longOriginal = PdfDocumentsTests.pagesOfWidths(tempDir.resolve("largo.pdf"),
+				200, 201, 202, 203, 204, 205, 206, 207, 208, 209);
+		Path shortOriginal = PdfDocumentsTests.pagesOfWidths(tempDir.resolve("corto.pdf"), 200, 201, 202, 203);
+		long smallPreview = PdfDocuments.writePreview(shortOriginal, 1, tempDir.resolve("pequeña.pdf"));
+		// Solo queda sitio para la vista previa pequeña.
+		saveDocument("relleno.pdf", ResourceService.STORAGE_LIMIT_BYTES - smallPreview, 1);
+		Resource big = saveDocument("grande.pdf", 0, 10);
+		Resource small = saveDocument("pequeno.pdf", 0, 4);
+		downloadsAs("grande.pdf", longOriginal);
+		downloadsAs("pequeno.pdf", shortOriginal);
+
+		task.generatePendingPreviews();
+
+		assertNull(resourceRepository.findById(big.getId()).orElseThrow().getPreview());
+		assertNotNull(resourceRepository.findById(small.getId()).orElseThrow().getPreview());
 	}
 
 	@Test
 	void inTheTestsItDoesNotRunOnStartup() {
 		// La configuración de las pruebas se suma a la principal, no la reemplaza.
 		assertEquals("false", environment.getProperty("pending-previews.on-startup"));
-		assertEquals("20MB", environment.getProperty("spring.servlet.multipart.max-file-size"));
+		assertEquals("backend", environment.getProperty("spring.application.name"));
 	}
 
 	@Test
