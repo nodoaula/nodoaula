@@ -64,14 +64,18 @@ function dataLine(text) {
   return (_, element) => element?.tagName === 'SPAN' && element.children.length > 0 && element.textContent === text
 }
 
-function renderDetail() {
-  return render(
+function detailTree() {
+  return (
     <MemoryRouter initialEntries={['/recursos/24']}>
       <Routes>
         <Route path="recursos/:resourceId" element={<ResourceDetailPage />} />
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>
   )
+}
+
+function renderDetail() {
+  return render(detailTree())
 }
 
 describe('ResourceDetailPage', () => {
@@ -161,13 +165,7 @@ describe('ResourceDetailPage', () => {
     const full = await screen.findByText(`Visor del apunte 24: ${VIDEO.title}`)
 
     session = { status: 'ready', account: null }
-    rerender(
-      <MemoryRouter initialEntries={['/recursos/24']}>
-        <Routes>
-          <Route path="recursos/:resourceId" element={<ResourceDetailPage />} />
-        </Routes>
-      </MemoryRouter>,
-    )
+    rerender(detailTree())
 
     const preview = await screen.findByText(`Visor del apunte 24: ${VIDEO.title} (vista previa de 14 páginas)`)
     expect(preview.dataset.mount).not.toBe(full.dataset.mount)
