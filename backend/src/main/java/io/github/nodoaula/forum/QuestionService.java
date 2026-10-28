@@ -43,9 +43,19 @@ public class QuestionService {
 				.toList();
 	}
 
+	/**
+	 * Una pregunta. De una retirada no se muestra el contenido, solo el curso,
+	 * para que su página enlace al foro donde estaba.
+	 *
+	 * @throws QuestionNotFoundException si no existe
+	 */
 	@Transactional(readOnly = true)
 	public QuestionDto getQuestion(Long id, Long viewerId) {
-		Question question = questionRepository.getVisible(id);
+		Question question = questionRepository.findById(id).orElseThrow(QuestionNotFoundException::new);
+		if (question.isRetired()) {
+			return new QuestionDto(question.getId(), question.getCourseId(), null, null, null, null, null, true, false,
+					false);
+		}
 		boolean viewerIsTeam = viewerId != null && accountService.isTeamMember(viewerId);
 		return toDto(question, viewerId, viewerIsTeam);
 	}
@@ -130,7 +140,7 @@ public class QuestionService {
 
 	private static QuestionDto toDto(Question question, Long viewerId, boolean viewerIsTeam) {
 		return new QuestionDto(question.getId(), question.getCourseId(), question.getResourceId(),
-				question.getTitle(), question.getBody(), question.getCreatedAt(), question.getUsefulAnswerId(),
+				question.getTitle(), question.getBody(), question.getCreatedAt(), question.getUsefulAnswerId(), false,
 				canRetire(question, viewerId, viewerIsTeam), question.getAuthorId().equals(viewerId));
 	}
 

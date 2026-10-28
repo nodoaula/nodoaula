@@ -13,8 +13,6 @@ interface QuestionRepository extends JpaRepository<Question, Long> {
 	/** Las preguntas visibles de un curso, de la más reciente a la más antigua. */
 	List<Question> findByCourseIdAndRetiredAtIsNullOrderByCreatedAtDescIdDesc(Long courseId);
 
-	Optional<Question> findByIdAndRetiredAtIsNull(Long id);
-
 	boolean existsByIdAndRetiredAtIsNull(Long id);
 
 	// Hibernate reescribe la fila entera al guardar: sin el bloqueo, marcar la
@@ -25,17 +23,14 @@ interface QuestionRepository extends JpaRepository<Question, Long> {
 	@Lock(LockModeType.PESSIMISTIC_READ)
 	Optional<Question> findForShareByIdAndRetiredAtIsNull(Long id);
 
-	/** @throws QuestionNotFoundException si no existe o está retirada */
-	default Question getVisible(Long id) {
-		return findByIdAndRetiredAtIsNull(id).orElseThrow(QuestionNotFoundException::new);
-	}
-
 	/**
-	 * Como getVisible, con la fila bloqueada hasta el final de la transacción.
-	 * Lo usa toda escritura que cambia la pregunta, antes de bloquear una de
-	 * sus respuestas, y tiene que ser su primera lectura: si la pregunta ya
-	 * está cargada en la transacción, Hibernate devuelve la que tiene sin
-	 * releerla.
+	 * La pregunta visible, con la fila bloqueada hasta el final de la
+	 * transacción. Lo usa toda escritura que cambia la pregunta, antes de
+	 * bloquear una de sus respuestas, y tiene que ser su primera lectura: si
+	 * la pregunta ya está cargada en la transacción, Hibernate devuelve la que
+	 * tiene sin releerla.
+	 *
+	 * @throws QuestionNotFoundException si no existe o está retirada
 	 */
 	default Question getVisibleForUpdate(Long id) {
 		return findForUpdateByIdAndRetiredAtIsNull(id).orElseThrow(QuestionNotFoundException::new);

@@ -170,11 +170,39 @@ class QuestionTests {
 
 		mockMvc.perform(get("/api/forum/questions").param("courseId", courseId.toString()))
 				.andExpect(jsonPath("$", hasSize(0)));
-		mockMvc.perform(get("/api/forum/questions/" + id))
-				.andExpect(status().isNotFound())
-				.andExpect(jsonPath("$.code").value("QUESTION_NOT_FOUND"));
 		mockMvc.perform(post("/api/forum/questions/" + id + "/retire").with(signedInAs(AUTHOR_ID)).with(csrf()))
 				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void aRetiredQuestionOnlyTellsItsCourseAndAMissingOneIsA404() throws Exception {
+		Long id = idOfPublished(AUTHOR_ID, resourceId);
+		mockMvc.perform(post("/api/forum/questions/" + id + "/retire").with(signedInAs(AUTHOR_ID)).with(csrf()))
+				.andExpect(status().isNoContent());
+
+		mockMvc.perform(get("/api/forum/questions/" + id).with(signedInAs(AUTHOR_ID)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(id))
+				.andExpect(jsonPath("$.courseId").value(courseId))
+				.andExpect(jsonPath("$.retired").value(true))
+				.andExpect(jsonPath("$.resourceId").doesNotExist())
+				.andExpect(jsonPath("$.title").doesNotExist())
+				.andExpect(jsonPath("$.body").doesNotExist())
+				.andExpect(jsonPath("$.createdAt").doesNotExist())
+				.andExpect(jsonPath("$.canRetire").value(false))
+				.andExpect(jsonPath("$.canMarkUseful").value(false));
+		mockMvc.perform(get("/api/forum/questions/999999999"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("QUESTION_NOT_FOUND"));
+	}
+
+	private Long idOfPublished(Long accountId, Long resource) throws Exception {
+		String response = mockMvc.perform(post("/api/forum/questions").with(signedInAs(accountId)).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body(courseId, resource, "Sobre un recurso", "Texto.")))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+		return JsonPath.<Number>read(response, "$.id").longValue();
 	}
 
 	@Test
@@ -199,7 +227,7 @@ class QuestionTests {
 				.andExpect(jsonPath("$.canRetire").value(true));
 		mockMvc.perform(post("/api/forum/questions/" + id + "/retire").with(signedInAs(team)).with(csrf()))
 				.andExpect(status().isNoContent());
-		mockMvc.perform(get("/api/forum/questions/" + id)).andExpect(status().isNotFound());
+		mockMvc.perform(get("/api/forum/questions/" + id)).andExpect(jsonPath("$.retired").value(true));
 	}
 
 	@Test
