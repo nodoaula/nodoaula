@@ -20,13 +20,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.jayway.jsonpath.JsonPath;
 
 /**
- * El retiro de una respuesta queda guardado. Sin la transacción de la prueba a
+ * Los retiros del foro quedan guardados. Sin la transacción de la prueba a
  * propósito: con ella, un servicio sin @Transactional pasaría las demás
  * pruebas sin guardar nada. Por eso borra lo que crea.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-class AnswerRetirementPersistenceTests {
+class ForumPersistenceTests {
 
 	private static final Long ASKER_ID = 999L;
 	private static final Long ANSWERER_ID = 998L;
@@ -51,14 +51,31 @@ class AnswerRetirementPersistenceTests {
 		return JsonPath.<Number>read(response, "$.id").longValue();
 	}
 
-	@Test
-	void retiringTheUsefulAnswerIsSavedWithWhoRetiredItAndClearsTheUsefulOne() throws Exception {
+	private void publishAQuestion() throws Exception {
 		Long courseId = jdbcTemplate.queryForObject("select id from courses where name = ?", Long.class, SEED_COURSE);
 		questionId = idOf(mockMvc.perform(post("/api/forum/questions").with(signedInAs(ASKER_ID)).with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{\"courseId\": %s, \"title\": \"Pregunta\", \"body\": \"Texto.\"}".formatted(courseId)))
 				.andExpect(status().isCreated())
 				.andReturn().getResponse().getContentAsString());
+	}
+
+	@Test
+	void retiringAQuestionIsSavedWithWhoRetiredIt() throws Exception {
+		publishAQuestion();
+
+		mockMvc.perform(post("/api/forum/questions/" + questionId + "/retire").with(signedInAs(ASKER_ID)).with(csrf()))
+				.andExpect(status().isNoContent());
+
+		Map<String, Object> question = jdbcTemplate.queryForMap(
+				"select retired_at, retired_by from forum_questions where id = ?", questionId);
+		assertThat(question.get("retired_at")).isNotNull();
+		assertThat(question.get("retired_by")).isEqualTo(ASKER_ID);
+	}
+
+	@Test
+	void retiringTheUsefulAnswerIsSavedWithWhoRetiredItAndClearsTheUsefulOne() throws Exception {
+		publishAQuestion();
 		Long answerId = idOf(mockMvc.perform(post("/api/forum/questions/" + questionId + "/answers")
 				.with(signedInAs(ANSWERER_ID)).with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
