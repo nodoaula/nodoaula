@@ -133,7 +133,8 @@ class AnswerTests {
 
 	@Test
 	void theAnswerIsRequiredAndHasAtMost5000Characters() throws Exception {
-		for (String blank : new String[] { "\"   \"", "\"\\n\\n\\t\"", "null" }) {
+		// U+2003 y U+3000 son espacios Unicode: @NotBlank también los descarta.
+		for (String blank : new String[] { "\"   \"", "\"\\n\\n\\t\"", "\"\\u2003\\u3000\"", "null" }) {
 			postAnswer(ANSWERER_ID, blank)
 					.andExpect(status().isBadRequest())
 					.andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))

@@ -15,8 +15,10 @@ create table forum_answers (
     -- leer y contar las respuestas de una pregunta.
     constraint forum_answers_question_id_id_key unique (question_id, id),
     constraint forum_answers_retirement_check check ((retired_at is null) = (retired_by is null)),
-    -- btrim solo quita espacios: un texto de solo saltos de línea pasaría.
-    constraint forum_answers_body_check check (body ~ '\S')
+    -- Algún carácter que no sea un espacio ASCII: btrim solo quita el espacio,
+    -- y \S depende del locale de la base. Los demás espacios que Java reconoce
+    -- (String.isBlank) los descarta la validación de la API.
+    constraint forum_answers_body_check check (body ~ '[^ \t\n\r\f\v]')
 );
 
 -- La respuesta útil que elige quien preguntó: una columna, así que hay una

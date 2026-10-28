@@ -125,6 +125,21 @@ class QuestionTests {
 	}
 
 	@Test
+	void aTitleOrABodyOfOnlyUnicodeSpacesIsRejectedOnItsField() throws Exception {
+		// U+2003 y U+3000 son espacios Unicode: @NotBlank también los descarta.
+		mockMvc.perform(post("/api/forum/questions").with(signedInAs(AUTHOR_ID)).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body(courseId, null, "\\u2003", "Texto.")))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors[0].field").value("title"));
+		mockMvc.perform(post("/api/forum/questions").with(signedInAs(AUTHOR_ID)).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body(courseId, null, "Título", "\\u3000")))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors[0].field").value("body"));
+	}
+
+	@Test
 	void aCourseThatDoesNotExistIsRejectedOnItsField() throws Exception {
 		mockMvc.perform(post("/api/forum/questions").with(signedInAs(AUTHOR_ID)).with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
