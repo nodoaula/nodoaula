@@ -1,9 +1,10 @@
 /**
  * Aviso dentro de una página: qué pasa y, si hay, qué hacer. `role` decide
  * cómo lo anuncia un lector de pantalla: "status" espera a que termine de
- * leer, "alert" interrumpe.
+ * leer, "alert" interrumpe. `titleLevel` 1 cuando el aviso es toda la página.
  */
-export default function Notice({ title, children, action, role = 'status' }) {
+export default function Notice({ title, children, action, role = 'status', titleLevel = 2 }) {
+  const Title = titleLevel === 1 ? 'h1' : 'h2'
   return (
     <div role={role} className="flex max-w-2xl gap-4 rounded-2xl border border-border-strong bg-surface-raised p-6">
       <span
@@ -18,7 +19,7 @@ export default function Notice({ title, children, action, role = 'status' }) {
       {/* min-w-0 y el corte de palabras evitan que un texto sin espacios,
           como el título de un recurso, desborde a 375 px. */}
       <div className="min-w-0">
-        <h2 className="text-lead font-semibold tracking-tight text-content">{title}</h2>
+        <Title className="text-lead font-semibold tracking-tight text-content">{title}</Title>
         {children && <p className="mt-1.5 text-body wrap-break-word text-content-muted">{children}</p>}
         {action && <div className="mt-4">{action}</div>}
       </div>

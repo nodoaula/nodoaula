@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useParams } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
 import Modal from '../../components/ui/Modal.jsx'
@@ -19,10 +19,12 @@ const dateFormat = new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium' })
  */
 export default function ForumPage() {
   const { courseId } = useParams()
-  return <Forum key={courseId} courseId={courseId} />
+  // Al volver de retirar una pregunta desde su página (HU402), el foro lo confirma.
+  const questionRetired = useLocation().state?.questionRetired === true
+  return <Forum key={courseId} courseId={courseId} questionRetired={questionRetired} />
 }
 
-function Forum({ courseId }) {
+function Forum({ courseId, questionRetired }) {
   const validId = /^\d+$/.test(courseId)
   const { account } = useSession()
   const [resources, setResources] = useState(validId ? null : [])
@@ -100,6 +102,8 @@ function Forum({ courseId }) {
         Foro de {name}
       </h1>
 
+      {questionRetired && <RetiredQuestionNotice />}
+
       <section aria-labelledby="ask-heading" className="mt-8">
         <h2 id="ask-heading" className="mb-4 text-lead font-semibold text-content">
           Haz una pregunta
@@ -135,6 +139,17 @@ function Forum({ courseId }) {
         onRetired={(id) => setQuestions((current) => current.filter((question) => question.id !== id))}
       />
     </main>
+  )
+}
+
+// Recibe el foco al llegar: el botón que se pulsó quedó en la página anterior.
+function RetiredQuestionNotice() {
+  const notice = useRef(null)
+  useEffect(() => notice.current.focus(), [])
+  return (
+    <div ref={notice} tabIndex={-1} className="mt-6">
+      <Notice title="Retiraste la pregunta">Ya no aparece en el foro del curso, ni sus respuestas.</Notice>
+    </div>
   )
 }
 
