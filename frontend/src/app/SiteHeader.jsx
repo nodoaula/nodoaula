@@ -47,8 +47,14 @@ export default function SiteHeader() {
                 Iniciar sesión
               </Link>
             )}
+            {/* En el inicio de sesión la acción principal es su botón: crear
+                cuenta queda como enlace, sin competir con él. */}
             {pathname !== '/registro' && (
-              <Link to="/registro" state={origin} className={buttonClasses('primary')}>
+              <Link
+                to="/registro"
+                state={origin}
+                className={pathname === '/iniciar-sesion' ? 'hover:text-content' : buttonClasses('primary')}
+              >
                 Crear cuenta
               </Link>
             )}
