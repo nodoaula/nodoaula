@@ -144,7 +144,14 @@ export default function LoginPage() {
             </Notice>
           )}
 
-          <button type="submit" disabled={submitting} className={`${buttonClasses('primary', 'lg')} w-full`}>
+          {/* aria-disabled y no disabled: un botón deshabilitado pierde el foco,
+              y tras un error quien usa el teclado volvería a empezar desde arriba.
+              El envío doble lo evita la comprobación de handleSubmit. */}
+          <button
+            type="submit"
+            aria-disabled={submitting}
+            className={`${buttonClasses('primary', 'lg')} w-full aria-disabled:cursor-not-allowed aria-disabled:opacity-60`}
+          >
             {submitting ? 'Iniciando sesión…' : 'Iniciar sesión'}
           </button>
         </form>

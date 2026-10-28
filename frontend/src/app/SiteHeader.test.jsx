@@ -65,6 +65,17 @@ describe('SiteHeader', () => {
     expect(screen.getByText('Volverá a /recursos/6')).toBeInTheDocument()
   })
 
+  it('en una pantalla de la cuenta no ofrece ir a ella misma', () => {
+    renderSignedOutHeaderAt('/registro')
+    expect(screen.queryByRole('link', { name: 'Crear cuenta' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Iniciar sesión' })).toBeInTheDocument()
+    cleanup()
+
+    renderSignedOutHeaderAt('/iniciar-sesion')
+    expect(screen.queryByRole('link', { name: 'Iniciar sesión' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Crear cuenta' })).toBeInTheDocument()
+  })
+
   it('«Aportar» abre las dos formas de aportar', async () => {
     const user = userEvent.setup()
     renderHeader()
