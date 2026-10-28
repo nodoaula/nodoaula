@@ -1,14 +1,13 @@
 package io.github.nodoaula.forum;
 
+import static io.github.nodoaula.forum.ForumTestSupport.signedInAs;
+import static io.github.nodoaula.forum.ForumTestSupport.teamAccount;
 import static org.hamcrest.Matchers.hasSize;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,9 +16,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.jayway.jsonpath.JsonPath;
@@ -56,18 +53,6 @@ class QuestionTests {
 
 	private Long idOf(String table, String column, String value) {
 		return jdbcTemplate.queryForObject("select id from " + table + " where " + column + " = ?", Long.class, value);
-	}
-
-	private static RequestPostProcessor signedInAs(Long accountId) {
-		return authentication(new UsernamePasswordAuthenticationToken(new TestAccount(accountId), null, List.of()));
-	}
-
-	// La marca de equipo solo se pone en la base de datos (ADR-007).
-	private Long teamAccount() {
-		return jdbcTemplate.queryForObject(
-				"insert into accounts (email, password_hash, created_at, team_member) "
-						+ "values ('equipo.foro@ejemplo.com', '{noop}sin-uso', now(), true) returning id",
-				Long.class);
 	}
 
 	private static String body(Long courseId, Long resourceId, String title, String text) {
@@ -140,6 +125,21 @@ class QuestionTests {
 	}
 
 	@Test
+	void aTitleOrABodyOfOnlyUnicodeSpacesIsRejectedOnItsField() throws Exception {
+		// U+2003 y U+3000 son espacios Unicode: @NotBlank también los descarta.
+		mockMvc.perform(post("/api/forum/questions").with(signedInAs(AUTHOR_ID)).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body(courseId, null, "\\u2003", "Texto.")))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors[0].field").value("title"));
+		mockMvc.perform(post("/api/forum/questions").with(signedInAs(AUTHOR_ID)).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body(courseId, null, "Título", "\\u3000")))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errors[0].field").value("body"));
+	}
+
+	@Test
 	void aCourseThatDoesNotExistIsRejectedOnItsField() throws Exception {
 		mockMvc.perform(post("/api/forum/questions").with(signedInAs(AUTHOR_ID)).with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
@@ -170,11 +170,39 @@ class QuestionTests {
 
 		mockMvc.perform(get("/api/forum/questions").param("courseId", courseId.toString()))
 				.andExpect(jsonPath("$", hasSize(0)));
-		mockMvc.perform(get("/api/forum/questions/" + id))
-				.andExpect(status().isNotFound())
-				.andExpect(jsonPath("$.code").value("QUESTION_NOT_FOUND"));
 		mockMvc.perform(post("/api/forum/questions/" + id + "/retire").with(signedInAs(AUTHOR_ID)).with(csrf()))
 				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void aRetiredQuestionOnlyTellsItsCourseAndAMissingOneIsA404() throws Exception {
+		Long id = idOfPublished(AUTHOR_ID, resourceId);
+		mockMvc.perform(post("/api/forum/questions/" + id + "/retire").with(signedInAs(AUTHOR_ID)).with(csrf()))
+				.andExpect(status().isNoContent());
+
+		mockMvc.perform(get("/api/forum/questions/" + id).with(signedInAs(AUTHOR_ID)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(id))
+				.andExpect(jsonPath("$.courseId").value(courseId))
+				.andExpect(jsonPath("$.retired").value(true))
+				.andExpect(jsonPath("$.resourceId").doesNotExist())
+				.andExpect(jsonPath("$.title").doesNotExist())
+				.andExpect(jsonPath("$.body").doesNotExist())
+				.andExpect(jsonPath("$.createdAt").doesNotExist())
+				.andExpect(jsonPath("$.canRetire").value(false))
+				.andExpect(jsonPath("$.canMarkUseful").value(false));
+		mockMvc.perform(get("/api/forum/questions/999999999"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("QUESTION_NOT_FOUND"));
+	}
+
+	private Long idOfPublished(Long accountId, Long resource) throws Exception {
+		String response = mockMvc.perform(post("/api/forum/questions").with(signedInAs(accountId)).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(body(courseId, resource, "Sobre un recurso", "Texto.")))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+		return JsonPath.<Number>read(response, "$.id").longValue();
 	}
 
 	@Test
@@ -193,13 +221,13 @@ class QuestionTests {
 	@Test
 	void aTeamAccountCanRetireAnyQuestion() throws Exception {
 		Long id = publish(AUTHOR_ID, "Moderada");
-		Long team = teamAccount();
+		Long team = teamAccount(jdbcTemplate, "equipo.foro@ejemplo.com");
 
 		mockMvc.perform(get("/api/forum/questions/" + id).with(signedInAs(team)))
 				.andExpect(jsonPath("$.canRetire").value(true));
 		mockMvc.perform(post("/api/forum/questions/" + id + "/retire").with(signedInAs(team)).with(csrf()))
 				.andExpect(status().isNoContent());
-		mockMvc.perform(get("/api/forum/questions/" + id)).andExpect(status().isNotFound());
+		mockMvc.perform(get("/api/forum/questions/" + id)).andExpect(jsonPath("$.retired").value(true));
 	}
 
 	@Test
@@ -208,24 +236,6 @@ class QuestionTests {
 
 		mockMvc.perform(post("/api/forum/questions/" + id + "/retire").with(csrf()))
 				.andExpect(status().isUnauthorized());
-	}
-
-	/**
-	 * Hace de cuenta con sesión iniciada. El controlador lee el autor con
-	 * @AuthenticationPrincipal(expression = "id"), por reflexión.
-	 */
-	public static final class TestAccount {
-
-		private final Long id;
-
-		TestAccount(Long id) {
-			this.id = id;
-		}
-
-		public Long getId() {
-			return id;
-		}
-
 	}
 
 }

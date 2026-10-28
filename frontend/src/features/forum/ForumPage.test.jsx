@@ -1,16 +1,16 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../../lib/apiClient.js'
 import { listResources } from '../catalog/api.js'
-import { createQuestion, listQuestions, retireQuestion } from './api.js'
+import { createQuestion, listQuestions } from './api.js'
 import ForumPage from './ForumPage.jsx'
 
 let session = { status: 'ready', account: null }
 vi.mock('../../session/useSession.js', () => ({ useSession: () => session }))
 vi.mock('../catalog/api.js', () => ({ listResources: vi.fn() }))
-vi.mock('./api.js', () => ({ listQuestions: vi.fn(), createQuestion: vi.fn(), retireQuestion: vi.fn() }))
+vi.mock('./api.js', () => ({ listQuestions: vi.fn(), createQuestion: vi.fn() }))
 
 const RESOURCES = [{ id: 10, title: 'Spring Boot 2026-2', course: 'Arquitectura de Software' }]
 const QUESTION = {
@@ -20,6 +20,7 @@ const QUESTION = {
   title: '¿Cuándo usar un monolito modular?',
   body: 'No me queda claro.',
   createdAt: '2026-10-20T15:00:00Z',
+  answerCount: 0,
   canRetire: false,
 }
 
@@ -89,8 +90,9 @@ describe('ForumPage', () => {
       }),
     )
     const list = await screen.findByRole('list', { name: 'Preguntas del curso' })
-    const titles = within(list).getAllByRole('heading', { level: 3 })
-    expect(titles[0]).toHaveTextContent('Otra duda')
+    const rows = within(list).getAllByRole('link')
+    expect(rows[0]).toHaveTextContent('Otra duda')
+    expect(rows[0]).toHaveAttribute('href', '/foro/preguntas/2')
     expect(screen.getByLabelText('Título')).toHaveValue('')
   })
 
@@ -139,31 +141,41 @@ describe('ForumPage', () => {
     expect(await screen.findByText('El recurso no está publicado en ese curso.')).toBeInTheDocument()
   })
 
-  it('retirar pide confirmación y quita la pregunta de la lista', async () => {
+  it('cada pregunta enlaza a su página y dice cuántas respuestas tiene, sin acciones en la fila', async () => {
     session = { status: 'ready', account: { id: 5 } }
-    listQuestions.mockResolvedValue([{ ...QUESTION, canRetire: true }])
-    retireQuestion.mockResolvedValue(null)
+    listQuestions.mockResolvedValue([
+      { ...QUESTION, id: 2, title: 'Con respuestas', resourceId: null, answerCount: 3, canRetire: true },
+      { ...QUESTION, answerCount: 1 },
+      { ...QUESTION, id: 3, title: 'Sin nada', resourceId: null, answerCount: 0 },
+    ])
     renderForum()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Retirar' }))
-    expect(retireQuestion).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: 'Sí, retirar' }))
-
-    await waitFor(() => expect(retireQuestion).toHaveBeenCalledWith(1))
-    await waitFor(() => expect(screen.queryByText('¿Cuándo usar un monolito modular?')).not.toBeInTheDocument())
-    expect(screen.getByText(/Aún no hay preguntas/)).toBeInTheDocument()
+    const rows = within(await screen.findByRole('list', { name: 'Preguntas del curso' })).getAllByRole('link')
+    expect(rows.map((row) => row.getAttribute('href'))).toEqual(['/foro/preguntas/2', '/foro/preguntas/1', '/foro/preguntas/3'])
+    expect(rows[0]).toHaveTextContent('3 respuestas')
+    expect(rows[1]).toHaveTextContent('1 respuesta')
+    expect(rows[1]).toHaveTextContent('Sobre «Spring Boot 2026-2»')
+    expect(rows[2]).toHaveTextContent('Sin respuestas')
+    // Se retira desde la página de la pregunta, no desde el listado.
+    expect(screen.queryByRole('button', { name: 'Retirar' })).not.toBeInTheDocument()
   })
 
-  it('si el backend niega el retiro muestra el motivo y conserva la pregunta', async () => {
-    session = { status: 'ready', account: { id: 5 } }
-    listQuestions.mockResolvedValue([{ ...QUESTION, canRetire: true }])
-    retireQuestion.mockRejectedValue(new ApiError('x', { status: 403, body: { code: 'QUESTION_CHANGE_FORBIDDEN' } }))
-    renderForum()
+  it('al volver de retirar una pregunta lo confirma una vez: el aviso toma el foco y la marca sale del historial', async () => {
+    function HistoryState() {
+      return <p>{`estado: ${JSON.stringify(useLocation().state)}`}</p>
+    }
+    render(
+      <MemoryRouter initialEntries={[{ pathname: '/catalogo/cursos/1/foro', state: { questionRetired: true } }]}>
+        <Routes>
+          <Route path="/catalogo/cursos/:courseId/foro" element={<ForumPage />} />
+        </Routes>
+        <HistoryState />
+      </MemoryRouter>,
+    )
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Retirar' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Sí, retirar' }))
-
-    expect(await screen.findByText(/Solo quien publicó esta pregunta/)).toBeInTheDocument()
-    expect(screen.getByText('¿Cuándo usar un monolito modular?')).toBeInTheDocument()
+    const notice = await screen.findByText('Retiraste la pregunta')
+    expect(notice.closest('[tabindex="-1"]')).toHaveFocus()
+    expect(screen.getByText('estado: null')).toBeInTheDocument()
+    expect(screen.getByText('Retiraste la pregunta')).toBeInTheDocument()
   })
 })

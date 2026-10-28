@@ -2,6 +2,8 @@ package io.github.nodoaula.forum;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,12 +21,14 @@ import io.github.nodoaula.shared.error.FieldValidationException;
 public class QuestionService {
 
 	private final QuestionRepository questionRepository;
+	private final AnswerRepository answerRepository;
 	private final ResourceService resourceService;
 	private final AccountService accountService;
 
-	QuestionService(QuestionRepository questionRepository, ResourceService resourceService,
-			AccountService accountService) {
+	QuestionService(QuestionRepository questionRepository, AnswerRepository answerRepository,
+			ResourceService resourceService, AccountService accountService) {
 		this.questionRepository = questionRepository;
+		this.answerRepository = answerRepository;
 		this.resourceService = resourceService;
 		this.accountService = accountService;
 	}
@@ -36,17 +40,39 @@ public class QuestionService {
 	@Transactional(readOnly = true)
 	public List<QuestionDto> listQuestions(Long courseId, Long viewerId) {
 		boolean viewerIsTeam = viewerId != null && accountService.isTeamMember(viewerId);
-		return questionRepository.findByCourseIdAndRetiredAtIsNullOrderByCreatedAtDescIdDesc(courseId).stream()
-				.map(question -> toDto(question, viewerId, viewerIsTeam))
+		List<Question> questions = questionRepository
+				.findByCourseIdAndRetiredAtIsNullOrderByCreatedAtDescIdDesc(courseId);
+		Map<Long, Long> answerCounts = countAnswers(questions);
+		return questions.stream()
+				.map(question -> toDto(question, answerCounts.getOrDefault(question.getId(), 0L), viewerId,
+						viewerIsTeam))
 				.toList();
 	}
 
+	private Map<Long, Long> countAnswers(List<Question> questions) {
+		if (questions.isEmpty()) {
+			return Map.of();
+		}
+		return answerRepository.countVisibleByQuestionIds(questions.stream().map(Question::getId).toList()).stream()
+				.collect(Collectors.toMap(AnswerRepository.AnswerCount::getQuestionId,
+						AnswerRepository.AnswerCount::getAnswers));
+	}
+
+	/**
+	 * Una pregunta. De una retirada no se muestra el contenido, solo el curso,
+	 * para que su página enlace al foro donde estaba.
+	 *
+	 * @throws QuestionNotFoundException si no existe
+	 */
 	@Transactional(readOnly = true)
 	public QuestionDto getQuestion(Long id, Long viewerId) {
-		Question question = questionRepository.findByIdAndRetiredAtIsNull(id)
-				.orElseThrow(QuestionNotFoundException::new);
+		Question question = questionRepository.findById(id).orElseThrow(QuestionNotFoundException::new);
+		if (question.isRetired()) {
+			return new QuestionDto(question.getId(), question.getCourseId(), null, null, null, null, null, 0, true,
+					false, false);
+		}
 		boolean viewerIsTeam = viewerId != null && accountService.isTeamMember(viewerId);
-		return toDto(question, viewerId, viewerIsTeam);
+		return toDto(question, answerRepository.countByQuestionIdAndRetiredAtIsNull(id), viewerId, viewerIsTeam);
 	}
 
 	/**
@@ -68,7 +94,7 @@ public class QuestionService {
 
 		Question question = questionRepository.save(new Question(request.courseId(), request.resourceId(), authorId,
 				request.title().strip(), request.body().strip()));
-		return toDto(question, authorId, false);
+		return toDto(question, 0, authorId, false);
 	}
 
 	/**
@@ -80,22 +106,58 @@ public class QuestionService {
 	 */
 	@Transactional
 	public void retireQuestion(Long id, Long accountId) {
-		Question question = questionRepository.findByIdAndRetiredAtIsNull(id)
-				.orElseThrow(QuestionNotFoundException::new);
+		Question question = questionRepository.getVisibleForUpdate(id);
 		if (!canRetire(question, accountId, accountService.isTeamMember(accountId))) {
 			throw new QuestionChangeForbiddenException();
 		}
 		question.retire(accountId, Instant.now());
 	}
 
+	/**
+	 * Marca la respuesta útil de una pregunta, en lugar de la que hubiera. Solo
+	 * quien hizo la pregunta, y con una respuesta visible de esa pregunta.
+	 *
+	 * @throws QuestionNotFoundException si la pregunta no existe o está retirada
+	 * @throws UsefulAnswerForbiddenException si quien pide no hizo la pregunta
+	 * @throws FieldValidationException si la respuesta no está publicada en ella
+	 */
+	@Transactional
+	public void markUsefulAnswer(Long questionId, UsefulAnswerRequest request, Long accountId) {
+		Question question = askedBy(questionId, accountId);
+		Answer answer = answerRepository.findByIdAndQuestionIdAndRetiredAtIsNull(request.answerId(), questionId)
+				.orElseThrow(() -> new FieldValidationException("answerId",
+						"La respuesta no está publicada en esta pregunta."));
+		question.markUseful(answer);
+	}
+
+	/**
+	 * Quita la marca de respuesta útil, si la hay. Solo quien hizo la pregunta.
+	 *
+	 * @throws QuestionNotFoundException si la pregunta no existe o está retirada
+	 * @throws UsefulAnswerForbiddenException si quien pide no hizo la pregunta
+	 */
+	@Transactional
+	public void clearUsefulAnswer(Long questionId, Long accountId) {
+		askedBy(questionId, accountId).clearUseful();
+	}
+
+	private Question askedBy(Long questionId, Long accountId) {
+		Question question = questionRepository.getVisibleForUpdate(questionId);
+		if (!question.getAuthorId().equals(accountId)) {
+			throw new UsefulAnswerForbiddenException();
+		}
+		return question;
+	}
+
 	private static boolean canRetire(Question question, Long viewerId, boolean viewerIsTeam) {
 		return viewerId != null && (viewerIsTeam || viewerId.equals(question.getAuthorId()));
 	}
 
-	private static QuestionDto toDto(Question question, Long viewerId, boolean viewerIsTeam) {
+	private static QuestionDto toDto(Question question, long answerCount, Long viewerId, boolean viewerIsTeam) {
 		return new QuestionDto(question.getId(), question.getCourseId(), question.getResourceId(),
-				question.getTitle(), question.getBody(), question.getCreatedAt(),
-				canRetire(question, viewerId, viewerIsTeam));
+				question.getTitle(), question.getBody(), question.getCreatedAt(), question.getUsefulAnswerId(),
+				answerCount, false, canRetire(question, viewerId, viewerIsTeam),
+				question.getAuthorId().equals(viewerId));
 	}
 
 }
