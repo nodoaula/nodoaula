@@ -44,11 +44,12 @@ class AnswerTests {
 	@Autowired private JdbcTemplate jdbcTemplate;
 	@Autowired private EntityManager entityManager;
 
+	private Long courseId;
 	private Long questionId;
 
 	@BeforeEach
 	void publishAQuestion() throws Exception {
-		Long courseId = jdbcTemplate.queryForObject("select id from courses where name = ?", Long.class, SEED_COURSE);
+		courseId = jdbcTemplate.queryForObject("select id from courses where name = ?", Long.class, SEED_COURSE);
 		String response = mockMvc.perform(post("/api/forum/questions").with(signedInAs(ASKER_ID)).with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
@@ -120,6 +121,27 @@ class AnswerTests {
 				.andExpect(jsonPath("$[0].body").value("Primera"))
 				.andExpect(jsonPath("$[1].body").value("Segunda"))
 				.andExpect(jsonPath("$[2].body").value("Tercera"));
+	}
+
+	@Test
+	void theForumAndTheQuestionCountOnlyItsVisibleAnswers() throws Exception {
+		Long retired = answer(ANSWERER_ID, "Retirada");
+		answer(OTHER_ID, "Visible");
+		retire(retired, ANSWERER_ID).andExpect(status().isNoContent());
+		mockMvc.perform(post("/api/forum/questions").with(signedInAs(OTHER_ID)).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"courseId\": %s, \"title\": \"Sin respuestas\", \"body\": \"Nadie responde.\"}"
+						.formatted(courseId)))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.answerCount").value(0));
+
+		// De la más reciente a la más antigua: primero la que no tiene respuestas.
+		mockMvc.perform(get("/api/forum/questions").param("courseId", courseId.toString()))
+				.andExpect(jsonPath("$[0].answerCount").value(0))
+				.andExpect(jsonPath("$[1].id").value(questionId))
+				.andExpect(jsonPath("$[1].answerCount").value(1));
+		mockMvc.perform(get("/api/forum/questions/" + questionId))
+				.andExpect(jsonPath("$.answerCount").value(1));
 	}
 
 	@Test

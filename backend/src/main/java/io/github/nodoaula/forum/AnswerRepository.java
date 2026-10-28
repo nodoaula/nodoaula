@@ -1,5 +1,6 @@
 package io.github.nodoaula.forum;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,5 +26,23 @@ interface AnswerRepository extends JpaRepository<Answer, Long> {
 	Optional<Answer> findForUpdateByIdAndRetiredAtIsNull(Long id);
 
 	Optional<Answer> findByIdAndQuestionIdAndRetiredAtIsNull(Long id, Long questionId);
+
+	long countByQuestionIdAndRetiredAtIsNull(Long questionId);
+
+	/**
+	 * Cuántas respuestas visibles tiene cada una de esas preguntas, en una sola
+	 * consulta. Las que no tienen ninguna no aparecen.
+	 */
+	@Query("select a.questionId as questionId, count(a) as answers from Answer a"
+			+ " where a.questionId in :questionIds and a.retiredAt is null group by a.questionId")
+	List<AnswerCount> countVisibleByQuestionIds(Collection<Long> questionIds);
+
+	interface AnswerCount {
+
+		Long getQuestionId();
+
+		long getAnswers();
+
+	}
 
 }

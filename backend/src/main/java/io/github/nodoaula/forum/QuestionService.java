@@ -2,6 +2,8 @@ package io.github.nodoaula.forum;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,9 +40,22 @@ public class QuestionService {
 	@Transactional(readOnly = true)
 	public List<QuestionDto> listQuestions(Long courseId, Long viewerId) {
 		boolean viewerIsTeam = viewerId != null && accountService.isTeamMember(viewerId);
-		return questionRepository.findByCourseIdAndRetiredAtIsNullOrderByCreatedAtDescIdDesc(courseId).stream()
-				.map(question -> toDto(question, viewerId, viewerIsTeam))
+		List<Question> questions = questionRepository
+				.findByCourseIdAndRetiredAtIsNullOrderByCreatedAtDescIdDesc(courseId);
+		Map<Long, Long> answerCounts = countAnswers(questions);
+		return questions.stream()
+				.map(question -> toDto(question, answerCounts.getOrDefault(question.getId(), 0L), viewerId,
+						viewerIsTeam))
 				.toList();
+	}
+
+	private Map<Long, Long> countAnswers(List<Question> questions) {
+		if (questions.isEmpty()) {
+			return Map.of();
+		}
+		return answerRepository.countVisibleByQuestionIds(questions.stream().map(Question::getId).toList()).stream()
+				.collect(Collectors.toMap(AnswerRepository.AnswerCount::getQuestionId,
+						AnswerRepository.AnswerCount::getAnswers));
 	}
 
 	/**
@@ -53,11 +68,11 @@ public class QuestionService {
 	public QuestionDto getQuestion(Long id, Long viewerId) {
 		Question question = questionRepository.findById(id).orElseThrow(QuestionNotFoundException::new);
 		if (question.isRetired()) {
-			return new QuestionDto(question.getId(), question.getCourseId(), null, null, null, null, null, true, false,
-					false);
+			return new QuestionDto(question.getId(), question.getCourseId(), null, null, null, null, null, 0, true,
+					false, false);
 		}
 		boolean viewerIsTeam = viewerId != null && accountService.isTeamMember(viewerId);
-		return toDto(question, viewerId, viewerIsTeam);
+		return toDto(question, answerRepository.countByQuestionIdAndRetiredAtIsNull(id), viewerId, viewerIsTeam);
 	}
 
 	/**
@@ -79,7 +94,7 @@ public class QuestionService {
 
 		Question question = questionRepository.save(new Question(request.courseId(), request.resourceId(), authorId,
 				request.title().strip(), request.body().strip()));
-		return toDto(question, authorId, false);
+		return toDto(question, 0, authorId, false);
 	}
 
 	/**
@@ -138,10 +153,11 @@ public class QuestionService {
 		return viewerId != null && (viewerIsTeam || viewerId.equals(question.getAuthorId()));
 	}
 
-	private static QuestionDto toDto(Question question, Long viewerId, boolean viewerIsTeam) {
+	private static QuestionDto toDto(Question question, long answerCount, Long viewerId, boolean viewerIsTeam) {
 		return new QuestionDto(question.getId(), question.getCourseId(), question.getResourceId(),
-				question.getTitle(), question.getBody(), question.getCreatedAt(), question.getUsefulAnswerId(), false,
-				canRetire(question, viewerId, viewerIsTeam), question.getAuthorId().equals(viewerId));
+				question.getTitle(), question.getBody(), question.getCreatedAt(), question.getUsefulAnswerId(),
+				answerCount, false, canRetire(question, viewerId, viewerIsTeam),
+				question.getAuthorId().equals(viewerId));
 	}
 
 }
