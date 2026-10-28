@@ -78,7 +78,7 @@ describe('volver a la página de origen tras iniciar sesión', () => {
     fireEvent.change(screen.getByLabelText('Correo'), { target: { value: 'lectora@example.com' } })
     fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'contrasena-larga' } })
     fireEvent.click(screen.getByRole('button', { name: 'Crear cuenta' }))
-    await screen.findByText('Tu cuenta se creó. Inicia sesión con tu correo y tu contraseña.')
+    await screen.findByText('Tu cuenta se creó')
     signInAndRerender(screen.getByLabelText('Correo'))
 
     expect(screen.getByText('Ficha del apunte')).toBeInTheDocument()

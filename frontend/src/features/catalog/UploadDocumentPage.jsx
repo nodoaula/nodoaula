@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { Link, Navigate, useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
 import CoursePicker from '../../components/ui/CoursePicker.jsx'
@@ -11,6 +11,7 @@ import TextInput from '../../components/ui/TextInput.jsx'
 import TopicPicker from '../../components/ui/TopicPicker.jsx'
 import { CSRF_ERROR_CODE } from '../../lib/apiClient.js'
 import { SESSION_STATUS } from '../../session/SessionContext.js'
+import SignInRedirect from '../../session/SignInRedirect.jsx'
 import { useSession } from '../../session/useSession.js'
 import { createDocument, listCoursesWithResources, listTopicsWithResources } from './api.js'
 import { isPdf, MAX_DOCUMENT_BYTES, titleFromFileName } from './documentFile.js'
@@ -140,7 +141,7 @@ export default function UploadDocumentPage() {
   const suggestedTopics = courseId !== null && loadedTopics.courseId === courseId ? loadedTopics.names : []
 
   if (status === SESSION_STATUS.LOADING) return null
-  if (account === null) return <Navigate to="/iniciar-sesion" replace />
+  if (account === null) return <SignInRedirect />
 
   const clearFieldError = (field) => setFieldErrors((errors) => ({ ...errors, [field]: undefined }))
 

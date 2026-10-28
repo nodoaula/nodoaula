@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react'
-import { Link, Navigate, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
 import CoursePicker from '../../components/ui/CoursePicker.jsx'
@@ -9,6 +9,7 @@ import TextInput from '../../components/ui/TextInput.jsx'
 import TopicPicker from '../../components/ui/TopicPicker.jsx'
 import { CSRF_ERROR_CODE } from '../../lib/apiClient.js'
 import { SESSION_STATUS } from '../../session/SessionContext.js'
+import SignInRedirect from '../../session/SignInRedirect.jsx'
 import { useSession } from '../../session/useSession.js'
 import { getResource, listCoursesWithResources, listTopicsWithResources, updateResource } from './api.js'
 import { formatDurationText, formatPublishedAt, formatResourceType } from './format.js'
@@ -124,7 +125,7 @@ function EditResource({ resourceId }) {
   }, [resourceId, signedIn])
 
   if (status === SESSION_STATUS.LOADING) return null
-  if (!signedIn) return <Navigate to="/iniciar-sesion" replace />
+  if (!signedIn) return <SignInRedirect />
 
   if (loadError) {
     return (
