@@ -130,13 +130,34 @@ describe('QuestionPage', () => {
     expect(within(thread).getByText(/Todavía nadie responde. Si sabes la respuesta/)).toBeInTheDocument()
   })
 
-  it('mientras no se sabe si hay sesión no ofrece ni el formulario ni la invitación', async () => {
+  it('mientras no se sabe si hay sesión espera, sin pedir la pregunta ni ofrecer nada', () => {
     session = { status: 'loading', account: null }
     renderQuestion()
-    await loadedThread()
 
-    expect(screen.queryByRole('form', { name: 'Responder la pregunta' })).not.toBeInTheDocument()
+    expect(screen.getByText('Cargando pregunta…')).toBeInTheDocument()
+    expect(getQuestion).not.toHaveBeenCalled()
     expect(screen.queryByText('Inicia sesión para responder')).not.toBeInTheDocument()
+  })
+
+  it('al cerrar sesión vuelve a cargar la pregunta y deja de ofrecer lo que ya no se puede hacer', async () => {
+    session = { status: 'ready', account: { id: 9 } }
+    getQuestion.mockResolvedValueOnce({ ...QUESTION, canMarkUseful: true, canRetire: true })
+    const { rerender } = renderQuestion()
+    await screen.findAllByRole('button', { name: 'Marcar como útil' })
+
+    session = { status: 'ready', account: null }
+    rerender(
+      <MemoryRouter initialEntries={['/foro/preguntas/7']}>
+        <Routes>
+          <Route path="/foro/preguntas/:questionId" element={<QuestionPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('Inicia sesión para responder')).toBeInTheDocument()
+    expect(getQuestion).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('button', { name: 'Marcar como útil' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Retirar pregunta' })).not.toBeInTheDocument()
   })
 
   it('con sesión publica una respuesta al final del hilo, le pasa el foco y lo anuncia', async () => {
@@ -323,6 +344,46 @@ describe('QuestionPage', () => {
     expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Esta pregunta ya no está disponible')
     expect(screen.getByRole('link', { name: 'Volver al foro de Física de Campos' })).toHaveAttribute('href', '/catalogo/cursos/3/foro')
     expect(listAnswers).not.toHaveBeenCalled()
+  })
+
+  it('si la retiran entre leerla y leer su hilo, se trata como retirada', async () => {
+    listAnswers.mockRejectedValue(new ApiError('x', { status: 404, body: { code: 'QUESTION_NOT_FOUND' } }))
+    renderQuestion()
+
+    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Esta pregunta ya no está disponible')
+    expect(screen.getByRole('link', { name: 'Volver al foro de Física de Campos' })).toBeInTheDocument()
+  })
+
+  it('si otra cuenta ya la había retirado, no se atribuye el retiro: dice que ya no está disponible', async () => {
+    session = { status: 'ready', account: { id: 9 } }
+    getQuestion.mockResolvedValue({ ...QUESTION, canRetire: true })
+    retireQuestion.mockRejectedValue(new ApiError('x', { status: 404, body: { code: 'QUESTION_NOT_FOUND' } }))
+    renderQuestion()
+    await loadedThread()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Retirar pregunta' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sí, retirar' }))
+
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Esta pregunta ya no está disponible' })
+    expect(screen.getByText(/el equipo de NodoAula, la retiró/)).toBeInTheDocument()
+    expect(heading.closest('[tabindex="-1"]')).toHaveFocus()
+    expect(screen.queryByText('Retiraste la pregunta')).not.toBeInTheDocument()
+  })
+
+  it('si publicar tarda demasiado, vuelve a pedir el hilo y conserva el texto', async () => {
+    session = { status: 'ready', account: { id: 5 } }
+    createAnswer.mockRejectedValue(new ApiError('x', { timedOut: true }))
+    renderQuestion()
+    await loadedThread()
+    listAnswers.mockResolvedValue([FIRST, SECOND, { id: 4, body: 'Mi respuesta', createdAt: '2026-10-27T18:00:00Z', mine: true, canRetire: true }])
+
+    fireEvent.change(screen.getByLabelText('Tu respuesta'), { target: { value: 'Mi respuesta' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Publicar respuesta' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('revisa si tu respuesta aparece antes de volver a enviarla')
+    await waitFor(() => expect(listAnswers).toHaveBeenCalledTimes(2))
+    expect(await screen.findByText('Mi respuesta', { selector: 'article p' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Tu respuesta')).toHaveValue('Mi respuesta')
   })
 
   it('una pregunta que no existe dice que ya no está disponible y enlaza al catálogo', async () => {

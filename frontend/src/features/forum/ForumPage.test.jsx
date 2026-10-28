@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../../lib/apiClient.js'
@@ -160,16 +160,22 @@ describe('ForumPage', () => {
     expect(screen.queryByRole('button', { name: 'Retirar' })).not.toBeInTheDocument()
   })
 
-  it('al volver de retirar una pregunta lo confirma y lleva el foco al aviso', async () => {
+  it('al volver de retirar una pregunta lo confirma una vez: el aviso toma el foco y la marca sale del historial', async () => {
+    function HistoryState() {
+      return <p>{`estado: ${JSON.stringify(useLocation().state)}`}</p>
+    }
     render(
       <MemoryRouter initialEntries={[{ pathname: '/catalogo/cursos/1/foro', state: { questionRetired: true } }]}>
         <Routes>
           <Route path="/catalogo/cursos/:courseId/foro" element={<ForumPage />} />
         </Routes>
+        <HistoryState />
       </MemoryRouter>,
     )
 
     const notice = await screen.findByText('Retiraste la pregunta')
     expect(notice.closest('[tabindex="-1"]')).toHaveFocus()
+    expect(screen.getByText('estado: null')).toBeInTheDocument()
+    expect(screen.getByText('Retiraste la pregunta')).toBeInTheDocument()
   })
 })

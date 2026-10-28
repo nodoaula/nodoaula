@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
 import Modal from '../../components/ui/Modal.jsx'
-import { formatForumDate } from './format.js'
+import { formatAnswerCount, formatForumDate } from './format.js'
 import { answerElementId, markButtonId, retireButtonId, THREAD_HEADING_ID, unmarkButtonId } from './threadIds.js'
 
 // Acciones de texto subrayado: 24 px de alto como mínimo, para que se puedan
@@ -11,8 +11,7 @@ const ACCENT_ACTION = `${TEXT_ACTION} font-medium text-accent`
 const QUIET_ACTION = `${TEXT_ACTION} text-content-muted hover:text-content`
 
 function countHeading(count) {
-  if (count === 0) return 'Respuestas'
-  return count === 1 ? '1 respuesta' : `${count} respuestas`
+  return count === 0 ? 'Respuestas' : formatAnswerCount(count)
 }
 
 /** El check de la respuesta útil, junto a su texto. */

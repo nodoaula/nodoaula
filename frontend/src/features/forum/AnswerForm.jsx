@@ -17,9 +17,10 @@ function validate(body) {
 
 /**
  * Formulario para responder una pregunta (historia HU402). `fieldRef` llega
- * al campo, para que «Responder» lleve el foco a él.
+ * al campo, para que «Responder» lleve el foco a él. `onTimedOut` avisa de
+ * que no se sabe si la respuesta se guardó.
  */
-export default function AnswerForm({ questionId, onPublished, fieldRef }) {
+export default function AnswerForm({ questionId, onPublished, onTimedOut, fieldRef }) {
   const [body, setBody] = useState('')
   const [error, setError] = useState(null)
   const [general, setGeneral] = useState(null)
@@ -43,9 +44,14 @@ export default function AnswerForm({ questionId, onPublished, fieldRef }) {
       onPublished(answer)
     } catch (failure) {
       const fieldError = failure.code === 'VALIDATION_FAILED' && failure.body?.errors?.find(({ field }) => field === 'body')
-      if (fieldError) setError(fieldError.message)
-      else if (failure.timedOut) setGeneral('El servidor tardó demasiado. Revisa el hilo antes de volver a enviar.')
-      else setGeneral(describeForumFailure(failure, 'No se pudo publicar la respuesta. Intenta de nuevo.'))
+      if (fieldError) {
+        setError(fieldError.message)
+      } else if (failure.timedOut) {
+        setGeneral('El servidor tardó demasiado. Actualizamos el hilo: revisa si tu respuesta aparece antes de volver a enviarla.')
+        onTimedOut()
+      } else {
+        setGeneral(describeForumFailure(failure, 'No se pudo publicar la respuesta. Intenta de nuevo.'))
+      }
     } finally {
       setBusy(false)
     }

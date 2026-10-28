@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router'
+import { Link, useLocation, useNavigate, useParams } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
 import NodePath from '../../components/ui/NodePath.jsx'
@@ -7,7 +7,7 @@ import Notice from '../../components/ui/Notice.jsx'
 import { useSession } from '../../session/useSession.js'
 import { listResources } from '../catalog/api.js'
 import { listQuestions } from './api.js'
-import { formatForumDate } from './format.js'
+import { formatAnswerCount, formatForumDate } from './format.js'
 import QuestionForm from './QuestionForm.jsx'
 
 /**
@@ -18,12 +18,23 @@ import QuestionForm from './QuestionForm.jsx'
  */
 export default function ForumPage() {
   const { courseId } = useParams()
-  // Al volver de retirar una pregunta desde su página (HU402), el foro lo confirma.
-  const questionRetired = useLocation().state?.questionRetired === true
+  const location = useLocation()
+  const navigate = useNavigate()
+  const questionRetired = location.state?.questionRetired === true
+
+  // Al volver de retirar una pregunta desde su página (HU402), el foro lo
+  // confirma una vez: la marca sale del historial para que el aviso no vuelva
+  // al recargar ni al volver atrás. Forum la conserva mientras siga montado.
+  useEffect(() => {
+    if (!questionRetired) return
+    navigate({ pathname: location.pathname, search: location.search, hash: location.hash }, { replace: true, state: null })
+  }, [questionRetired, location.pathname, location.search, location.hash, navigate])
+
   return <Forum key={courseId} courseId={courseId} questionRetired={questionRetired} />
 }
 
-function Forum({ courseId, questionRetired }) {
+function Forum({ courseId, questionRetired: arrivedFromRetirement }) {
+  const [questionRetired] = useState(arrivedFromRetirement)
   const validId = /^\d+$/.test(courseId)
   const { account } = useSession()
   const [resources, setResources] = useState(validId ? null : [])
@@ -172,11 +183,6 @@ function QuestionList({ questions, resources }) {
   )
 }
 
-function answerCountText(count) {
-  if (count === 0) return 'Sin respuestas'
-  return count === 1 ? '1 respuesta' : `${count} respuestas`
-}
-
 function QuestionRow({ question, resourceTitle }) {
   return (
     <Link to={`/foro/preguntas/${question.id}`} className="group block px-1 py-4.5">
@@ -188,7 +194,7 @@ function QuestionRow({ question, resourceTitle }) {
         <span>{formatForumDate(question.createdAt)}</span>
         {resourceTitle && <span className="wrap-break-word">Sobre «{resourceTitle}»</span>}
         <span className={question.answerCount > 0 ? 'font-medium text-content' : undefined}>
-          {answerCountText(question.answerCount)}
+          {question.answerCount === 0 ? 'Sin respuestas' : formatAnswerCount(question.answerCount)}
         </span>
       </span>
     </Link>

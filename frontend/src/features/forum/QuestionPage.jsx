@@ -38,6 +38,31 @@ function isNotFound(error) {
 
 const forumPath = (courseId) => `/catalogo/cursos/${courseId}/foro`
 
+const asRetired = (question) => ({ id: question.id, courseId: question.courseId, retired: true })
+
+// Devuelve si la retiró esta petición: false si otra cuenta ya la había retirado.
+async function retireQuestionIfStillThere(questionId) {
+  try {
+    await retireQuestion(questionId)
+    return true
+  } catch (error) {
+    if (error.code !== 'QUESTION_NOT_FOUND') throw error
+    return false
+  }
+}
+
+// Las respuestas de la pregunta. Si la retiraron justo después de leerla, la
+// pregunta se trata como retirada y no como inexistente.
+async function withAnswers(question) {
+  if (question.retired) return { question, answers: [] }
+  try {
+    return { question, answers: await listAnswers(question.id) }
+  } catch (error) {
+    if (error.code !== 'QUESTION_NOT_FOUND') throw error
+    return { question: asRetired(question), answers: [] }
+  }
+}
+
 // Si ya no existe, desaparece del hilo igual que si se hubiera retirado.
 async function retireIfStillThere(answerId) {
   try {
@@ -60,10 +85,28 @@ const withoutUsefulMark = (answerId) => (question) =>
  */
 export default function QuestionPage() {
   const { questionId } = useParams()
-  return <QuestionLoader key={questionId} questionId={questionId} />
+  const { status, account } = useSession()
+
+  // Lo que se ofrece depende de quién la ve: se espera a saber si hay sesión,
+  // y se vuelve a cargar al iniciarla o cerrarla.
+  if (status === SESSION_STATUS.LOADING) return <Loading />
+  const viewer = account?.id ?? 'sin-sesion'
+  return <QuestionLoader key={`${questionId}:${viewer}`} questionId={questionId} signedIn={account !== null} />
 }
 
-function QuestionLoader({ questionId }) {
+function Page({ children }) {
+  return <main className="mx-auto max-w-6xl px-4 pt-9 pb-18 sm:px-6">{children}</main>
+}
+
+function Loading() {
+  return (
+    <Page>
+      <output className="block text-body text-content-muted">Cargando pregunta…</output>
+    </Page>
+  )
+}
+
+function QuestionLoader({ questionId, signedIn }) {
   const [loaded, setLoaded] = useState(null)
   const [error, setError] = useState(null)
 
@@ -74,11 +117,8 @@ function QuestionLoader({ questionId }) {
     // nombre del curso para la ruta y el foro, y el título del recurso.
     async function load() {
       const question = await getQuestion(questionId)
-      const [answers, resources] = await Promise.all([
-        question.retired ? [] : listAnswers(question.id),
-        listResources({ courseId: question.courseId }),
-      ])
-      return { question, answers, resources }
+      const [thread, resources] = await Promise.all([withAnswers(question), listResources({ courseId: question.courseId })])
+      return { ...thread, resources }
     }
 
     load()
@@ -110,14 +150,23 @@ function QuestionLoader({ questionId }) {
       </Notice>
     )
   } else if (loaded === null) {
-    content = <output className="block text-body text-content-muted">Cargando pregunta…</output>
+    return <Loading />
   } else if (loaded.question.retired) {
-    content = <RetiredQuestion courseId={loaded.question.courseId} courseName={loaded.resources[0]?.course} />
+    content = (
+      <RetiredQuestion
+        courseId={loaded.question.courseId}
+        courseName={loaded.resources[0]?.course}
+        takeFocus={loaded.retiredMeanwhile === true}
+      />
+    )
   } else {
-    content = <Question {...loaded} />
+    // Si otra cuenta la retira mientras se ve, la página pasa a decirlo.
+    const retiredMeanwhile = () =>
+      setLoaded((current) => ({ ...current, question: asRetired(current.question), retiredMeanwhile: true }))
+    content = <Question {...loaded} signedIn={signedIn} onRetiredMeanwhile={retiredMeanwhile} />
   }
 
-  return <main className="mx-auto max-w-6xl px-4 pt-9 pb-18 sm:px-6">{content}</main>
+  return <Page>{content}</Page>
 }
 
 function Unavailable({ action, children }) {
@@ -128,17 +177,26 @@ function Unavailable({ action, children }) {
   )
 }
 
-function RetiredQuestion({ courseId, courseName }) {
+// `takeFocus` cuando aparece tras una acción en la misma página: el botón
+// pulsado ya no existe.
+function RetiredQuestion({ courseId, courseName, takeFocus }) {
+  const notice = useRef(null)
+  useEffect(() => {
+    if (takeFocus) notice.current.focus()
+  }, [takeFocus])
+
   return (
-    <Unavailable
-      action={
-        <Link to={forumPath(courseId)} className={buttonClasses('secondary')}>
-          {courseName ? `Volver al foro de ${courseName}` : 'Volver al foro del curso'}
-        </Link>
-      }
-    >
-      Quien la publicó, o el equipo de NodoAula, la retiró del foro.
-    </Unavailable>
+    <div ref={notice} tabIndex={-1}>
+      <Unavailable
+        action={
+          <Link to={forumPath(courseId)} className={buttonClasses('secondary')}>
+            {courseName ? `Volver al foro de ${courseName}` : 'Volver al foro del curso'}
+          </Link>
+        }
+      >
+        Quien la publicó, o el equipo de NodoAula, la retiró del foro.
+      </Unavailable>
+    </div>
   )
 }
 
@@ -161,8 +219,7 @@ function useAnnouncer() {
   return [message, announce]
 }
 
-function Question({ question: initialQuestion, answers: initialAnswers, resources }) {
-  const { status, account } = useSession()
+function Question({ question: initialQuestion, answers: initialAnswers, resources, signedIn, onRetiredMeanwhile }) {
   const navigate = useNavigate()
   const [question, setQuestion] = useState(initialQuestion)
   const [answers, setAnswers] = useState(initialAnswers)
@@ -172,8 +229,6 @@ function Question({ question: initialQuestion, answers: initialAnswers, resource
   const [announcement, announce] = useAnnouncer()
   const answerField = useRef(null)
 
-  const sessionKnown = status !== SESSION_STATUS.LOADING
-  const signedIn = sessionKnown && account !== null
   const courseName = resources[0]?.course
   const resource = resources.find(({ id }) => id === question.resourceId)
   const usefulAnswer = answers.find(({ id }) => id === question.usefulAnswerId)
@@ -208,6 +263,16 @@ function Question({ question: initialQuestion, answers: initialAnswers, resource
     }
     setBusy(false)
     return true
+  }
+
+  // Tras un tiempo agotado no se sabe si la respuesta se guardó: se vuelve a
+  // pedir el hilo para que se pueda comprobar sin perder el texto escrito.
+  async function refreshThread() {
+    try {
+      setAnswers(await listAnswers(question.id))
+    } catch (error) {
+      console.error('No se pudo volver a cargar el hilo', error)
+    }
   }
 
   function published(answer) {
@@ -261,12 +326,17 @@ function Question({ question: initialQuestion, answers: initialAnswers, resource
 
   async function retireTheQuestion() {
     setConfirmingRetirement(false)
-    const done = await run(() => retireQuestion(question.id), {
+    let retiredHere = false
+    const done = await run(async () => {
+      retiredHere = await retireQuestionIfStillThere(question.id)
+    }, {
       target: 'question',
       buttonId: RETIRE_QUESTION_BUTTON_ID,
       fallback: 'No se pudo retirar la pregunta. Intenta de nuevo.',
     })
-    if (done) navigate(forumPath(question.courseId), { state: { questionRetired: true } })
+    if (!done) return
+    if (retiredHere) navigate(forumPath(question.courseId), { state: { questionRetired: true } })
+    else onRetiredMeanwhile()
   }
 
   return (
@@ -350,8 +420,10 @@ function Question({ question: initialQuestion, answers: initialAnswers, resource
             onRetire={retire}
           />
 
-          {signedIn && <AnswerForm questionId={question.id} onPublished={published} fieldRef={answerField} />}
-          {sessionKnown && !signedIn && <SignInToAnswer />}
+          {signedIn && (
+            <AnswerForm questionId={question.id} onPublished={published} onTimedOut={refreshThread} fieldRef={answerField} />
+          )}
+          {!signedIn && <SignInToAnswer />}
         </div>
       </div>
 
