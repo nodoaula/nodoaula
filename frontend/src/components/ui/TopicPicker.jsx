@@ -88,7 +88,7 @@ export default function TopicPicker({ id, label, suggestions, value, onChange, e
       <p id={hintId} className="text-label text-content-muted">
         Elige de la lista los temas del curso o escribe uno nuevo y pulsa Enter. Se añaden de uno en uno.
       </p>
-      {error && <p id={errorId} className="text-label text-red-400">{error}</p>}
+      {error && <p id={errorId} className="text-label text-error">{error}</p>}
     </fieldset>
   )
 }

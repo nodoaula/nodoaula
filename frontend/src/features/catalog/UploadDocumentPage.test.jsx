@@ -1,6 +1,6 @@
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../../lib/apiClient.js'
@@ -27,12 +27,17 @@ function pdf(name = 'series-y-sucesiones.pdf', bytes = 2516582) {
   return new File([new Uint8Array(bytes)], name, { type: 'application/pdf' })
 }
 
+// Dice a qué página volvería el inicio de sesión.
+function SignInStub() {
+  return <p>Inicio de sesión desde {useLocation().state?.from}</p>
+}
+
 function renderPage(path = '/subir-apunte') {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/subir-apunte" element={<UploadDocumentPage />} />
-        <Route path="/iniciar-sesion" element={<p>Inicio de sesión</p>} />
+        <Route path="/iniciar-sesion" element={<SignInStub />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -77,11 +82,11 @@ describe('UploadDocumentPage', () => {
     vi.clearAllMocks()
   })
 
-  it('sin sesión no ofrece el formulario y lleva a iniciar sesión', () => {
+  it('sin sesión lleva a iniciar sesión, que luego vuelve aquí con el curso puesto', () => {
     session = { status: 'ready', account: null }
-    renderPage()
+    renderPage('/subir-apunte?courseId=3')
 
-    expect(screen.getByText('Inicio de sesión')).toBeInTheDocument()
+    expect(screen.getByText('Inicio de sesión desde /subir-apunte?courseId=3')).toBeInTheDocument()
   })
 
   it('al elegir el PDF propone el título y pasa a los pasos', async () => {

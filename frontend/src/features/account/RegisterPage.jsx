@@ -1,7 +1,11 @@
 import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 
-import TextField from '../../components/ui/TextField.jsx'
+import { buttonClasses } from '../../components/ui/button.js'
+import Notice from '../../components/ui/Notice.jsx'
+import PasswordInput from '../../components/ui/PasswordInput.jsx'
+import TextInput from '../../components/ui/TextInput.jsx'
+import { useFocusFirstInvalid } from '../../components/ui/useFocusFirstInvalid.js'
 import { CSRF_ERROR_CODE } from '../../lib/apiClient.js'
 import { useSession } from '../../session/useSession.js'
 import { registerAccount } from './api.js'
@@ -47,22 +51,27 @@ function describeFailure(error) {
   return { formError: 'No se pudo crear la cuenta por un error del servidor. Inténtalo de nuevo en unos minutos.' }
 }
 
-/** Pantalla de registro. Registrarse no inicia sesión: al terminar lleva al inicio de sesión. */
+/**
+ * Pantalla de registro. Al crear la cuenta inicia la sesión y vuelve a la
+ * página de la que se venía (`from`, en el estado de la navegación) o al
+ * catálogo. Si ese inicio de sesión falla, la cuenta ya existe: lleva al
+ * inicio de sesión con el correo puesto.
+ */
 export default function RegisterPage() {
   const navigate = useNavigate()
-  // La página a la que volver al iniciar sesión pasa intacta al inicio de sesión.
   const from = useLocation().state?.from
+  const { account, login } = useSession()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
   const [fieldErrors, setFieldErrors] = useState({})
   const [emailInUse, setEmailInUse] = useState(false)
   const [formError, setFormError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
-  const { account } = useSession()
+  const [formRef, focusFirstInvalid] = useFocusFirstInvalid()
 
   // Con la sesión iniciada, crear otra cuenta no tiene sentido desde aquí.
+  // Es también como termina un registro correcto.
   if (account !== null) {
     return <Navigate to={from ?? '/catalogo'} replace />
   }
@@ -83,6 +92,13 @@ export default function RegisterPage() {
     clearFieldError('password')
   }
 
+  function reject(failure) {
+    setFieldErrors(failure.fieldErrors ?? {})
+    setEmailInUse(failure.emailInUse ?? false)
+    setFormError(failure.formError ?? null)
+    focusFirstInvalid()
+  }
+
   async function handleSubmit(event) {
     event.preventDefault()
     if (submitting) return
@@ -92,96 +108,101 @@ export default function RegisterPage() {
     const data = { email: email.trim(), password }
 
     const errors = validateRegistration(data)
-    setFieldErrors(errors)
-    setEmailInUse(false)
-    setFormError(null)
-    if (Object.keys(errors).length > 0) return
+    if (Object.keys(errors).length > 0) {
+      reject({ fieldErrors: errors })
+      return
+    }
 
     setSubmitting(true)
+    setFieldErrors({})
+    setEmailInUse(false)
+    setFormError(null)
+    let created
     try {
-      const account = await registerAccount(data)
-      navigate('/iniciar-sesion', { state: { email: account.email, justRegistered: true, from } })
+      created = await registerAccount(data)
     } catch (error) {
       console.error('No se pudo crear la cuenta', error)
-      const failure = describeFailure(error)
-      setFieldErrors(failure.fieldErrors ?? {})
-      setEmailInUse(failure.emailInUse ?? false)
-      setFormError(failure.formError ?? null)
+      reject(describeFailure(error))
       setSubmitting(false)
+      return
+    }
+
+    try {
+      await login(data)
+    } catch (error) {
+      console.error('Se creó la cuenta, pero no se pudo iniciar la sesión', error)
+      navigate('/iniciar-sesion', { state: { email: created.email, justRegistered: true, from } })
     }
   }
 
   return (
-    <main className="px-4 py-10">
-      <div className="mx-auto max-w-md">
-        <h1 className="text-2xl font-semibold text-slate-900">Crear una cuenta</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Con una cuenta puedes aportar recursos y leer los apuntes completos. Para consultar el catálogo no necesitas una.
+    <main className="px-4 pt-10 pb-16 sm:px-6 sm:pt-16 sm:pb-22">
+      <div className="mx-auto max-w-105">
+        <h1 className="text-[1.625rem] leading-tight font-semibold tracking-tight text-balance sm:text-3xl">
+          Crear una cuenta
+        </h1>
+        <p className="mt-2.5 text-body text-content-muted">
+          Con una cuenta puedes aportar recursos y leer los apuntes completos. Para consultar el catálogo no necesitas
+          una.
         </p>
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit} noValidate>
-          <TextField
-            id="register-email"
-            label="Correo"
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(event) => changeEmail(event.target.value)}
-            error={fieldErrors.email}
-          />
-          {emailInUse && (
-            <p className="-mt-2 text-sm text-slate-600">
-              ¿Es tuya?{' '}
-              <Link
-                to="/iniciar-sesion"
-                state={{ email: email.trim(), from }}
-                className="font-medium text-slate-900 underline"
-              >
-                Inicia sesión
-              </Link>
-            </p>
-          )}
+        <form ref={formRef} className="mt-8 flex flex-col gap-5.5" onSubmit={handleSubmit} noValidate>
+          <div className="flex flex-col gap-2">
+            <TextInput
+              id="register-email"
+              label="Correo"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={changeEmail}
+              hint="Nadie más lo verá."
+              error={fieldErrors.email}
+            />
+            {emailInUse && (
+              <p className="text-label text-content-muted">
+                ¿Es tuya?{' '}
+                <Link
+                  to="/iniciar-sesion"
+                  state={{ email: email.trim(), from }}
+                  className="font-medium text-accent hover:underline"
+                >
+                  Inicia sesión
+                </Link>
+              </p>
+            )}
+          </div>
 
-          <TextField
+          <PasswordInput
             id="register-password"
             label="Contraseña"
-            type={showPassword ? 'text' : 'password'}
             autoComplete="new-password"
             value={password}
-            onChange={(event) => changePassword(event.target.value)}
+            onChange={changePassword}
             hint={`Entre ${PASSWORD_MIN_LENGTH} y ${PASSWORD_MAX_LENGTH} caracteres.`}
             error={fieldErrors.password}
           />
 
-          {/* Sin recuperación de contraseña, un error al escribirla deja la
-              cuenta inaccesible; poder verla ayuda a evitarlo. */}
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={showPassword}
-              onChange={(event) => setShowPassword(event.target.checked)}
-            />
-            Mostrar contraseña
-          </label>
-
           {formError && (
-            <p className="text-sm text-red-700" role="alert">
+            <Notice role="alert" title="No se completó el registro">
               {formError}
-            </p>
+            </Notice>
           )}
 
+          {/* aria-disabled y no disabled: un botón deshabilitado pierde el foco,
+              y tras un error quien usa el teclado volvería a empezar desde arriba.
+              El envío doble lo evita la comprobación de handleSubmit. */}
           <button
             type="submit"
-            disabled={submitting}
-            className="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+            aria-disabled={submitting}
+            className={`${buttonClasses('primary', 'lg')} w-full aria-disabled:cursor-not-allowed aria-disabled:opacity-60`}
           >
             {submitting ? 'Creando cuenta…' : 'Crear cuenta'}
           </button>
         </form>
 
-        <p className="mt-6 text-sm text-slate-600">
+        <p className="mt-7 text-sm text-content-muted">
           ¿Ya tienes cuenta?{' '}
-          <Link to="/iniciar-sesion" state={{ from }} className="font-medium text-slate-900 underline">
+          <Link to="/iniciar-sesion" state={{ from }} className="font-medium text-accent hover:underline">
             Inicia sesión
           </Link>
         </p>

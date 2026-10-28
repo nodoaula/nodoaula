@@ -60,7 +60,7 @@ export default function CatalogPreview() {
           value={searchText}
           onChange={(event) => setSearchText(event.target.value)}
           placeholder="Buscar por título, descripción o tema…"
-          className="block w-full rounded-lg border border-border bg-surface px-3.5 py-2.5 text-sm text-content placeholder:text-content-faint focus:border-accent focus:outline-none"
+          className="block w-full rounded-lg border border-border-control bg-surface px-3.5 py-2.5 text-base text-content sm:text-sm placeholder:text-content-faint focus:border-accent focus:outline-none"
         />
       </form>
 

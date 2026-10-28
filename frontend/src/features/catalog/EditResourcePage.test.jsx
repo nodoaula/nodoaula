@@ -1,6 +1,6 @@
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../../lib/apiClient.js'
@@ -45,13 +45,18 @@ const DOCUMENT = {
   resourceType: 'DOCUMENT',
 }
 
+// Dice a qué página volvería el inicio de sesión.
+function SignInStub() {
+  return <p>Inicio de sesión desde {useLocation().state?.from}</p>
+}
+
 function renderPage(id = 24) {
   return render(
     <MemoryRouter initialEntries={[`/recursos/${id}/corregir`]}>
       <Routes>
         <Route path="/recursos/:resourceId/corregir" element={<EditResourcePage />} />
         <Route path="/recursos/:resourceId" element={<p>Ficha del recurso</p>} />
-        <Route path="/iniciar-sesion" element={<p>Inicio de sesión</p>} />
+        <Route path="/iniciar-sesion" element={<SignInStub />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -74,11 +79,11 @@ describe('EditResourcePage', () => {
     vi.clearAllMocks()
   })
 
-  it('sin sesión no ofrece el formulario y lleva a iniciar sesión', () => {
+  it('sin sesión lleva a iniciar sesión, que luego vuelve a este formulario', () => {
     session = { status: 'ready', account: null }
     renderPage()
 
-    expect(screen.getByText('Inicio de sesión')).toBeInTheDocument()
+    expect(screen.getByText('Inicio de sesión desde /recursos/24/corregir')).toBeInTheDocument()
     expect(getResource).not.toHaveBeenCalled()
   })
 

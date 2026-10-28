@@ -1,7 +1,11 @@
 import { useState } from 'react'
 import { Link, Navigate, useLocation } from 'react-router'
 
-import TextField from '../../components/ui/TextField.jsx'
+import { buttonClasses } from '../../components/ui/button.js'
+import Notice from '../../components/ui/Notice.jsx'
+import PasswordInput from '../../components/ui/PasswordInput.jsx'
+import TextInput from '../../components/ui/TextInput.jsx'
+import { useFocusFirstInvalid } from '../../components/ui/useFocusFirstInvalid.js'
 import { CSRF_ERROR_CODE } from '../../lib/apiClient.js'
 import { useSession } from '../../session/useSession.js'
 import { validateLogin } from './validation.js'
@@ -47,10 +51,10 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState(location.state?.email ?? '')
   const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
   const [fieldErrors, setFieldErrors] = useState({})
   const [formError, setFormError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  const [formRef, focusFirstInvalid] = useFocusFirstInvalid()
 
   // Cubre tanto a quien llega con la sesión iniciada como el final de un
   // inicio de sesión correcto: al guardarse la cuenta, esta pantalla se va.
@@ -79,7 +83,10 @@ export default function LoginPage() {
     const errors = validateLogin(data)
     setFieldErrors(errors)
     setFormError(null)
-    if (Object.keys(errors).length > 0) return
+    if (Object.keys(errors).length > 0) {
+      focusFirstInvalid()
+      return
+    }
 
     setSubmitting(true)
     try {
@@ -87,75 +94,70 @@ export default function LoginPage() {
     } catch (error) {
       console.error('No se pudo iniciar sesión', error)
       setFormError(describeFailure(error))
-      if (error.code === INVALID_CREDENTIALS) setPassword('')
+      // La contraseña se borra y el foco va a ella para escribirla de nuevo,
+      // después de pintarse el aviso, que el lector de pantalla lee primero.
+      if (error.code === INVALID_CREDENTIALS) {
+        setPassword('')
+        setTimeout(() => formRef.current?.querySelector('#login-password')?.focus())
+      }
       setSubmitting(false)
     }
   }
 
   return (
-    <main className="px-4 py-10">
-      <div className="mx-auto max-w-md">
-        <h1 className="text-2xl font-semibold text-slate-900">Iniciar sesión</h1>
+    <main className="px-4 pt-10 pb-16 sm:px-6 sm:pt-16 sm:pb-22">
+      <div className="mx-auto max-w-105">
+        <h1 className="text-[1.625rem] leading-tight font-semibold tracking-tight text-balance sm:text-3xl">
+          Iniciar sesión
+        </h1>
 
-        {justRegistered && (
-          <p
-            className="mt-4 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800"
-            role="status"
-          >
-            Tu cuenta se creó. Inicia sesión con tu correo y tu contraseña.
-          </p>
-        )}
+        <form ref={formRef} className="mt-8 flex flex-col gap-5.5" onSubmit={handleSubmit} noValidate>
+          {justRegistered && (
+            <Notice title="Tu cuenta se creó">Inicia sesión con tu correo y tu contraseña.</Notice>
+          )}
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit} noValidate>
-          <TextField
+          <TextInput
             id="login-email"
             label="Correo"
             type="email"
             autoComplete="username"
             value={email}
-            onChange={(event) => changeEmail(event.target.value)}
+            onChange={changeEmail}
             error={fieldErrors.email}
           />
 
           {/* Con el correo ya escrito, el foco va directo a la contraseña. */}
-          <TextField
+          <PasswordInput
             id="login-password"
             label="Contraseña"
-            type={showPassword ? 'text' : 'password'}
             autoComplete="current-password"
             autoFocus={email !== ''}
             value={password}
-            onChange={(event) => changePassword(event.target.value)}
+            onChange={changePassword}
             error={fieldErrors.password}
           />
 
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={showPassword}
-              onChange={(event) => setShowPassword(event.target.checked)}
-            />
-            Mostrar contraseña
-          </label>
-
           {formError && (
-            <p className="text-sm text-red-700" role="alert">
+            <Notice role="alert" title="No se inició la sesión">
               {formError}
-            </p>
+            </Notice>
           )}
 
+          {/* aria-disabled y no disabled: un botón deshabilitado pierde el foco,
+              y tras un error quien usa el teclado volvería a empezar desde arriba.
+              El envío doble lo evita la comprobación de handleSubmit. */}
           <button
             type="submit"
-            disabled={submitting}
-            className="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+            aria-disabled={submitting}
+            className={`${buttonClasses('primary', 'lg')} w-full aria-disabled:cursor-not-allowed aria-disabled:opacity-60`}
           >
             {submitting ? 'Iniciando sesión…' : 'Iniciar sesión'}
           </button>
         </form>
 
-        <p className="mt-6 text-sm text-slate-600">
+        <p className="mt-7 text-sm text-content-muted">
           ¿No tienes cuenta?{' '}
-          <Link to="/registro" state={{ from }} className="font-medium text-slate-900 underline">
+          <Link to="/registro" state={{ from }} className="font-medium text-accent hover:underline">
             Crea una
           </Link>
         </p>

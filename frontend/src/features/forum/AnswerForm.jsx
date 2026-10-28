@@ -75,7 +75,7 @@ export default function AnswerForm({ questionId, onPublished, onTimedOut, fieldR
         onChange={setBody}
       />
       {general && (
-        <p role="alert" className="text-label text-red-400">
+        <p role="alert" className="text-label text-error">
           {general}
         </p>
       )}

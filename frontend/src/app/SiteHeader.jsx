@@ -24,6 +24,8 @@ export default function SiteHeader() {
   // para no enseñárselo a quien ya la tiene.
   const signedOut = status !== SESSION_STATUS.LOADING && account === null
   const origin = useReturnOrigin()
+  // En una pantalla de la cuenta no se ofrece ir a ella misma.
+  const { pathname } = useLocation()
 
   return (
     <header className="relative mx-auto flex h-18 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
@@ -40,18 +42,28 @@ export default function SiteHeader() {
         </NavLink>
         {signedOut && (
           <>
-            <Link to="/iniciar-sesion" state={origin} className="hover:text-content">
-              Iniciar sesión
-            </Link>
-            <Link to="/registro" state={origin} className={buttonClasses('primary')}>
-              Crear cuenta
-            </Link>
+            {pathname !== '/iniciar-sesion' && (
+              <Link to="/iniciar-sesion" state={origin} className="hover:text-content">
+                Iniciar sesión
+              </Link>
+            )}
+            {/* En el inicio de sesión la acción principal es su botón: crear
+                cuenta queda como enlace, sin competir con él. */}
+            {pathname !== '/registro' && (
+              <Link
+                to="/registro"
+                state={origin}
+                className={pathname === '/iniciar-sesion' ? 'hover:text-content' : buttonClasses('primary')}
+              >
+                Crear cuenta
+              </Link>
+            )}
           </>
         )}
         {account !== null && (
           <>
             {logoutFailed && (
-              <span className="text-red-400" role="alert">
+              <span className="text-error" role="alert">
                 No se pudo cerrar la sesión.
               </span>
             )}

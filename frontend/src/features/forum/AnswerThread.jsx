@@ -29,7 +29,7 @@ export function UsefulMark({ children }) {
 /** El error de una acción, junto a ella. */
 export function FailureMessage({ children }) {
   return (
-    <p role="alert" className="mt-2 text-label text-red-400">
+    <p role="alert" className="mt-2 text-label text-error">
       {children}
     </p>
   )

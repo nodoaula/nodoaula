@@ -49,7 +49,7 @@ export default function CoursePicker({ id, label, courses, value, onChange, erro
             Cambiar{' '}<span className="sr-only">de curso</span>
           </button>
         </div>
-        {error && <p id={errorId} className="text-label text-red-400">{error}</p>}
+        {error && <p id={errorId} className="text-label text-error">{error}</p>}
       </div>
     )
   }
@@ -103,7 +103,7 @@ export default function CoursePicker({ id, label, courses, value, onChange, erro
       <p id={hintId} className="text-label text-content-muted">
         Elígelo de la lista. Si tu curso no está, escríbelo y pulsa «Crear el curso».
       </p>
-      {error && <p id={errorId} className="text-label text-red-400">{error}</p>}
+      {error && <p id={errorId} className="text-label text-error">{error}</p>}
     </div>
   )
 }

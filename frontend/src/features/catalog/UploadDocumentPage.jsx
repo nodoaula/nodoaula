@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { Link, Navigate, useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
 import CoursePicker from '../../components/ui/CoursePicker.jsx'
@@ -11,6 +11,7 @@ import TextInput from '../../components/ui/TextInput.jsx'
 import TopicPicker from '../../components/ui/TopicPicker.jsx'
 import { CSRF_ERROR_CODE } from '../../lib/apiClient.js'
 import { SESSION_STATUS } from '../../session/SessionContext.js'
+import SignInRedirect from '../../session/SignInRedirect.jsx'
 import { useSession } from '../../session/useSession.js'
 import { createDocument, listCoursesWithResources, listTopicsWithResources } from './api.js'
 import { isPdf, MAX_DOCUMENT_BYTES, titleFromFileName } from './documentFile.js'
@@ -140,7 +141,7 @@ export default function UploadDocumentPage() {
   const suggestedTopics = courseId !== null && loadedTopics.courseId === courseId ? loadedTopics.names : []
 
   if (status === SESSION_STATUS.LOADING) return null
-  if (account === null) return <Navigate to="/iniciar-sesion" replace />
+  if (account === null) return <SignInRedirect />
 
   const clearFieldError = (field) => setFieldErrors((errors) => ({ ...errors, [field]: undefined }))
 
@@ -265,7 +266,7 @@ export default function UploadDocumentPage() {
               <Step done={course !== null} title="¿De qué curso es?" intro="Elígelo para que tu apunte aparezca junto a sus videos.">
                 {courses === null && !coursesFailed && <p className="text-label text-content-muted">Cargando los cursos…</p>}
                 {coursesFailed && (
-                  <p className="text-label text-red-400">No se pudieron cargar los cursos. Recarga la página.</p>
+                  <p className="text-label text-error">No se pudieron cargar los cursos. Recarga la página.</p>
                 )}
                 {courses !== null && (
                   <CoursePicker
@@ -345,7 +346,7 @@ export default function UploadDocumentPage() {
                     <span>Declaro que este apunte es de mi autoría o que tengo permiso para compartirlo.</span>
                   </label>
                   {fieldErrors.rightsDeclared && (
-                    <p id="derechos-error" className="text-label text-red-400">{fieldErrors.rightsDeclared}</p>
+                    <p id="derechos-error" className="text-label text-error">{fieldErrors.rightsDeclared}</p>
                   )}
                 </div>
 
@@ -365,7 +366,7 @@ export default function UploadDocumentPage() {
                     </output>
                   )}
                   {hasErrors && !sending && (
-                    <p role="alert" className="text-label text-red-400">Revisa los campos marcados.</p>
+                    <p role="alert" className="text-label text-error">Revisa los campos marcados.</p>
                   )}
                 </div>
 
@@ -439,7 +440,7 @@ function DropZone({ onFile, error }) {
         <p className="mt-1.5 font-mono text-label text-content-muted">Solo PDF · hasta 20 MB</p>
       </div>
       {error && (
-        <p role="alert" className="mt-4 max-w-2xl rounded-xl border border-red-400/35 bg-red-400/10 px-4 py-3 text-body text-red-200">
+        <p role="alert" className="mt-4 max-w-2xl rounded-xl border border-error/35 bg-error/10 px-4 py-3 text-body text-error">
           {error}
         </p>
       )}
@@ -481,7 +482,7 @@ function FileSheet({ file, onFile, onRemove, disabled, error }) {
             Quitar
           </button>
         </div>
-        {error && <p role="alert" className="text-label text-red-400">{error}</p>}
+        {error && <p role="alert" className="text-label text-error">{error}</p>}
       </div>
     </aside>
   )

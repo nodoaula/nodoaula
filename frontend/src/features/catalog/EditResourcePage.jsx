@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react'
-import { Link, Navigate, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
 import CoursePicker from '../../components/ui/CoursePicker.jsx'
@@ -9,6 +9,7 @@ import TextInput from '../../components/ui/TextInput.jsx'
 import TopicPicker from '../../components/ui/TopicPicker.jsx'
 import { CSRF_ERROR_CODE } from '../../lib/apiClient.js'
 import { SESSION_STATUS } from '../../session/SessionContext.js'
+import SignInRedirect from '../../session/SignInRedirect.jsx'
 import { useSession } from '../../session/useSession.js'
 import { getResource, listCoursesWithResources, listTopicsWithResources, updateResource } from './api.js'
 import { formatDurationText, formatPublishedAt, formatResourceType } from './format.js'
@@ -124,7 +125,7 @@ function EditResource({ resourceId }) {
   }, [resourceId, signedIn])
 
   if (status === SESSION_STATUS.LOADING) return null
-  if (!signedIn) return <Navigate to="/iniciar-sesion" replace />
+  if (!signedIn) return <SignInRedirect />
 
   if (loadError) {
     return (
@@ -306,7 +307,7 @@ function CorrectionForm({ resource, courses, coursesFailed }) {
 
       <FormSection title="Dónde está" intro="El curso y los temas por los que se encuentra en el catálogo.">
         {courses === null && !coursesFailed && <p className="text-label text-content-muted">Cargando los cursos…</p>}
-        {coursesFailed && <p className="text-label text-red-400">No se pudieron cargar los cursos. Recarga la página.</p>}
+        {coursesFailed && <p className="text-label text-error">No se pudieron cargar los cursos. Recarga la página.</p>}
         {courses !== null && (
           <CoursePicker id="curso" label="Curso" courses={courses} value={course} onChange={changeCourse} error={fieldErrors.course} />
         )}
@@ -338,7 +339,7 @@ function CorrectionForm({ resource, courses, coursesFailed }) {
           <Link to={detailPath} className={buttonClasses('secondary', 'lg')}>
             Cancelar
           </Link>
-          {hasErrors && !saving && <p role="alert" className="text-label text-red-400">Revisa los campos marcados.</p>}
+          {hasErrors && !saving && <p role="alert" className="text-label text-error">Revisa los campos marcados.</p>}
         </div>
       </div>
     </form>
