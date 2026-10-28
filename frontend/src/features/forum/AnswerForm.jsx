@@ -22,7 +22,7 @@ function validate(body) {
  */
 export default function AnswerForm({ questionId, onPublished, onTimedOut, fieldRef }) {
   const [body, setBody] = useState('')
-  const [error, setError] = useState(null)
+  const [bodyError, setBodyError] = useState(null)
   const [general, setGeneral] = useState(null)
   const [busy, setBusy] = useState(false)
 
@@ -31,7 +31,7 @@ export default function AnswerForm({ questionId, onPublished, onTimedOut, fieldR
     setGeneral(null)
 
     const invalid = validate(body)
-    setError(invalid)
+    setBodyError(invalid)
     if (invalid) {
       fieldRef.current?.focus()
       return
@@ -42,15 +42,15 @@ export default function AnswerForm({ questionId, onPublished, onTimedOut, fieldR
       const answer = await createAnswer(questionId, body.trim())
       setBody('')
       onPublished(answer)
-    } catch (failure) {
-      const fieldError = failure.code === 'VALIDATION_FAILED' && failure.body?.errors?.find(({ field }) => field === 'body')
+    } catch (error) {
+      const fieldError = error.code === 'VALIDATION_FAILED' && error.body?.errors?.find(({ field }) => field === 'body')
       if (fieldError) {
-        setError(fieldError.message)
-      } else if (failure.timedOut) {
+        setBodyError(fieldError.message)
+      } else if (error.timedOut) {
         setGeneral('El servidor tardó demasiado. Actualizamos el hilo: revisa si tu respuesta aparece antes de volver a enviarla.')
         onTimedOut()
       } else {
-        setGeneral(describeForumFailure(failure, 'No se pudo publicar la respuesta. Intenta de nuevo.'))
+        setGeneral(describeForumFailure(error, 'No se pudo publicar la respuesta. Intenta de nuevo.'))
       }
     } finally {
       setBusy(false)
@@ -70,8 +70,8 @@ export default function AnswerForm({ questionId, onPublished, onTimedOut, fieldR
         value={body}
         maxLength={MAX_BODY + 50}
         placeholder="Explica cómo lo resolviste o dónde encontrarlo en el catálogo"
-        error={error}
-        aria-describedby={error ? `${FIELD_ID}-error ${HINT_ID}` : HINT_ID}
+        error={bodyError}
+        aria-describedby={bodyError ? `${FIELD_ID}-error ${HINT_ID}` : HINT_ID}
         onChange={setBody}
       />
       {general && (

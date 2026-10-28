@@ -214,8 +214,8 @@ class ForumPersistenceTests {
 
 		Map<String, Object> question = jdbcTemplate.queryForMap(
 				"select retired_at, retired_by from forum_questions where id = ?", questionId);
+		assertThat(question).containsEntry("retired_by", ASKER_ID);
 		assertThat(question.get("retired_at")).isNotNull();
-		assertThat(question.get("retired_by")).isEqualTo(ASKER_ID);
 	}
 
 	@Test
@@ -229,8 +229,8 @@ class ForumPersistenceTests {
 
 		Map<String, Object> answer = jdbcTemplate.queryForMap(
 				"select retired_at, retired_by from forum_answers where id = ?", answerId);
+		assertThat(answer).containsEntry("retired_by", ANSWERER_ID);
 		assertThat(answer.get("retired_at")).isNotNull();
-		assertThat(answer.get("retired_by")).isEqualTo(ANSWERER_ID);
 		assertThat(usefulAnswerId()).isNull();
 	}
 
