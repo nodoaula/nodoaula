@@ -34,11 +34,11 @@ export default function App() {
               <Route path="recursos/:resourceId" element={<ResourceDetailPage />} />
               <Route path="recursos/:resourceId/corregir" element={<EditResourcePage />} />
               <Route path="subir-apunte" element={<UploadDocumentPage />} />
+              <Route path="registro" element={<RegisterPage />} />
             </Route>
             {/* Pantallas aún sin rediseñar: cada una pasa al grupo de arriba cuando se rediseña. */}
             <Route element={<AppLayout legacy />}>
               <Route path="registrar-recurso" element={<CreateResourcePage />} />
-              <Route path="registro" element={<RegisterPage />} />
               <Route path="iniciar-sesion" element={<LoginPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>

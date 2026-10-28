@@ -7,7 +7,9 @@ import LoginPage from './LoginPage.jsx'
 import RegisterPage from './RegisterPage.jsx'
 
 // Historia HU411: quien llega desde la invitación de un apunte vuelve a su
-// ficha al iniciar sesión, también si antes crea la cuenta.
+// ficha al iniciar sesión, también si antes crea la cuenta. La entrada
+// directa al crear la cuenta se prueba en RegisterPage.test.jsx, con la sesión
+// real; aquí, el camino de respaldo cuando esa entrada falla.
 
 let session = { status: 'ready', account: null }
 vi.mock('../../session/useSession.js', () => ({ useSession: () => session }))
@@ -68,8 +70,9 @@ describe('volver a la página de origen tras iniciar sesión', () => {
     expect(screen.getByText('Ficha del apunte')).toBeInTheDocument()
   })
 
-  it('después de crear la cuenta, el inicio de sesión sigue llevando a la ficha', async () => {
+  it('si la entrada falla tras crear la cuenta, el inicio de sesión sigue llevando a la ficha', async () => {
     registerAccount.mockResolvedValue({ id: 5, email: 'lectora@example.com' })
+    session = { status: 'ready', account: null, login: vi.fn().mockRejectedValue(new Error('Sin conexión')) }
     renderAt('/registro', { from: '/recursos/24' })
 
     fireEvent.change(screen.getByLabelText('Correo'), { target: { value: 'lectora@example.com' } })
