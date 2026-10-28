@@ -2,19 +2,18 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
-import Modal from '../../components/ui/Modal.jsx'
 import NodePath from '../../components/ui/NodePath.jsx'
 import Notice from '../../components/ui/Notice.jsx'
 import { useSession } from '../../session/useSession.js'
 import { listResources } from '../catalog/api.js'
-import { listQuestions, retireQuestion } from './api.js'
+import { listQuestions } from './api.js'
+import { formatForumDate } from './format.js'
 import QuestionForm from './QuestionForm.jsx'
-
-const dateFormat = new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium' })
 
 /**
  * Foro de un curso (HU401): lista de preguntas, visible sin sesión, y
- * formulario para publicar con sesión iniciada. El autor no se muestra hasta
+ * formulario para publicar con sesión iniciada. Cada pregunta enlaza a su
+ * página, donde se responde y se retira (HU402). El autor no se muestra hasta
  * que exista el perfil público (HU506).
  */
 export default function ForumPage() {
@@ -133,11 +132,7 @@ function Forum({ courseId, questionRetired }) {
         )}
       </section>
 
-      <QuestionList
-        questions={questions}
-        resources={resources}
-        onRetired={(id) => setQuestions((current) => current.filter((question) => question.id !== id))}
-      />
+      <QuestionList questions={questions} resources={resources} />
     </main>
   )
 }
@@ -153,7 +148,7 @@ function RetiredQuestionNotice() {
   )
 }
 
-function QuestionList({ questions, resources, onRetired }) {
+function QuestionList({ questions, resources }) {
   const resourceTitle = (id) => resources.find((resource) => resource.id === id)?.title
 
   return (
@@ -165,10 +160,10 @@ function QuestionList({ questions, resources, onRetired }) {
       {questions.length === 0 ? (
         <p className="mt-3 text-body text-content-muted">Aún no hay preguntas en este curso. Sé la primera persona en preguntar.</p>
       ) : (
-        <ul aria-label="Preguntas del curso" className="mt-3 border-t border-border">
+        <ul aria-label="Preguntas del curso" className="mt-3.5 max-w-[72ch] border-t border-border">
           {questions.map((question) => (
-            <li key={question.id} className="border-b border-border py-4">
-              <QuestionItem question={question} resourceTitle={resourceTitle(question.resourceId)} onRetired={onRetired} />
+            <li key={question.id} className="border-b border-border">
+              <QuestionRow question={question} resourceTitle={resourceTitle(question.resourceId)} />
             </li>
           ))}
         </ul>
@@ -177,70 +172,25 @@ function QuestionList({ questions, resources, onRetired }) {
   )
 }
 
-function retireErrorMessage(error) {
-  if (error.code === 'QUESTION_CHANGE_FORBIDDEN') {
-    return 'Solo quien publicó esta pregunta o una cuenta del equipo puede retirarla.'
-  }
-  if (error.code === 'QUESTION_NOT_FOUND') return 'Esta pregunta ya no está disponible.'
-  if (error.code === 'CSRF_TOKEN_INVALID') return 'La página caducó. Recárgala e intenta de nuevo.'
-  if (error.status === 401) return 'Tu sesión terminó. Inicia sesión de nuevo.'
-  return 'No se pudo retirar la pregunta. Intenta de nuevo.'
+function answerCountText(count) {
+  if (count === 0) return 'Sin respuestas'
+  return count === 1 ? '1 respuesta' : `${count} respuestas`
 }
 
-function QuestionItem({ question, resourceTitle, onRetired }) {
-  const [confirming, setConfirming] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [failure, setFailure] = useState(null)
-
-  async function retire() {
-    setConfirming(false)
-    setBusy(true)
-    setFailure(null)
-    try {
-      await retireQuestion(question.id)
-      onRetired(question.id)
-    } catch (error) {
-      // Si ya no existe, desaparece de la lista igual que si se hubiera retirado.
-      if (error.code === 'QUESTION_NOT_FOUND') onRetired(question.id)
-      else {
-        setFailure(retireErrorMessage(error))
-        setBusy(false)
-      }
-    }
-  }
-
+function QuestionRow({ question, resourceTitle }) {
   return (
-    <article>
-      <h3 className="text-body font-semibold wrap-break-word text-content">{question.title}</h3>
-      <p className="mt-1 font-mono text-label text-content-muted">
-        {dateFormat.format(new Date(question.createdAt))}
-        {resourceTitle && <> · Sobre «{resourceTitle}»</>}
-      </p>
-      <p className="mt-2 text-body whitespace-pre-line wrap-break-word text-content-muted">{question.body}</p>
-
-      {failure && (
-        <p role="alert" className="mt-2 text-sm text-red-700">
-          {failure}
-        </p>
-      )}
-
-      {question.canRetire && (
-        <div className="mt-3">
-          <button type="button" disabled={busy} onClick={() => setConfirming(true)} className={buttonClasses('secondary')}>
-            {busy ? 'Retirando…' : 'Retirar'}
-          </button>
-          <Modal
-            open={confirming}
-            title="¿Retirar esta pregunta?"
-            actions={[
-              { label: 'Cancelar', onClick: () => setConfirming(false) },
-              { label: 'Sí, retirar', onClick: retire, primary: true },
-            ]}
-          >
-            <p className="text-sm text-slate-700">Dejará de aparecer en el foro del curso para todos.</p>
-          </Modal>
-        </div>
-      )}
-    </article>
+    <Link to={`/foro/preguntas/${question.id}`} className="group block px-1 py-4.5">
+      <span className="block text-[1.03125rem] leading-snug font-semibold wrap-break-word text-content transition-colors group-hover:text-accent">
+        {question.title}
+      </span>
+      <span className="mt-1.5 line-clamp-2 text-body leading-relaxed wrap-break-word text-content-muted">{question.body}</span>
+      <span className="mt-2 flex flex-wrap gap-x-3.5 gap-y-1 font-mono text-label text-content-muted tabular-nums">
+        <span>{formatForumDate(question.createdAt)}</span>
+        {resourceTitle && <span className="wrap-break-word">Sobre «{resourceTitle}»</span>}
+        <span className={question.answerCount > 0 ? 'font-medium text-content' : undefined}>
+          {answerCountText(question.answerCount)}
+        </span>
+      </span>
+    </Link>
   )
 }
