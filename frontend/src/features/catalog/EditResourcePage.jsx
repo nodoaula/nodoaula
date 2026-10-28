@@ -306,7 +306,7 @@ function CorrectionForm({ resource, courses, coursesFailed }) {
 
       <FormSection title="Dónde está" intro="El curso y los temas por los que se encuentra en el catálogo.">
         {courses === null && !coursesFailed && <p className="text-label text-content-muted">Cargando los cursos…</p>}
-        {coursesFailed && <p className="text-label text-red-400">No se pudieron cargar los cursos. Recarga la página.</p>}
+        {coursesFailed && <p className="text-label text-error">No se pudieron cargar los cursos. Recarga la página.</p>}
         {courses !== null && (
           <CoursePicker id="curso" label="Curso" courses={courses} value={course} onChange={changeCourse} error={fieldErrors.course} />
         )}
@@ -338,7 +338,7 @@ function CorrectionForm({ resource, courses, coursesFailed }) {
           <Link to={detailPath} className={buttonClasses('secondary', 'lg')}>
             Cancelar
           </Link>
-          {hasErrors && !saving && <p role="alert" className="text-label text-red-400">Revisa los campos marcados.</p>}
+          {hasErrors && !saving && <p role="alert" className="text-label text-error">Revisa los campos marcados.</p>}
         </div>
       </div>
     </form>

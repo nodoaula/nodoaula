@@ -51,7 +51,7 @@ export default function SiteHeader() {
         {account !== null && (
           <>
             {logoutFailed && (
-              <span className="text-red-400" role="alert">
+              <span className="text-error" role="alert">
                 No se pudo cerrar la sesión.
               </span>
             )}

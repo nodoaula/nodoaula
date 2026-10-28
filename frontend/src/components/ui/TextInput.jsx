@@ -17,11 +17,11 @@ export default function TextInput({ id, label, optional = false, multiline = fal
         onChange={(event) => onChange(event.target.value)}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy || undefined}
-        className={`w-full rounded-xl border bg-surface-raised px-3.5 py-3 text-body text-content placeholder:text-content-faint focus:border-accent focus:outline-none ${multiline ? 'min-h-24 resize-y leading-normal' : ''} ${error ? 'border-red-400' : 'border-border-strong hover:border-content-faint'} ${className}`}
+        className={`w-full rounded-xl border bg-surface-raised px-3.5 py-3 text-body text-content placeholder:text-content-faint focus:border-accent focus:outline-none ${multiline ? 'min-h-24 resize-y leading-normal' : ''} ${error ? 'border-error' : 'border-border-control hover:border-content-faint'} ${className}`}
         {...props}
       />
       {hint && <p id={`${id}-hint`} className="text-label text-content-muted">{hint}</p>}
-      {error && <p id={`${id}-error`} className="text-label text-red-400">{error}</p>}
+      {error && <p id={`${id}-error`} className="text-label text-error">{error}</p>}
     </div>
   )
 }

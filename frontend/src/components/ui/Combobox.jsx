@@ -94,7 +94,7 @@ export default function Combobox({ id, value, onChange, options, onEnter, inputR
           setActive(-1)
         }}
         onKeyDown={handleKeyDown}
-        className={`w-full rounded-xl border bg-surface-raised px-3.5 py-3 text-body text-content placeholder:text-content-faint focus:border-accent focus:outline-none ${invalid ? 'border-red-400' : 'border-border-strong hover:border-content-faint'}`}
+        className={`w-full rounded-xl border bg-surface-raised px-3.5 py-3 text-body text-content placeholder:text-content-faint focus:border-accent focus:outline-none ${invalid ? 'border-error' : 'border-border-control hover:border-content-faint'}`}
         {...inputProps}
       />
       <ul

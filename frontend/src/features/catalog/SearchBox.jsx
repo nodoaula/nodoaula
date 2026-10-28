@@ -23,7 +23,7 @@ export default function SearchBox({ id, label, value, onChange }) {
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={`${label}…`}
-        className="block w-full rounded-full border border-border-strong bg-surface-raised py-3 pr-4.5 pl-11 text-body text-content caret-accent placeholder:text-content-muted focus:border-accent focus:outline-none"
+        className="block w-full rounded-full border border-border-control bg-surface-raised py-3 pr-4.5 pl-11 text-body text-content caret-accent placeholder:text-content-muted focus:border-accent focus:outline-none"
       />
     </div>
   )
