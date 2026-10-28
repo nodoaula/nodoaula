@@ -3,18 +3,15 @@ package io.github.nodoaula.forum;
 import java.time.Instant;
 
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 /**
- * Respuesta a una pregunta del foro (historia HU402). La pregunta es del mismo
- * módulo y se relaciona como entidad; el autor vive en otro y se guarda por
- * identificador.
+ * Respuesta a una pregunta del foro (historia HU402). La pregunta y el autor
+ * se guardan por identificador: nada lee la pregunta a través de la
+ * respuesta, y quien la necesita la pide bloqueada a su repositorio.
  */
 @Entity
 @Table(name = "forum_answers")
@@ -24,9 +21,7 @@ class Answer {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "question_id")
-	private Question question;
+	private Long questionId;
 
 	private Long authorId;
 
@@ -43,8 +38,8 @@ class Answer {
 	protected Answer() {
 	}
 
-	Answer(Question question, Long authorId, String body) {
-		this.question = question;
+	Answer(Long questionId, Long authorId, String body) {
+		this.questionId = questionId;
 		this.authorId = authorId;
 		this.body = body;
 		this.createdAt = Instant.now();
@@ -57,10 +52,6 @@ class Answer {
 
 	Long getId() {
 		return id;
-	}
-
-	Question getQuestion() {
-		return question;
 	}
 
 	Long getAuthorId() {

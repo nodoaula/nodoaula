@@ -45,8 +45,7 @@ public class QuestionService {
 
 	@Transactional(readOnly = true)
 	public QuestionDto getQuestion(Long id, Long viewerId) {
-		Question question = questionRepository.findByIdAndRetiredAtIsNull(id)
-				.orElseThrow(QuestionNotFoundException::new);
+		Question question = questionRepository.getVisible(id);
 		boolean viewerIsTeam = viewerId != null && accountService.isTeamMember(viewerId);
 		return toDto(question, viewerId, viewerIsTeam);
 	}
@@ -82,8 +81,7 @@ public class QuestionService {
 	 */
 	@Transactional
 	public void retireQuestion(Long id, Long accountId) {
-		Question question = questionRepository.findByIdAndRetiredAtIsNull(id)
-				.orElseThrow(QuestionNotFoundException::new);
+		Question question = questionRepository.getVisibleForUpdate(id);
 		if (!canRetire(question, accountId, accountService.isTeamMember(accountId))) {
 			throw new QuestionChangeForbiddenException();
 		}
@@ -119,8 +117,7 @@ public class QuestionService {
 	}
 
 	private Question askedBy(Long questionId, Long accountId) {
-		Question question = questionRepository.findByIdAndRetiredAtIsNull(questionId)
-				.orElseThrow(QuestionNotFoundException::new);
+		Question question = questionRepository.getVisibleForUpdate(questionId);
 		if (!question.getAuthorId().equals(accountId)) {
 			throw new UsefulAnswerForbiddenException();
 		}

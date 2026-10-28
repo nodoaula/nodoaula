@@ -35,7 +35,9 @@ class AnswerService {
 	 */
 	@Transactional(readOnly = true)
 	public List<AnswerDto> listAnswers(Long questionId, Long viewerId) {
-		visibleQuestion(questionId);
+		if (!questionRepository.existsByIdAndRetiredAtIsNull(questionId)) {
+			throw new QuestionNotFoundException();
+		}
 		boolean viewerIsTeam = viewerId != null && accountService.isTeamMember(viewerId);
 		return answerRepository.findByQuestionIdAndRetiredAtIsNullOrderByCreatedAtAscIdAsc(questionId).stream()
 				.map(answer -> toDto(answer, viewerId, viewerIsTeam))
@@ -49,8 +51,8 @@ class AnswerService {
 	 */
 	@Transactional
 	public AnswerDto createAnswer(Long questionId, CreateAnswerRequest request, Long authorId) {
-		Question question = visibleQuestion(questionId);
-		Answer answer = answerRepository.save(new Answer(question, authorId, request.body().strip()));
+		Question question = questionRepository.getVisibleForShare(questionId);
+		Answer answer = answerRepository.save(new Answer(question.getId(), authorId, request.body().strip()));
 		return toDto(answer, authorId, false);
 	}
 
@@ -65,11 +67,10 @@ class AnswerService {
 	 */
 	@Transactional
 	public void retireAnswer(Long id, Long accountId) {
-		Answer answer = answerRepository.findByIdAndRetiredAtIsNull(id).orElseThrow(AnswerNotFoundException::new);
-		Question question = answer.getQuestion();
-		if (question.isRetired()) {
-			throw new QuestionNotFoundException();
-		}
+		Long questionId = answerRepository.findQuestionIdOfVisibleAnswer(id).orElseThrow(AnswerNotFoundException::new);
+		Question question = questionRepository.getVisibleForUpdate(questionId);
+		Answer answer = answerRepository.findForUpdateByIdAndRetiredAtIsNull(id)
+				.orElseThrow(AnswerNotFoundException::new);
 		if (!canRetire(answer, accountId, accountService.isTeamMember(accountId))) {
 			throw new AnswerChangeForbiddenException();
 		}
@@ -77,10 +78,6 @@ class AnswerService {
 		if (answer.getId().equals(question.getUsefulAnswerId())) {
 			question.clearUseful();
 		}
-	}
-
-	private Question visibleQuestion(Long questionId) {
-		return questionRepository.findByIdAndRetiredAtIsNull(questionId).orElseThrow(QuestionNotFoundException::new);
 	}
 
 	private static boolean canRetire(Answer answer, Long viewerId, boolean viewerIsTeam) {
