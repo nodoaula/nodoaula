@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import * as sessionApi from './api.js'
 import { SESSION_STATUS, SessionContext } from './SessionContext.js'
@@ -11,6 +11,10 @@ import { SESSION_STATUS, SessionContext } from './SessionContext.js'
 export default function SessionProvider({ children }) {
   const [status, setStatus] = useState(SESSION_STATUS.LOADING)
   const [account, setAccount] = useState(null)
+  // Si se inicia o se cierra sesión antes de que responda la consulta inicial
+  // (con el servidor despertando tarda), su respuesta ya es vieja: no se usa,
+  // y la sesión ya se conoce.
+  const changedByUser = useRef(false)
 
   useEffect(() => {
     // StrictMode ejecuta el efecto dos veces en desarrollo; este indicador
@@ -20,7 +24,7 @@ export default function SessionProvider({ children }) {
     sessionApi
       .fetchCurrentAccount()
       .then((current) => {
-        if (active) setAccount(current)
+        if (active && !changedByUser.current) setAccount(current)
       })
       .catch((error) => {
         // Sin respuesta clara se trata como sin sesión: el catálogo es
@@ -38,13 +42,17 @@ export default function SessionProvider({ children }) {
 
   const login = useCallback(async (credentials) => {
     const loggedIn = await sessionApi.login(credentials)
+    changedByUser.current = true
     setAccount(loggedIn)
+    setStatus(SESSION_STATUS.READY)
     return loggedIn
   }, [])
 
   const logout = useCallback(async () => {
     await sessionApi.logout()
+    changedByUser.current = true
     setAccount(null)
+    setStatus(SESSION_STATUS.READY)
   }, [])
 
   const value = useMemo(() => ({ status, account, login, logout }), [status, account, login, logout])

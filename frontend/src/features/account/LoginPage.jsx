@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Link, Navigate, useLocation } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
 import Notice from '../../components/ui/Notice.jsx'
 import PasswordInput from '../../components/ui/PasswordInput.jsx'
 import TextInput from '../../components/ui/TextInput.jsx'
+import { useFocusFirstInvalid } from '../../components/ui/useFocusFirstInvalid.js'
 import { CSRF_ERROR_CODE } from '../../lib/apiClient.js'
 import { useSession } from '../../session/useSession.js'
 import { validateLogin } from './validation.js'
@@ -47,20 +48,13 @@ export default function LoginPage() {
   const justRegistered = location.state?.justRegistered === true
   const from = location.state?.from
   const { account, login } = useSession()
-  const formRef = useRef(null)
 
   const [email, setEmail] = useState(location.state?.email ?? '')
   const [password, setPassword] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
   const [formError, setFormError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
-  const [rejections, setRejections] = useState(0)
-
-  // Tras un envío con campos vacíos, el foco va al primero, ya con su mensaje
-  // pintado para que el lector de pantalla lo lea al llegar.
-  useEffect(() => {
-    if (rejections > 0) formRef.current?.querySelector('[aria-invalid="true"]')?.focus()
-  }, [rejections])
+  const [formRef, focusFirstInvalid] = useFocusFirstInvalid()
 
   // Cubre tanto a quien llega con la sesión iniciada como el final de un
   // inicio de sesión correcto: al guardarse la cuenta, esta pantalla se va.
@@ -90,7 +84,7 @@ export default function LoginPage() {
     setFieldErrors(errors)
     setFormError(null)
     if (Object.keys(errors).length > 0) {
-      setRejections((count) => count + 1)
+      focusFirstInvalid()
       return
     }
 
@@ -100,7 +94,12 @@ export default function LoginPage() {
     } catch (error) {
       console.error('No se pudo iniciar sesión', error)
       setFormError(describeFailure(error))
-      if (error.code === INVALID_CREDENTIALS) setPassword('')
+      // La contraseña se borra y el foco va a ella para escribirla de nuevo,
+      // después de pintarse el aviso, que el lector de pantalla lee primero.
+      if (error.code === INVALID_CREDENTIALS) {
+        setPassword('')
+        setTimeout(() => formRef.current?.querySelector('#login-password')?.focus())
+      }
       setSubmitting(false)
     }
   }

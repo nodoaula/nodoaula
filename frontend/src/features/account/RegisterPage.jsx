@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
 import Notice from '../../components/ui/Notice.jsx'
 import PasswordInput from '../../components/ui/PasswordInput.jsx'
 import TextInput from '../../components/ui/TextInput.jsx'
+import { useFocusFirstInvalid } from '../../components/ui/useFocusFirstInvalid.js'
 import { CSRF_ERROR_CODE } from '../../lib/apiClient.js'
 import { useSession } from '../../session/useSession.js'
 import { registerAccount } from './api.js'
@@ -60,7 +61,6 @@ export default function RegisterPage() {
   const navigate = useNavigate()
   const from = useLocation().state?.from
   const { account, login } = useSession()
-  const formRef = useRef(null)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -68,13 +68,7 @@ export default function RegisterPage() {
   const [emailInUse, setEmailInUse] = useState(false)
   const [formError, setFormError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
-  const [rejections, setRejections] = useState(0)
-
-  // Tras un envío rechazado, el foco va al primer campo con error, ya con su
-  // mensaje pintado para que el lector de pantalla lo lea al llegar.
-  useEffect(() => {
-    if (rejections > 0) formRef.current?.querySelector('[aria-invalid="true"]')?.focus()
-  }, [rejections])
+  const [formRef, focusFirstInvalid] = useFocusFirstInvalid()
 
   // Con la sesión iniciada, crear otra cuenta no tiene sentido desde aquí.
   // Es también como termina un registro correcto.
@@ -102,7 +96,7 @@ export default function RegisterPage() {
     setFieldErrors(failure.fieldErrors ?? {})
     setEmailInUse(failure.emailInUse ?? false)
     setFormError(failure.formError ?? null)
-    setRejections((count) => count + 1)
+    focusFirstInvalid()
   }
 
   async function handleSubmit(event) {
@@ -120,6 +114,8 @@ export default function RegisterPage() {
     }
 
     setSubmitting(true)
+    setFieldErrors({})
+    setEmailInUse(false)
     setFormError(null)
     let created
     try {

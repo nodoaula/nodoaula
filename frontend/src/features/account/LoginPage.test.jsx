@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -43,6 +43,7 @@ describe('pantalla de inicio de sesión', () => {
     expect(alert).toHaveTextContent('No se inició la sesión')
     expect(alert).toHaveTextContent('El correo o la contraseña no son correctos.')
     expect(screen.getByLabelText('Contraseña')).toHaveValue('')
+    await waitFor(() => expect(screen.getByLabelText('Contraseña')).toHaveFocus())
     expect(screen.getByLabelText('Correo')).toHaveValue('lectora@example.com')
   })
 

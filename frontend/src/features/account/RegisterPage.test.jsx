@@ -76,6 +76,19 @@ describe('pantalla de registro', () => {
     expect(login).not.toHaveBeenCalled()
   })
 
+  it('al reenviar, el aviso de correo en uso de la respuesta anterior desaparece', async () => {
+    registerAccount.mockRejectedValueOnce({ code: 'EMAIL_ALREADY_IN_USE', status: 409 })
+    renderRegister()
+
+    fillAndSubmit('lectora@example.com', 'contrasena-larga')
+    expect(await screen.findByText('Ya existe una cuenta con este correo.')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'otra-contrasena' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Crear cuenta' }))
+    expect(screen.queryByText('Ya existe una cuenta con este correo.')).not.toBeInTheDocument()
+    expect(await screen.findByText('Catálogo')).toBeInTheDocument()
+  })
+
   it('un envío con errores lleva el foco al primer campo con error', () => {
     renderRegister()
 

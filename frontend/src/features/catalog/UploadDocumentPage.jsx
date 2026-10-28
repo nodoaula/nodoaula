@@ -440,7 +440,7 @@ function DropZone({ onFile, error }) {
         <p className="mt-1.5 font-mono text-label text-content-muted">Solo PDF · hasta 20 MB</p>
       </div>
       {error && (
-        <p role="alert" className="mt-4 max-w-2xl rounded-xl border border-error/35 bg-error/10 px-4 py-3 text-body text-red-200">
+        <p role="alert" className="mt-4 max-w-2xl rounded-xl border border-error/35 bg-error/10 px-4 py-3 text-body text-error">
           {error}
         </p>
       )}
