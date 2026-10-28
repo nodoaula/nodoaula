@@ -12,4 +12,6 @@ interface AnswerRepository extends JpaRepository<Answer, Long> {
 
 	Optional<Answer> findByIdAndRetiredAtIsNull(Long id);
 
+	Optional<Answer> findByIdAndQuestionIdAndRetiredAtIsNull(Long id, Long questionId);
+
 }

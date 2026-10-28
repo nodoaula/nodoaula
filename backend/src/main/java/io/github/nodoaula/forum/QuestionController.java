@@ -6,9 +6,11 @@ import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -53,6 +55,19 @@ class QuestionController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void retireQuestion(@PathVariable Long id, @AuthenticationPrincipal(expression = "id") Long accountId) {
 		questionService.retireQuestion(id, accountId);
+	}
+
+	@PutMapping("/{id}/useful-answer")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void markUsefulAnswer(@PathVariable Long id, @Valid @RequestBody UsefulAnswerRequest request,
+			@AuthenticationPrincipal(expression = "id") Long accountId) {
+		questionService.markUsefulAnswer(id, request, accountId);
+	}
+
+	@DeleteMapping("/{id}/useful-answer")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	void clearUsefulAnswer(@PathVariable Long id, @AuthenticationPrincipal(expression = "id") Long accountId) {
+		questionService.clearUsefulAnswer(id, accountId);
 	}
 
 }

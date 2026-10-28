@@ -5,8 +5,9 @@ import java.time.Instant;
 /**
  * Vista pública de una pregunta. No lleva el correo ni el identificador de
  * quien la publicó: el nombre se mostrará cuando exista el perfil de la
- * cuenta. canRetire dice si quien la ve puede retirarla, para que la
- * pantalla no ofrezca lo que la API rechazaría.
+ * cuenta. canRetire y canMarkUseful dicen si quien la ve puede retirarla o
+ * marcar la respuesta útil, para que la pantalla no ofrezca lo que la API
+ * rechazaría.
  */
 public record QuestionDto(
 		Long id,
@@ -15,5 +16,7 @@ public record QuestionDto(
 		String title,
 		String body,
 		Instant createdAt,
-		boolean canRetire) {
+		Long usefulAnswerId,
+		boolean canRetire,
+		boolean canMarkUseful) {
 }

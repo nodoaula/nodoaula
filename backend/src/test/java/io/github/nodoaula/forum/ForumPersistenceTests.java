@@ -3,7 +3,9 @@ package io.github.nodoaula.forum;
 import static io.github.nodoaula.forum.ForumTestSupport.signedInAs;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.Map;
@@ -20,7 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.jayway.jsonpath.JsonPath;
 
 /**
- * Los retiros del foro quedan guardados. Sin la transacción de la prueba a
+ * Los retiros del foro y la marca de respuesta útil quedan guardados. Sin la transacción de la prueba a
  * propósito: con ella, un servicio sin @Transactional pasaría las demás
  * pruebas sin guardar nada. Por eso borra lo que crea.
  */
@@ -60,6 +62,37 @@ class ForumPersistenceTests {
 				.andReturn().getResponse().getContentAsString());
 	}
 
+	private Long publishAnAnswer() throws Exception {
+		return idOf(mockMvc.perform(post("/api/forum/questions/" + questionId + "/answers")
+				.with(signedInAs(ANSWERER_ID)).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"body\": \"Respuesta.\"}"))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString());
+	}
+
+	private Long usefulAnswerId() {
+		return jdbcTemplate.queryForObject("select useful_answer_id from forum_questions where id = ?", Long.class,
+				questionId);
+	}
+
+	@Test
+	void markingAndRemovingTheUsefulAnswerIsSaved() throws Exception {
+		publishAQuestion();
+		Long answerId = publishAnAnswer();
+		String useful = "/api/forum/questions/" + questionId + "/useful-answer";
+
+		mockMvc.perform(put(useful).with(signedInAs(ASKER_ID)).with(csrf())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"answerId\": " + answerId + "}"))
+				.andExpect(status().isNoContent());
+		assertThat(usefulAnswerId()).isEqualTo(answerId);
+
+		mockMvc.perform(delete(useful).with(signedInAs(ASKER_ID)).with(csrf()))
+				.andExpect(status().isNoContent());
+		assertThat(usefulAnswerId()).isNull();
+	}
+
 	@Test
 	void retiringAQuestionIsSavedWithWhoRetiredIt() throws Exception {
 		publishAQuestion();
@@ -76,12 +109,7 @@ class ForumPersistenceTests {
 	@Test
 	void retiringTheUsefulAnswerIsSavedWithWhoRetiredItAndClearsTheUsefulOne() throws Exception {
 		publishAQuestion();
-		Long answerId = idOf(mockMvc.perform(post("/api/forum/questions/" + questionId + "/answers")
-				.with(signedInAs(ANSWERER_ID)).with(csrf())
-				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"body\": \"Respuesta.\"}"))
-				.andExpect(status().isCreated())
-				.andReturn().getResponse().getContentAsString());
+		Long answerId = publishAnAnswer();
 		jdbcTemplate.update("update forum_questions set useful_answer_id = ? where id = ?", answerId, questionId);
 
 		mockMvc.perform(post("/api/forum/answers/" + answerId + "/retire").with(signedInAs(ANSWERER_ID)).with(csrf()))
@@ -91,8 +119,7 @@ class ForumPersistenceTests {
 				"select retired_at, retired_by from forum_answers where id = ?", answerId);
 		assertThat(answer.get("retired_at")).isNotNull();
 		assertThat(answer.get("retired_by")).isEqualTo(ANSWERER_ID);
-		assertThat(jdbcTemplate.queryForObject("select useful_answer_id from forum_questions where id = ?",
-				Long.class, questionId)).isNull();
+		assertThat(usefulAnswerId()).isNull();
 	}
 
 }
