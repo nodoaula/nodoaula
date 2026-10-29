@@ -1,5 +1,6 @@
 import { BrowserRouter, Link, Route, Routes } from 'react-router'
 
+import DataPolicyPage from '../features/account/DataPolicyPage.jsx'
 import LoginPage from '../features/account/LoginPage.jsx'
 import RegisterPage from '../features/account/RegisterPage.jsx'
 import CourseIndexPage from '../features/catalog/CourseIndexPage.jsx'
@@ -36,6 +37,7 @@ export default function App() {
               <Route path="subir-apunte" element={<UploadDocumentPage />} />
               <Route path="registro" element={<RegisterPage />} />
               <Route path="iniciar-sesion" element={<LoginPage />} />
+              <Route path="politica-de-datos" element={<DataPolicyPage />} />
             </Route>
             {/* Pantallas aún sin rediseñar: cada una pasa al grupo de arriba cuando se rediseña. */}
             <Route element={<AppLayout legacy />}>
