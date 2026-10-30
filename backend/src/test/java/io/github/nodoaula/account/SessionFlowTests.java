@@ -1,6 +1,7 @@
 package io.github.nodoaula.account;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -16,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,10 +38,17 @@ class SessionFlowTests {
 	@Autowired
 	private MockMvc mockMvc;
 
+	@Autowired
+	private JdbcClient jdbc;
+
+	private static String registration(String email, String password) {
+		return "{\"email\":\"%s\",\"password\":\"%s\",\"dataProcessingAuthorized\":true}".formatted(email, password);
+	}
+
 	private void register(String email, String password) throws Exception {
 		mockMvc.perform(post("/api/accounts").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"email\":\"%s\",\"password\":\"%s\"}".formatted(email, password)))
+				.content(registration(email, password)))
 				.andExpect(status().isCreated());
 	}
 
@@ -59,7 +68,7 @@ class SessionFlowTests {
 	void registersAnAccountAndNeverReturnsThePassword() throws Exception {
 		mockMvc.perform(post("/api/accounts").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"email\":\"" + EMAIL + "\",\"password\":\"" + PASSWORD + "\"}"))
+				.content(registration(EMAIL, PASSWORD)))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.email").value(EMAIL))
 				.andExpect(jsonPath("$.id").isNumber())
@@ -73,7 +82,7 @@ class SessionFlowTests {
 
 		mockMvc.perform(post("/api/accounts").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"email\":\"" + EMAIL.toUpperCase() + "\",\"password\":\"" + PASSWORD + "\"}"))
+				.content(registration(EMAIL.toUpperCase(), PASSWORD)))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.code").value("EMAIL_ALREADY_IN_USE"));
 	}
@@ -82,10 +91,38 @@ class SessionFlowTests {
 	void invalidRegistrationDataIsRejectedOnTheField() throws Exception {
 		mockMvc.perform(post("/api/accounts").with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
-				.content("{\"email\":\"no-es-un-correo\",\"password\":\"corta\"}"))
+				.content(registration("no-es-un-correo", "corta")))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
 				.andExpect(jsonPath("$.errors.length()").value(2));
+	}
+
+	@Test
+	void recordsWhenTheAccountAuthorizedTheProcessingOfItsData() throws Exception {
+		register(EMAIL, PASSWORD);
+
+		var dates = jdbc.sql("select created_at, data_processing_authorized_at from accounts where email = ?")
+				.param(EMAIL)
+				.query((row, index) -> new Object[] { row.getObject(1), row.getObject(2) })
+				.single();
+		assertNotNull(dates[1]);
+		assertEquals(dates[0], dates[1]);
+	}
+
+	@Test
+	void withoutTheAuthorizationTheAccountIsNotCreated() throws Exception {
+		for (String authorization : new String[] { "", ",\"dataProcessingAuthorized\":false" }) {
+			mockMvc.perform(post("/api/accounts").with(csrf())
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{\"email\":\"" + EMAIL + "\",\"password\":\"" + PASSWORD + "\"" + authorization + "}"))
+					.andExpect(status().isBadRequest())
+					.andExpect(jsonPath("$.errors.length()").value(1))
+					.andExpect(jsonPath("$.errors[0].field").value("dataProcessingAuthorized"))
+					.andExpect(jsonPath("$.errors[0].message").value(RegistrationRequest.DATA_PROCESSING_MESSAGE));
+		}
+
+		assertEquals(0, jdbc.sql("select count(*) from accounts where email = ?").param(EMAIL)
+				.query(Long.class).single());
 	}
 
 	@Test

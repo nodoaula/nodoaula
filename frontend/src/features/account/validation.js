@@ -13,6 +13,9 @@ const PASSWORD_MAX_BYTES = 72
 
 const EMAIL_MAX_LENGTH = 254
 
+export const DATA_PROCESSING_MESSAGE =
+  'Para crear la cuenta tienes que confirmar que tienes 18 años o más y autorizar el tratamiento de tus datos.'
+
 // Tan permisiva como la validación del backend, que no restringe el dominio
 // ni exige un punto en él: solo algo, una arroba y algo, sin espacios.
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+$/
@@ -52,7 +55,7 @@ export function validateLogin({ email, password }) {
 }
 
 /** Devuelve un objeto con el error de cada campo inválido; vacío si todo es válido. */
-export function validateRegistration({ email, password }) {
+export function validateRegistration({ email, password, dataProcessingAuthorized }) {
   const errors = {}
 
   const emailError = validateEmail(email)
@@ -60,6 +63,8 @@ export function validateRegistration({ email, password }) {
 
   const passwordError = validatePassword(password)
   if (passwordError) errors.password = passwordError
+
+  if (!dataProcessingAuthorized) errors.dataProcessingAuthorized = DATA_PROCESSING_MESSAGE
 
   return errors
 }

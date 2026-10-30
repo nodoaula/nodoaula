@@ -64,6 +64,7 @@ export default function RegisterPage() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [dataProcessingAuthorized, setDataProcessingAuthorized] = useState(false)
   const [fieldErrors, setFieldErrors] = useState({})
   const [emailInUse, setEmailInUse] = useState(false)
   const [formError, setFormError] = useState(null)
@@ -92,6 +93,11 @@ export default function RegisterPage() {
     clearFieldError('password')
   }
 
+  function changeDataProcessingAuthorized(checked) {
+    setDataProcessingAuthorized(checked)
+    clearFieldError('dataProcessingAuthorized')
+  }
+
   function reject(failure) {
     setFieldErrors(failure.fieldErrors ?? {})
     setEmailInUse(failure.emailInUse ?? false)
@@ -105,7 +111,7 @@ export default function RegisterPage() {
 
     // El correo se recorta porque un espacio pegado al copiarlo no es parte
     // de él. La contraseña no: un espacio en ella sí cuenta.
-    const data = { email: email.trim(), password }
+    const data = { email: email.trim(), password, dataProcessingAuthorized }
 
     const errors = validateRegistration(data)
     if (Object.keys(errors).length > 0) {
@@ -128,7 +134,7 @@ export default function RegisterPage() {
     }
 
     try {
-      await login(data)
+      await login({ email: data.email, password })
     } catch (error) {
       console.error('Se creó la cuenta, pero no se pudo iniciar la sesión', error)
       navigate('/iniciar-sesion', { state: { email: created.email, justRegistered: true, from } })
@@ -181,6 +187,37 @@ export default function RegisterPage() {
             hint={`Entre ${PASSWORD_MIN_LENGTH} y ${PASSWORD_MAX_LENGTH} caracteres.`}
             error={fieldErrors.password}
           />
+
+          <div className="flex flex-col gap-2">
+            <label className="flex cursor-pointer items-start gap-3 text-sm text-content">
+              <input
+                id="register-data-processing"
+                type="checkbox"
+                checked={dataProcessingAuthorized}
+                onChange={(event) => changeDataProcessingAuthorized(event.target.checked)}
+                aria-invalid={fieldErrors.dataProcessingAuthorized ? true : undefined}
+                aria-describedby={fieldErrors.dataProcessingAuthorized ? 'register-data-processing-error' : undefined}
+                className="mt-0.5 size-4.5 shrink-0 scheme-dark accent-accent"
+              />
+              <span>
+                Tengo 18 años o más y autorizo el tratamiento de mis datos personales según la{' '}
+                <a
+                  href="/politica-de-datos"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent underline underline-offset-3 hover:decoration-2"
+                >
+                  política (se abre en otra pestaña)
+                </a>
+                .
+              </span>
+            </label>
+            {fieldErrors.dataProcessingAuthorized && (
+              <p id="register-data-processing-error" className="pl-7.5 text-label text-error">
+                {fieldErrors.dataProcessingAuthorized}
+              </p>
+            )}
+          </div>
 
           {formError && (
             <Notice role="alert" title="No se completó el registro">

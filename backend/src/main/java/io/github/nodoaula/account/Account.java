@@ -26,13 +26,18 @@ class Account {
 	// de datos, nunca desde la aplicación: una cuenta nueva no la tiene.
 	private boolean teamMember;
 
+	private Instant dataProcessingAuthorizedAt;
+
 	protected Account() {
 	}
 
+	// Una cuenta nueva siempre nace con la autorización de tratar sus datos:
+	// el registro no deja crearla sin ella.
 	Account(String email, String passwordHash) {
 		this.email = email;
 		this.passwordHash = passwordHash;
 		this.createdAt = Instant.now();
+		this.dataProcessingAuthorizedAt = createdAt;
 	}
 
 	Long getId() {
@@ -53,6 +58,10 @@ class Account {
 
 	boolean isTeamMember() {
 		return teamMember;
+	}
+
+	Instant getDataProcessingAuthorizedAt() {
+		return dataProcessingAuthorizedAt;
 	}
 
 }

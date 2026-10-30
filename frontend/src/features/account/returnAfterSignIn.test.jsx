@@ -77,6 +77,7 @@ describe('volver a la página de origen tras iniciar sesión', () => {
 
     fireEvent.change(screen.getByLabelText('Correo'), { target: { value: 'lectora@example.com' } })
     fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'contrasena-larga' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: /autorizo el tratamiento de mis datos personales/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Crear cuenta' }))
     await screen.findByText('Tu cuenta se creó')
     signInAndRerender(screen.getByLabelText('Correo'))
