@@ -341,7 +341,7 @@ export default function UploadDocumentPage() {
                       }}
                       aria-invalid={fieldErrors.rightsDeclared ? true : undefined}
                       aria-describedby={fieldErrors.rightsDeclared ? 'derechos-error' : undefined}
-                      className="mt-0.5 size-5 shrink-0 accent-accent"
+                      className="mt-0.5 size-5 shrink-0 scheme-dark accent-accent"
                     />
                     <span>Declaro que este apunte es de mi autoría o que tengo permiso para compartirlo.</span>
                   </label>

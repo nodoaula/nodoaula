@@ -145,7 +145,12 @@ export default function LandingPage() {
       <footer className="mt-16 border-t border-border sm:mt-24">
         <div className="mx-auto flex max-w-6xl flex-wrap justify-between gap-3 px-4 py-6 font-mono text-xs text-content-faint sm:px-6">
           <span>NodoAula · Proyecto Integrador I · Universidad de Antioquia</span>
-          <span>2026</span>
+          <span className="flex gap-4">
+            <Link to="/politica-de-datos" className="text-content-muted hover:text-content">
+              Política de datos
+            </Link>
+            <span>2026</span>
+          </span>
         </div>
       </footer>
     </div>

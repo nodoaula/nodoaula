@@ -29,9 +29,12 @@ function renderRegister(state) {
   )
 }
 
-function fillAndSubmit(email, password) {
+const AUTHORIZATION = /Tengo 18 años o más y autorizo el tratamiento de mis datos personales/
+
+function fillAndSubmit(email, password, { authorize = true } = {}) {
   fireEvent.change(screen.getByLabelText('Correo'), { target: { value: email } })
   fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: password } })
+  if (authorize) fireEvent.click(screen.getByRole('checkbox', { name: AUTHORIZATION }))
   fireEvent.click(screen.getByRole('button', { name: 'Crear cuenta' }))
 }
 
@@ -53,7 +56,36 @@ describe('pantalla de registro', () => {
     fillAndSubmit(' lectora@example.com ', 'contrasena-larga')
 
     expect(await screen.findByText('Ficha del apunte')).toBeInTheDocument()
+    expect(registerAccount).toHaveBeenCalledWith({
+      email: 'lectora@example.com',
+      password: 'contrasena-larga',
+      dataProcessingAuthorized: true,
+    })
     expect(login).toHaveBeenCalledWith({ email: 'lectora@example.com', password: 'contrasena-larga' })
+  })
+
+  it('sin la autorización no crea la cuenta y lleva el foco a la casilla', () => {
+    renderRegister()
+
+    fillAndSubmit('lectora@example.com', 'contrasena-larga', { authorize: false })
+
+    const checkbox = screen.getByRole('checkbox', { name: AUTHORIZATION })
+    expect(checkbox).toHaveFocus()
+    expect(checkbox).toHaveAccessibleDescription(
+      'Para crear la cuenta tienes que confirmar que tienes 18 años o más y autorizar el tratamiento de tus datos.',
+    )
+    expect(registerAccount).not.toHaveBeenCalled()
+
+    fireEvent.click(checkbox)
+    expect(checkbox).not.toHaveAccessibleDescription()
+  })
+
+  it('la política se abre en otra pestaña sin perder lo escrito', () => {
+    renderRegister()
+
+    const policy = screen.getByRole('link', { name: 'política (se abre en otra pestaña)' })
+    expect(policy).toHaveAttribute('href', '/politica-de-datos')
+    expect(policy).toHaveAttribute('target', '_blank')
   })
 
   it('sin página de origen, al crear la cuenta lleva al catálogo', async () => {
