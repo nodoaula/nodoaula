@@ -24,7 +24,7 @@ Sobre la visibilidad, la restricción 2 choca con la 1: en GitHub Free para orga
 
 - Plataforma: **GitHub**. El tablero permanece en Azure Boards, enlazado mediante la integración oficial.
 - Titularidad: **organización** `nodoaula`, con los tres integrantes como *Owners*. La organización es una cuenta independiente cuya propiedad se comparte, lo que satisface la restricción 3.
-- Visibilidad: **pública**. El proyecto es de naturaleza académica, no maneja datos personales ni información sujeta a reserva, de modo que la visibilidad no expone nada y habilita la protección de ramas sin costo.
+- Visibilidad: **pública**. El proyecto es de naturaleza académica y el repositorio no contiene datos personales ni información sujeta a reserva, de modo que la visibilidad no expone nada y habilita la protección de ramas sin costo.
 - Ramas `main` y `develop` creadas desde el inicio, con `develop` como rama por defecto, de modo que clones y Pull Requests apunten a ella automáticamente.
 - Protección sobre **ambas** ramas primarias: Pull Request obligatorio y una aprobación antes de integrar. Se protegen las dos porque bajo Gitflow la mayoría de los PR se dirigen a `develop`.
 - Estructura documental mínima: `/docs/adr/` y `README.md`. Las guías de aprendizaje no residen en el repositorio.
