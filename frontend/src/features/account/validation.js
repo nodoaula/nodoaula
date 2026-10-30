@@ -13,7 +13,7 @@ const PASSWORD_MAX_BYTES = 72
 
 const EMAIL_MAX_LENGTH = 254
 
-export const DATA_PROCESSING_MESSAGE =
+const DATA_PROCESSING_MESSAGE =
   'Para crear la cuenta tienes que confirmar que tienes 18 años o más y autorizar el tratamiento de tus datos.'
 
 // Tan permisiva como la validación del backend, que no restringe el dominio

@@ -27,12 +27,11 @@ function ContactEmail() {
 }
 
 /**
- * Política de tratamiento de datos personales que exige la Ley 1581 de 2012,
- * con el contenido mínimo del artículo 13 del Decreto 1377 de 2013. Se enlaza
- * desde la casilla de autorización del registro. Si cambia en algo importante,
- * hay que avisar a las cuentas antes de aplicar el cambio y actualizar la fecha
- * de vigencia: la fecha de autorización de cada cuenta indica qué versión
- * aceptó.
+ * Política de tratamiento de datos personales que exige la Ley 1581 de 2012.
+ * Se enlaza desde la casilla de autorización del registro. Si cambia en algo
+ * importante, hay que avisar a las cuentas antes de aplicar el cambio y
+ * actualizar la fecha de vigencia: la fecha de autorización de cada cuenta
+ * indica qué versión aceptó.
  */
 export default function DataPolicyPage() {
   return (
