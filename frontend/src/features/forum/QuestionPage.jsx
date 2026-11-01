@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { Link, useLocation, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
 import Modal from '../../components/ui/Modal.jsx'
@@ -9,6 +9,7 @@ import Notice from '../../components/ui/Notice.jsx'
 import Tag from '../../components/ui/Tag.jsx'
 import { useAnnouncer } from '../../components/ui/useAnnouncer.js'
 import { SESSION_STATUS } from '../../session/SessionContext.js'
+import SignInNotice from '../../session/SignInNotice.jsx'
 import { useSession } from '../../session/useSession.js'
 import { listResources } from '../catalog/api.js'
 import { joinGroupOfThread } from '../studygroup/api.js'
@@ -541,27 +542,13 @@ function JoinToAnswer({ courseId, threadId, onJoined }) {
 }
 
 function SignInToAnswer({ group }) {
-  const { pathname } = useLocation()
-  const origin = { from: pathname }
   return (
     <div className="mt-8">
-      <Notice
-        title={group ? 'Inicia sesión y únete al grupo para responder' : 'Inicia sesión para responder'}
-        action={
-          <div className="flex flex-wrap gap-3">
-            <Link to="/iniciar-sesion" state={origin} className={buttonClasses('primary')}>
-              Iniciar sesión
-            </Link>
-            <Link to="/registro" state={origin} className={buttonClasses('secondary')}>
-              Crear cuenta
-            </Link>
-          </div>
-        }
-      >
+      <SignInNotice title={group ? 'Inicia sesión y únete al grupo para responder' : 'Inicia sesión para responder'}>
         {group
           ? 'Puedes leer este hilo sin cuenta; en él responden solo los miembros del grupo.'
           : 'Puedes leer las respuestas sin cuenta; para responder necesitas iniciar sesión.'}
-      </Notice>
+      </SignInNotice>
     </div>
   )
 }

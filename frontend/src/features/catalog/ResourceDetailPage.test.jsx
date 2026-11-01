@@ -104,6 +104,24 @@ describe('ResourceDetailPage', () => {
     expect(screen.getByText(dataLine('Video · 1 h 40 min · YouTube'))).toBeInTheDocument()
   })
 
+  // Historia HU403: desde la ficha se llega al foro y a los grupos del curso.
+  it('enlaza al foro y a los grupos de estudio de su curso, sin sesión', async () => {
+    getResource.mockResolvedValue(VIDEO)
+    renderDetail()
+
+    expect(await screen.findByRole('link', { name: 'Foro del curso' })).toHaveAttribute('href', '/catalogo/cursos/7/foro')
+    expect(screen.getByRole('link', { name: 'Grupos de estudio' })).toHaveAttribute('href', '/catalogo/cursos/7/grupos')
+  })
+
+  it('un apunte también enlaza al foro y a los grupos de su curso, con sesión', async () => {
+    session = { status: 'ready', account: { id: 5, email: 'lectora@example.com' } }
+    getResource.mockResolvedValue({ ...DOCUMENT, courseId: 3 })
+    renderDetail()
+
+    expect(await screen.findByRole('link', { name: 'Foro del curso' })).toHaveAttribute('href', '/catalogo/cursos/3/foro')
+    expect(screen.getByRole('link', { name: 'Grupos de estudio' })).toHaveAttribute('href', '/catalogo/cursos/3/grupos')
+  })
+
   it('muestra los datos en la pestaña Detalles, sin el identificador del recurso', async () => {
     getResource.mockResolvedValue(VIDEO)
     renderDetail()
@@ -305,6 +323,9 @@ describe('ResourceDetailPage: retirar y volver a publicar', () => {
     expect(screen.queryByRole('button', { name: 'Volver a publicar' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Corregir datos' })).not.toBeInTheDocument()
+    // Sin curso que mostrar, tampoco lleva a su foro ni a sus grupos (HU403).
+    expect(screen.queryByRole('link', { name: 'Foro del curso' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Grupos de estudio' })).not.toBeInTheDocument()
   })
 
   it('quien lo retiró lo vuelve a publicar y la ficha confirma que reaparece en el catálogo', async () => {

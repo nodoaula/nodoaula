@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { Link, useLocation, useParams } from 'react-router'
+import { Link, useParams } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
 import Modal from '../../components/ui/Modal.jsx'
@@ -9,6 +9,7 @@ import Notice from '../../components/ui/Notice.jsx'
 import Tag from '../../components/ui/Tag.jsx'
 import { useAnnouncer } from '../../components/ui/useAnnouncer.js'
 import { SESSION_STATUS } from '../../session/SessionContext.js'
+import SignInNotice from '../../session/SignInNotice.jsx'
 import { useSession } from '../../session/useSession.js'
 import { listResources } from '../catalog/api.js'
 import { formatForumDate } from '../forum/format.js'
@@ -333,24 +334,10 @@ function CourseGroups({ courseId, courseName, initialGroups, signedIn }) {
 }
 
 function SignInToTakePart() {
-  const { pathname } = useLocation()
-  const origin = { from: pathname }
   return (
-    <Notice
-      title="Inicia sesión para crear un grupo o unirte a uno"
-      action={
-        <div className="flex flex-wrap gap-3">
-          <Link to="/iniciar-sesion" state={origin} className={buttonClasses('primary')}>
-            Iniciar sesión
-          </Link>
-          <Link to="/registro" state={origin} className={buttonClasses('secondary')}>
-            Crear cuenta
-          </Link>
-        </div>
-      }
-    >
+    <SignInNotice title="Inicia sesión para crear un grupo o unirte a uno">
       Puedes ver los grupos y leer sus hilos sin cuenta; para crear uno o unirte necesitas iniciar sesión.
-    </Notice>
+    </SignInNotice>
   )
 }
 

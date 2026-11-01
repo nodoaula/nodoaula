@@ -241,6 +241,17 @@ function ResourceSheet({ resource, busy, onRetire }) {
         </span>
       </div>
 
+      {/* El foro y los grupos de su curso, con o sin sesión, como desde la
+          página del curso (HU403). */}
+      <div className="mt-5 flex flex-wrap gap-3">
+        <Link to={`/catalogo/cursos/${resource.courseId}/foro`} className={buttonClasses('secondary')}>
+          Foro del curso
+        </Link>
+        <Link to={`/catalogo/cursos/${resource.courseId}/grupos`} className={buttonClasses('secondary')}>
+          Grupos de estudio
+        </Link>
+      </div>
+
       <div className="mt-8">
         <Tabs
           label="Contenido del recurso"
