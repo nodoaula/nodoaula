@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { buttonClasses } from '../../components/ui/button.js'
 import NodePath from '../../components/ui/NodePath.jsx'
 import Notice from '../../components/ui/Notice.jsx'
+import Tag from '../../components/ui/Tag.jsx'
 import { useSession } from '../../session/useSession.js'
 import { listResources } from '../catalog/api.js'
 import { listQuestions } from './api.js'
@@ -186,10 +187,16 @@ function QuestionList({ questions, resources }) {
 function QuestionRow({ question, resourceTitle }) {
   return (
     <Link to={`/foro/preguntas/${question.id}`} className="group block px-1 py-4.5">
-      <span className="block text-[1.03125rem] leading-snug font-semibold wrap-break-word text-content transition-colors group-hover:text-accent">
-        {question.title}
+      <span className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
+        <span className="min-w-0 text-[1.03125rem] leading-snug font-semibold wrap-break-word text-content transition-colors group-hover:text-accent">
+          {question.title}
+        </span>
+        {/* El hilo de un grupo de estudio (HU404). */}
+        {question.group && <Tag>Grupo</Tag>}
       </span>
-      <span className="mt-1.5 line-clamp-2 text-body leading-relaxed wrap-break-word text-content-muted">{question.body}</span>
+      {question.body && (
+        <span className="mt-1.5 line-clamp-2 text-body leading-relaxed wrap-break-word text-content-muted">{question.body}</span>
+      )}
       <span className="mt-2 flex flex-wrap gap-x-3.5 gap-y-1 font-mono text-label text-content-muted tabular-nums">
         <span>{formatForumDate(question.createdAt)}</span>
         {resourceTitle && <span className="wrap-break-word">Sobre «{resourceTitle}»</span>}

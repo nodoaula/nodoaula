@@ -134,6 +134,9 @@ function CourseResources({ courseId, resources }) {
           <Link to={`/catalogo/cursos/${courseId}/foro`} className={`${buttonClasses('secondary')} mt-4 mr-3`}>
             Foro del curso
           </Link>
+          <Link to={`/catalogo/cursos/${courseId}/grupos`} className={`${buttonClasses('secondary')} mt-4 mr-3`}>
+            Grupos de estudio
+          </Link>
           {account !== null && (
             <Link to={`/subir-apunte?courseId=${courseId}`} className={`${buttonClasses('secondary')} mt-4`}>
               Subir un apunte a este curso

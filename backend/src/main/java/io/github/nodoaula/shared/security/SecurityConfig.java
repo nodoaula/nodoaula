@@ -54,6 +54,9 @@ class SecurityConfig {
 						.requestMatchers(HttpMethod.POST, "/api/resources/*/preview-link").permitAll()
 						// El foro se lee sin cuenta y se escribe con ella (HU401).
 						.requestMatchers(HttpMethod.GET, "/api/forum/**").permitAll()
+						// Los grupos de un curso se ven sin cuenta; crearlos
+						// y retirarlos exige sesión (HU404).
+						.requestMatchers(HttpMethod.GET, "/api/study-groups", "/api/study-groups/**").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/health", "/api/csrf").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/accounts").permitAll()
 
