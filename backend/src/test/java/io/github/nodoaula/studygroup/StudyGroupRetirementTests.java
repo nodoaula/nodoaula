@@ -5,7 +5,9 @@ import static io.github.nodoaula.studygroup.StudyGroupTestSupport.courseId;
 import static io.github.nodoaula.studygroup.StudyGroupTestSupport.create;
 import static io.github.nodoaula.studygroup.StudyGroupTestSupport.signedInAs;
 import static io.github.nodoaula.studygroup.StudyGroupTestSupport.teamAccount;
-import static org.hamcrest.Matchers.hasSize;
+import static io.github.nodoaula.studygroup.StudyGroupTestSupport.unique;
+import static io.github.nodoaula.studygroup.StudyGroupTestSupport.withId;
+import static org.hamcrest.Matchers.contains;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -19,6 +21,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +31,9 @@ import com.jayway.jsonpath.JsonPath;
  * Pruebas de HU404 sobre el retiro: quien creó el grupo y las cuentas del
  * equipo lo retiran; nadie más (403). El retiro es lógico y su hilo deja de
  * verse con él.
+ *
+ * Miran solo el grupo que crean: el curso puede tener otros grupos y otras
+ * preguntas en la base local.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -41,13 +47,15 @@ class StudyGroupRetirementTests {
 	@Autowired private JdbcTemplate jdbcTemplate;
 
 	private Long courseId;
+	private String name;
 	private Long groupId;
 	private Long threadId;
 
 	@BeforeEach
 	void createAGroup() throws Exception {
 		courseId = courseId(jdbcTemplate, SEED_COURSE);
-		String response = mockMvc.perform(create(CREATOR_ID, courseId, "Para retirar", "Descripción."))
+		name = unique("Para retirar");
+		String response = mockMvc.perform(create(CREATOR_ID, courseId, name, "Descripción."))
 				.andExpect(status().isCreated())
 				.andReturn().getResponse().getContentAsString();
 		groupId = JsonPath.<Number>read(response, "$.id").longValue();
@@ -58,15 +66,23 @@ class StudyGroupRetirementTests {
 		return post("/api/study-groups/" + groupId + "/retire").with(csrf());
 	}
 
+	private ResultActions groupsOfTheCourse() throws Exception {
+		return mockMvc.perform(get("/api/study-groups").param("courseId", courseId.toString()))
+				.andExpect(status().isOk());
+	}
+
+	private ResultActions forumOfTheCourse() throws Exception {
+		return mockMvc.perform(get("/api/forum/questions").param("courseId", courseId.toString()))
+				.andExpect(status().isOk());
+	}
+
 	@Test
 	void itsCreatorRetiresItAndItStopsBeingSeenWithItsThread() throws Exception {
 		mockMvc.perform(retire().with(signedInAs(CREATOR_ID)))
 				.andExpect(status().isNoContent());
 
-		mockMvc.perform(get("/api/study-groups").param("courseId", courseId.toString()))
-				.andExpect(jsonPath("$", hasSize(0)));
-		mockMvc.perform(get("/api/forum/questions").param("courseId", courseId.toString()))
-				.andExpect(jsonPath("$", hasSize(0)));
+		groupsOfTheCourse().andExpect(jsonPath(withId(groupId)).isEmpty());
+		forumOfTheCourse().andExpect(jsonPath(withId(threadId)).isEmpty());
 		mockMvc.perform(get("/api/forum/questions/" + threadId))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.retired").value(true));
@@ -78,16 +94,16 @@ class StudyGroupRetirementTests {
 	void aRetiredGroupFreesItsNameInTheCourse() throws Exception {
 		mockMvc.perform(retire().with(signedInAs(CREATOR_ID))).andExpect(status().isNoContent());
 
-		mockMvc.perform(create(OTHER_ID, courseId, "Para retirar", null))
+		mockMvc.perform(create(OTHER_ID, courseId, name, null))
 				.andExpect(status().isCreated());
 	}
 
 	@Test
 	void aTeamAccountCanRetireAnyGroup() throws Exception {
-		Long team = teamAccount(jdbcTemplate, "equipo.retiro@ejemplo.com");
+		Long team = teamAccount(jdbcTemplate, unique("equipo.retiro").replace(' ', '.') + "@ejemplo.com");
 
 		mockMvc.perform(get("/api/study-groups").param("courseId", courseId.toString()).with(signedInAs(team)))
-				.andExpect(jsonPath("$[0].canRetire").value(true));
+				.andExpect(jsonPath(withId(groupId) + ".canRetire").value(contains(true)));
 		mockMvc.perform(retire().with(signedInAs(team)))
 				.andExpect(status().isNoContent());
 		mockMvc.perform(get("/api/forum/questions/" + threadId))
@@ -100,8 +116,7 @@ class StudyGroupRetirementTests {
 				.andExpect(status().isForbidden())
 				.andExpect(jsonPath("$.code").value("STUDY_GROUP_CHANGE_FORBIDDEN"));
 
-		mockMvc.perform(get("/api/study-groups").param("courseId", courseId.toString()))
-				.andExpect(jsonPath("$", hasSize(1)));
+		groupsOfTheCourse().andExpect(jsonPath(withId(groupId)).isNotEmpty());
 		mockMvc.perform(get("/api/forum/questions/" + threadId))
 				.andExpect(jsonPath("$.retired").value(false));
 	}

@@ -2,6 +2,7 @@ package io.github.nodoaula.studygroup;
 
 import java.time.Instant;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -21,10 +22,15 @@ class Membership {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
+	// Ningún método lee estos campos: los escribe el constructor y los leen las
+	// consultas de MembershipRepository. Por eso cada columna se nombra aquí.
+	@Column(name = "group_id")
 	private Long groupId;
 
+	@Column(name = "account_id")
 	private Long accountId;
 
+	@Column(name = "joined_at")
 	private Instant joinedAt;
 
 	protected Membership() {

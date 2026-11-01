@@ -5,6 +5,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -39,6 +40,24 @@ final class StudyGroupTestSupport {
 
 	static Long courseId(JdbcTemplate jdbcTemplate, String name) {
 		return jdbcTemplate.queryForObject("select id from courses where name = ?", Long.class, name);
+	}
+
+	/**
+	 * El nombre con un sufijo único. La base local tiene lo que se haya creado
+	 * a mano en los cursos de la semilla: sin el sufijo, un grupo con el mismo
+	 * nombre haría responder 409 a la prueba.
+	 */
+	static String unique(String name) {
+		return name + " " + UUID.randomUUID().toString().substring(0, 8);
+	}
+
+	/**
+	 * El elemento de una lista JSON con ese identificador, como expresión de
+	 * JsonPath. Las pruebas miran solo lo que crean, no el tamaño de la lista,
+	 * que incluye lo que ya hubiera en el curso.
+	 */
+	static String withId(Long id) {
+		return "$[?(@.id == " + id + ")]";
 	}
 
 	/** La petición de crear un grupo; `description` null la deja fuera del JSON. */

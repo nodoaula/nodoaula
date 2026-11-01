@@ -2,6 +2,7 @@ package io.github.nodoaula.studygroup;
 
 import java.time.Instant;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -26,7 +27,10 @@ class StudyGroup {
 	private String name;
 
 	// La forma comparable del nombre, como la de los cursos y los temas: dos
-	// grupos visibles de un curso no pueden compartirla.
+	// grupos visibles de un curso no pueden compartirla. Ningún método la lee:
+	// la leen la consulta del repositorio y el índice único. Por eso la columna
+	// se nombra aquí, como en retiredAt y retiredBy.
+	@Column(name = "normalized_name")
 	private String normalizedName;
 
 	// Opcional: null si el grupo no tiene descripción.
@@ -40,9 +44,12 @@ class StudyGroup {
 	private Instant createdAt;
 
 	// Un grupo retirado no se borra: deja de verse, con su hilo. Las dos
-	// columnas van juntas, como en el retiro de una pregunta.
+	// columnas van juntas, como en el retiro de una pregunta. retire() las
+	// escribe y las consultas del repositorio filtran por retired_at.
+	@Column(name = "retired_at")
 	private Instant retiredAt;
 
+	@Column(name = "retired_by")
 	private Long retiredBy;
 
 	protected StudyGroup() {
