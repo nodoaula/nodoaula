@@ -28,12 +28,12 @@ export default function SiteHeader() {
   const { pathname } = useLocation()
 
   return (
-    <header className="relative mx-auto flex h-18 max-w-page items-center justify-between gap-4 px-4 sm:px-6">
-      <Link to="/" className="flex items-center gap-2.5 text-lg font-semibold tracking-tight text-content">
+    <header className="relative mx-auto flex h-18 max-w-page items-center justify-between gap-4 px-4 max-[380px]:gap-2 sm:px-6">
+      <Link to="/" className="flex items-center gap-2.5 text-lg max-[380px]:gap-2 font-semibold tracking-tight text-content">
         <Logo />
         NodoAula
       </Link>
-      <nav aria-label="Principal" className="flex items-center gap-3 text-sm whitespace-nowrap text-content-muted sm:gap-5">
+      <nav aria-label="Principal" className="flex items-center gap-3 text-sm whitespace-nowrap text-content-muted max-[380px]:gap-2.5 sm:gap-5">
         <NavLink
           to="/catalogo"
           className={({ isActive }) => `hidden sm:block ${isActive ? 'text-content' : 'hover:text-content'}`}
@@ -53,7 +53,7 @@ export default function SiteHeader() {
               <Link
                 to="/registro"
                 state={origin}
-                className={pathname === '/iniciar-sesion' ? 'hover:text-content' : buttonClasses('primary')}
+                className={pathname === '/iniciar-sesion' ? 'hover:text-content' : `${buttonClasses('primary')} max-[380px]:px-3`}
               >
                 Crear cuenta
               </Link>
