@@ -2,6 +2,8 @@ package io.github.nodoaula.forum;
 
 import static io.github.nodoaula.forum.ForumTestSupport.signedInAs;
 import static io.github.nodoaula.forum.ForumTestSupport.teamAccount;
+import static io.github.nodoaula.forum.ForumTestSupport.withId;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -72,7 +74,7 @@ class QuestionTests {
 
 	@Test
 	void publishesAQuestionOfACourseAndItAppearsInItsForum() throws Exception {
-		mockMvc.perform(post("/api/forum/questions").with(signedInAs(AUTHOR_ID)).with(csrf())
+		String response = mockMvc.perform(post("/api/forum/questions").with(signedInAs(AUTHOR_ID)).with(csrf())
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(body(courseId, null, "  ¿Cómo se configura Spring?  ", "  Me falta el paso inicial.  ")))
 				.andExpect(status().isCreated())
@@ -82,12 +84,13 @@ class QuestionTests {
 				.andExpect(jsonPath("$.body").value("Me falta el paso inicial."))
 				.andExpect(jsonPath("$.createdAt").isNotEmpty())
 				.andExpect(jsonPath("$.authorId").doesNotExist())
-				.andExpect(jsonPath("$.email").doesNotExist());
+				.andExpect(jsonPath("$.email").doesNotExist())
+				.andReturn().getResponse().getContentAsString();
+		Long id = JsonPath.<Number>read(response, "$.id").longValue();
 
 		mockMvc.perform(get("/api/forum/questions").param("courseId", courseId.toString()))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$", hasSize(1)))
-				.andExpect(jsonPath("$[0].title").value("¿Cómo se configura Spring?"));
+				.andExpect(jsonPath(withId(id) + ".title").value(contains("¿Cómo se configura Spring?")));
 	}
 
 	@Test
@@ -163,13 +166,13 @@ class QuestionTests {
 		Long id = publish(AUTHOR_ID, "Para retirar");
 
 		mockMvc.perform(get("/api/forum/questions").param("courseId", courseId.toString()).with(signedInAs(AUTHOR_ID)))
-				.andExpect(jsonPath("$[0].canRetire").value(true));
+				.andExpect(jsonPath(withId(id) + ".canRetire").value(contains(true)));
 
 		mockMvc.perform(post("/api/forum/questions/" + id + "/retire").with(signedInAs(AUTHOR_ID)).with(csrf()))
 				.andExpect(status().isNoContent());
 
 		mockMvc.perform(get("/api/forum/questions").param("courseId", courseId.toString()))
-				.andExpect(jsonPath("$", hasSize(0)));
+				.andExpect(jsonPath(withId(id)).isEmpty());
 		mockMvc.perform(post("/api/forum/questions/" + id + "/retire").with(signedInAs(AUTHOR_ID)).with(csrf()))
 				.andExpect(status().isNotFound());
 	}
