@@ -2,14 +2,13 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 
 import { CloseIcon } from '../../components/ui/icons.jsx'
+import { countText } from '../catalog/courseSummary.js'
 import { useResourceSearch } from '../catalog/useResourceSearch.js'
 import { rankResourceSuggestions, suggestCoursesAndTopics } from './landingCatalog.js'
 import { prefersReducedMotion } from './useMediaQuery.js'
 
 const EXAMPLE_INTERVAL_MS = 4500
 const RESOURCE_SUGGESTIONS = 3
-
-const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`
 
 function resourceGroup(resources) {
   if (resources.every((resource) => resource.resourceType === 'DOCUMENT')) return 'Apuntes'
@@ -48,7 +47,7 @@ function buildSuggestions(courses, topics, resources) {
     courses.map((course) => ({
       key: `curso-${course.id}`,
       label: course.name,
-      meta: plural(course.count, 'recurso', 'recursos'),
+      meta: countText(course.count, 'recurso', 'recursos'),
       dot: 'size-2.5 bg-content',
       pick: { course, topic: null },
     })),
@@ -57,7 +56,8 @@ function buildSuggestions(courses, topics, resources) {
     'Temas',
     topics.map(({ name, course }) => ({ key: `tema-${course.id}-${name}`, label: name, meta: course.name, dot: 'size-2 bg-content-muted', pick: { course, topic: name } })),
   )
-  if (resources.length > 0) add(resourceGroup(resources), resources.slice(0, RESOURCE_SUGGESTIONS).map(resourceOption))
+  const shown = resources.slice(0, RESOURCE_SUGGESTIONS)
+  if (shown.length > 0) add(resourceGroup(shown), shown.map(resourceOption))
 
   const options = groups.flatMap((group) => group.options)
   if (resources.length > 0) options.push({ key: 'todos', label: allResultsLabel(resources.length), all: true })
@@ -103,13 +103,16 @@ export default function LandingSearch({ summaries, examples, onPickCourse, onPic
   }
 
   const { courses, topics } = suggestCoursesAndTopics(summaries, text)
-  const resources = text && !search.pending && !search.error ? rankResourceSuggestions(search.resources, courses.map((course) => course.name)) : []
+  // Los resultados son de lo escrito hace un momento: mientras no coincidan
+  // con el campo, no se sugieren.
+  const answered = !search.pending && !search.error && search.query === text
+  const resources = text && answered ? rankResourceSuggestions(search.resources, courses.map((course) => course.name)) : []
   const { groups, options } = buildSuggestions(courses, topics, resources)
   const showAll = () => navigate(`/catalogo?${new URLSearchParams({ q: text })}`)
 
   const activeIndex = active < options.length ? active : -1
   const listOpen = open && text !== '' && options.length > 0
-  const nothingFound = open && text !== '' && options.length === 0 && !search.pending && !search.error
+  const nothingFound = open && text !== '' && options.length === 0 && answered
   const optionId = (index) => `${listId}-${index}`
 
   // Un curso o un tema se escoge en la página: el campo se vacía.
@@ -153,7 +156,7 @@ export default function LandingSearch({ summaries, examples, onPickCourse, onPic
   }
 
   let announcement = ''
-  if (text && options.length > 0) announcement = plural(options.length, 'sugerencia', 'sugerencias')
+  if (text && options.length > 0) announcement = countText(options.length, 'sugerencia', 'sugerencias')
   else if (nothingFound) announcement = 'Sin sugerencias'
 
   return (

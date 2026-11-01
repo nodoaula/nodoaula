@@ -6,24 +6,17 @@ import { buttonClasses } from '../../components/ui/button.js'
 import { SESSION_STATUS } from '../../session/SessionContext.js'
 import { useSession } from '../../session/useSession.js'
 import { listCoursesWithResources, listResources } from '../catalog/api.js'
-import { summarizeCourses } from '../catalog/courseSummary.js'
+import { countText, formatCourseSummary, summarizeCourses } from '../catalog/courseSummary.js'
 import ResourceRow from '../catalog/ResourceRow.jsx'
 import CourseGraph, { NameAndCount } from './CourseGraph.jsx'
-import { AccountSection, SourcesSection } from './InfoSections.jsx'
+import { AccountSection, SECTION, SECTION_TITLE, SourcesSection } from './InfoSections.jsx'
 import LandingSearch from './LandingSearch.jsx'
 import { courseResources, graphRows, pickSample, searchExamples } from './landingCatalog.js'
 import { prefersReducedMotion, useMediaQuery } from './useMediaQuery.js'
 
 const SHOWN_COURSES = 5
 const SHOWN_RESOURCES = 4
-const SECTION_TITLE = 'text-[1.875rem] leading-[1.15] font-semibold tracking-[-0.025em] text-balance'
 const TEXT_LINK = 'text-body font-medium text-content hover:underline hover:underline-offset-3'
-
-const plural = (count, one, many) => `${count} ${count === 1 ? one : many}`
-
-function typeCounts({ videoCount, documentCount }) {
-  return [videoCount && plural(videoCount, 'video', 'videos'), documentCount && plural(documentCount, 'apunte', 'apuntes')].filter(Boolean).join(' · ')
-}
 
 function courseLink(courseId, topic) {
   const query = topic ? `?${new URLSearchParams({ topic })}` : ''
@@ -40,7 +33,7 @@ function describeResults({ featured, topic, summaries, resources }) {
     return {
       pool: pickSample(summaries, resources, SHOWN_RESOURCES),
       title: 'Una muestra del catálogo',
-      note: `${plural(resources.length, 'recurso', 'recursos')} en ${plural(summaries.length, 'curso', 'cursos')}, y crece con cada aporte.`,
+      note: `${countText(resources.length, 'recurso', 'recursos')} en ${countText(summaries.length, 'curso', 'cursos')}, y crece con cada aporte.`,
       moreLink: { to: '/catalogo', text: 'Ver todo el catálogo →' },
       goText: null,
     }
@@ -53,7 +46,7 @@ function describeResults({ featured, topic, summaries, resources }) {
   return {
     pool,
     title: topic ? `${featured.name}\u00a0· ${topic}` : featured.name,
-    note: `${plural(pool.length, 'recurso', 'recursos')} ${topic ? 'en este tema' : 'en este curso'}`,
+    note: `${countText(pool.length, 'recurso', 'recursos')} ${topic ? 'en este tema' : 'en este curso'}`,
     moreLink: {
       to: courseLink(featured.id, topic),
       text: pool.length > SHOWN_RESOURCES ? `Ver los ${pool.length} ${all} →` : `Abrir ${open} →`,
@@ -112,8 +105,9 @@ export default function LandingPage() {
   }
 
   const shownCourses = [{ id: null, name: 'Todos los cursos', count: resources.length }, ...summaries.slice(0, SHOWN_COURSES)]
-  const rows = graphRows(summaries, selection.course)
-  const totals = summaries.reduce(
+  const rows = graphRows(summaries, selection.course, selection.topic)
+  // El nodo cuenta videos y apuntes, sin las horas de video del resumen del catálogo.
+  const { videoCount, documentCount } = featured ?? summaries.reduce(
     (sum, summary) => ({ videoCount: sum.videoCount + summary.videoCount, documentCount: sum.documentCount + summary.documentCount }),
     { videoCount: 0, documentCount: 0 },
   )
@@ -181,7 +175,7 @@ export default function LandingPage() {
               <CourseGraph
                 key={selection.version}
                 label={featured ? featured.name : 'Todos los cursos'}
-                detail={typeCounts(featured ?? totals)}
+                detail={formatCourseSummary({ videoCount, documentCount })}
                 to={featured ? courseLink(featured.id, selection.topic) : '/catalogo'}
                 moreTo={featured ? courseLink(featured.id) : '/catalogo'}
                 items={rows.items}
@@ -197,7 +191,7 @@ export default function LandingPage() {
         </section>
 
         {ready && (
-          <section aria-labelledby="entrada-recursos" className="pt-18 sm:pt-24">
+          <section aria-labelledby="entrada-recursos" className={SECTION}>
             <div className="flex flex-wrap items-baseline justify-between gap-6">
               <div>
                 <h2 id="entrada-recursos" ref={resultsTitleRef} tabIndex={-1} className={`outline-none ${SECTION_TITLE}`}>

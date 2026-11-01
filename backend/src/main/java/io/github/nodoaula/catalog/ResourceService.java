@@ -60,8 +60,9 @@ public class ResourceService {
 
 	/**
 	 * Lista los recursos del catálogo, filtrados por curso, tema, tipo de
-	 * recurso (historia HU206) y un texto de búsqueda libre sobre título,
-	 * descripción y temas (historia HU207). Los cuatro filtros son opcionales
+	 * recurso (historia HU206) y un texto de búsqueda libre (historia HU207):
+	 * cada palabra, en cualquier orden, en el título, la descripción, los temas
+	 * o el curso, y «apuntes» o «videos» como tipo. Los cuatro filtros son opcionales
 	 * y cada uno admite uno o varios valores a la vez: una lista vacía o en
 	 * null (o, para tipo, una lista con ambos valores) no restringe nada.
 	 * Entre los cuatro filtros se combinan con AND; dentro de cada uno, los

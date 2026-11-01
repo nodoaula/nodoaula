@@ -138,6 +138,14 @@ describe('LandingPage', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Física de Campos' })).toHaveFocus()
   })
 
+  it('el nodo de la gráfica resume videos y apuntes, sin las horas de video', async () => {
+    await renderLoaded()
+    expect(graph().getByText('6 videos · 1 apunte')).toBeInTheDocument()
+
+    fireEvent.click(coursesGroup().getByRole('button', { name: counted('Física de Campos', 3) }))
+    expect(graph().getByText('2 videos · 1 apunte')).toBeInTheDocument()
+  })
+
   it('enseña cuatro recursos del curso y lleva a ver todos', async () => {
     const series = [1, 2, 3, 4, 5].map((id) => video(id, `Clase ${id}`, 'Cálculo Integral', ['Series']))
     listResources.mockResolvedValue(series)
@@ -221,6 +229,41 @@ describe('LandingPage', () => {
 
     fireEvent.keyDown(search, { key: 'Enter' })
     expect(screen.getByTestId('location')).toHaveTextContent('/recursos/8')
+  })
+
+  it('mientras se sigue escribiendo no sugiere los recursos de lo escrito antes', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    await renderLoaded()
+
+    const search = screen.getByRole('combobox', { name: 'Buscar cursos, temas, videos y apuntes' })
+    fireEvent.change(search, { target: { value: 'series' } })
+    await advanceTime(DEBOUNCE_MS)
+    await screen.findByRole('option', { name: /Series y sucesiones/ })
+
+    fireEvent.change(search, { target: { value: 'seriesz' } })
+    expect(screen.queryByRole('option', { name: /Series y sucesiones/ })).not.toBeInTheDocument()
+    expect(screen.queryByText(/No encontramos nada/)).not.toBeInTheDocument()
+
+    await advanceTime(DEBOUNCE_MS)
+    expect(await screen.findByText(/No encontramos nada con «seriesz»/)).toBeInTheDocument()
+  })
+
+  it('el grupo de recursos se titula por los que enseña, no por todos los resultados', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    listResources.mockResolvedValue([
+      video(11, 'Repaso uno', 'Física de Campos', []),
+      video(12, 'Repaso dos', 'Cálculo Integral', []),
+      video(13, 'Repaso tres', 'Gestión de proyectos', []),
+      note(14, 'Repaso cuatro', 'Física de Campos', []),
+    ])
+    await renderLoaded()
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Buscar cursos, temas, videos y apuntes' }), { target: { value: 'repaso' } })
+    await advanceTime(DEBOUNCE_MS)
+    await screen.findByRole('option', { name: /Repaso uno/ })
+
+    expect(screen.getByText('Videos', { selector: '[role=presentation]' })).toBeInTheDocument()
+    expect(screen.queryByText('Videos y apuntes')).not.toBeInTheDocument()
   })
 
   it('si no encuentra nada lo dice y ofrece ver todos los cursos', async () => {

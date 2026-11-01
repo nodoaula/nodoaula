@@ -96,6 +96,18 @@ describe('graphRows', () => {
     expect(rows.items).toHaveLength(6)
     expect(rows.more).toBe(3)
   })
+
+  it('si el tema escogido no cabe, ocupa la última fila visible', () => {
+    const topics = Array.from({ length: 9 }, (_, index) => `Tema ${index + 1}`)
+    const resources = topics.map((topic, index) => video(100 + index, 'Física de Campos', [topic]))
+    const summaries = summarizeCourses(resources, COURSES)
+    const all = graphRows(summaries, 1).items.map((item) => item.name)
+    const hidden = summaries[0].topics.map((topic) => topic.name).find((name) => !all.includes(name))
+    const rows = graphRows(summaries, 1, hidden)
+
+    expect(rows.items.map((item) => item.name)).toEqual([...all.slice(0, 5), hidden])
+    expect(rows.more).toBe(3)
+  })
 })
 
 describe('graphGeometry', () => {
@@ -129,6 +141,12 @@ describe('suggestCoursesAndTopics', () => {
       topics: [],
     })
     expect(suggestCoursesAndTopics(SUMMARIES, 'definida').topics).toEqual([{ name: 'Integral definida', course: SUMMARIES[1] }])
+  })
+
+  it('no busca «apuntes», «pdf» ni «videos» en los nombres: son el tipo, como en el catálogo', () => {
+    expect(suggestCoursesAndTopics(SUMMARIES, 'apuntes calculo').courses).toEqual([SUMMARIES[1]])
+    expect(suggestCoursesAndTopics(SUMMARIES, 'definida videos').topics).toEqual([{ name: 'Integral definida', course: SUMMARIES[1] }])
+    expect(suggestCoursesAndTopics(SUMMARIES, 'pdf')).toEqual({ courses: [], topics: [] })
   })
 
   it('da los cursos en su orden de más a menos recursos', () => {

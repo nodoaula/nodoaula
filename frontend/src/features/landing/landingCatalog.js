@@ -48,16 +48,20 @@ const MAX_GRAPH_ROWS = 7
 
 /**
  * Las filas de la gráfica: los cursos o, con un curso escogido, sus temas.
- * Si no caben, la última fila cuenta las que faltan (`more`).
+ * Si no caben, la última fila cuenta las que faltan (`more`), y el tema
+ * escogido, si quedaba fuera, ocupa la última visible.
  */
-export function graphRows(summaries, courseId) {
+export function graphRows(summaries, courseId, topic = null) {
   const course = summaries.find((summary) => summary.id === courseId)
   const items = course
-    ? course.topics.map((topic) => ({ name: topic.name, count: topic.count }))
+    ? course.topics.map((item) => ({ name: item.name, count: item.count }))
     : summaries.map((summary) => ({ name: summary.name, count: summary.count, courseId: summary.id }))
 
   if (items.length <= MAX_GRAPH_ROWS) return { items, more: 0 }
-  return { items: items.slice(0, MAX_GRAPH_ROWS - 1), more: items.length - (MAX_GRAPH_ROWS - 1) }
+  const shown = items.slice(0, MAX_GRAPH_ROWS - 1)
+  const picked = items.find((item) => item.name === topic)
+  if (picked && !shown.includes(picked)) shown[shown.length - 1] = picked
+  return { items: shown, more: items.length - shown.length }
 }
 
 /**
@@ -90,7 +94,11 @@ export function graphGeometry(rows, tree) {
   }
 }
 
-const words = (text) => normalizeText(text).split(' ').filter(Boolean)
+// Como en el catálogo: estas palabras dicen el tipo de recurso y no se buscan
+// en los nombres.
+const TYPE_WORDS = new Set(['apunte', 'apuntes', 'pdf', 'video', 'videos'])
+
+const words = (text) => normalizeText(text).split(' ').filter((word) => word && !TYPE_WORDS.has(word))
 
 function matchesAll(name, queryWords) {
   const normalized = normalizeText(name)

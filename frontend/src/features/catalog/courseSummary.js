@@ -46,7 +46,7 @@ export function summarizeCourses(resources, courses) {
     .sort(byCountThenName)
 }
 
-function countText(count, singular, plural) {
+export function countText(count, singular, plural) {
   return `${count}\u00a0${count === 1 ? singular : plural}`
 }
 

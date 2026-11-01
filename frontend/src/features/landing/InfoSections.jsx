@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
-const SECTION = 'pt-18 sm:pt-24'
-const SECTION_TITLE = 'text-[1.875rem] leading-[1.15] font-semibold tracking-[-0.025em] text-balance'
+export const SECTION = 'pt-18 sm:pt-24'
+export const SECTION_TITLE = 'text-[1.875rem] leading-[1.15] font-semibold tracking-[-0.025em] text-balance'
 
 /**
  * Cada tarjeta se anima una vez, al verse casi entera, y otra vez al pasar el
