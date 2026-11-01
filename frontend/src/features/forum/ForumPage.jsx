@@ -5,6 +5,7 @@ import { buttonClasses } from '../../components/ui/button.js'
 import NodePath from '../../components/ui/NodePath.jsx'
 import Notice from '../../components/ui/Notice.jsx'
 import Tag from '../../components/ui/Tag.jsx'
+import SignInNotice from '../../session/SignInNotice.jsx'
 import { useSession } from '../../session/useSession.js'
 import { listResources } from '../catalog/api.js'
 import { listQuestions } from './api.js'
@@ -119,22 +120,11 @@ function Forum({ courseId, questionRetired: arrivedFromRetirement }) {
         <h2 id="ask-heading" className="mb-4 text-lead font-semibold text-content">
           Haz una pregunta
         </h2>
+        {/* Vuelve al foro al iniciar sesión o crear la cuenta (HU403). */}
         {account === null ? (
-          <Notice
-            title="Inicia sesión para preguntar"
-            action={
-              <div className="flex flex-wrap gap-3">
-                <Link to="/iniciar-sesion" className={buttonClasses('primary')}>
-                  Iniciar sesión
-                </Link>
-                <Link to="/registro" className={buttonClasses('secondary')}>
-                  Crear cuenta
-                </Link>
-              </div>
-            }
-          >
+          <SignInNotice title="Inicia sesión para preguntar">
             Puedes leer las preguntas sin cuenta; para publicar una necesitas iniciar sesión.
-          </Notice>
+          </SignInNotice>
         ) : (
           <QuestionForm
             courseId={courseId}

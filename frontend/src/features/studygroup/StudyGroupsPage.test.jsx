@@ -43,6 +43,7 @@ function renderGroups(courseId = '1') {
       <Routes>
         <Route path="/catalogo/cursos/:courseId/grupos" element={<StudyGroupsPage />} />
         <Route path="/iniciar-sesion" element={<Destination name="Inicio de sesión" />} />
+        <Route path="/registro" element={<Destination name="Registro" />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -86,6 +87,15 @@ describe('StudyGroupsPage', () => {
 
     fireEvent.click(screen.getByRole('link', { name: 'Iniciar sesión' }))
     expect(await screen.findByText('Inicio de sesión desde /catalogo/cursos/1/grupos')).toBeInTheDocument()
+  })
+
+  // Historia HU403: la invitación también ofrece crear una cuenta y volver.
+  it('crear una cuenta lleva la página para volver a ella', async () => {
+    renderGroups()
+    await groupList()
+
+    fireEvent.click(screen.getByRole('link', { name: 'Crear cuenta' }))
+    expect(await screen.findByText('Registro desde /catalogo/cursos/1/grupos')).toBeInTheDocument()
   })
 
   it('sin grupos lo dice', async () => {
