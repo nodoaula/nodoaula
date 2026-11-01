@@ -10,7 +10,14 @@ import StudyGroupsPage from './StudyGroupsPage.jsx'
 let session = { status: 'ready', account: null }
 vi.mock('../../session/useSession.js', () => ({ useSession: () => session }))
 vi.mock('../catalog/api.js', () => ({ listResources: vi.fn() }))
-vi.mock('./api.js', () => ({ listGroups: vi.fn(), createGroup: vi.fn(), retireGroup: vi.fn() }))
+vi.mock('./api.js', () => ({
+  listGroups: vi.fn(),
+  createGroup: vi.fn(),
+  retireGroup: vi.fn(),
+  joinGroup: vi.fn(),
+  leaveGroup: vi.fn(),
+  listMembers: vi.fn(),
+}))
 
 const RESOURCES = [{ id: 10, title: 'Spring Boot 2026-2', course: 'Arquitectura de Software' }]
 const GROUP = {
@@ -20,6 +27,7 @@ const GROUP = {
   description: 'Repasamos los patrones GoF antes del parcial.',
   createdAt: '2026-10-31T15:00:00Z',
   threadId: 70,
+  memberCount: 3,
   member: false,
   canRetire: false,
 }
@@ -69,7 +77,7 @@ describe('StudyGroupsPage', () => {
     expect(screen.getByRole('link', { name: 'Arquitectura de Software' })).toHaveAttribute('href', '/catalogo/cursos/1')
 
     expect(screen.queryByRole('form', { name: 'Crear un grupo' })).not.toBeInTheDocument()
-    expect(screen.getByText('Inicia sesión para crear un grupo')).toBeInTheDocument()
+    expect(screen.getByText('Inicia sesión para crear un grupo o unirte a uno')).toBeInTheDocument()
   })
 
   it('iniciar sesión lleva la página para volver a ella', async () => {

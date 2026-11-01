@@ -20,4 +20,12 @@ interface StudyGroupRepository extends JpaRepository<StudyGroup, Long> {
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	Optional<StudyGroup> findForUpdateByIdAndRetiredAtIsNull(Long id);
 
+	// Con un bloqueo compartido: unirse y salir dependen de que el grupo siga
+	// visible sin cambiarlo. Varias pueden ir a la vez; retirarlo espera a que
+	// terminen.
+	@Lock(LockModeType.PESSIMISTIC_READ)
+	Optional<StudyGroup> findForShareByIdAndRetiredAtIsNull(Long id);
+
+	Optional<StudyGroup> findByIdAndRetiredAtIsNull(Long id);
+
 }
