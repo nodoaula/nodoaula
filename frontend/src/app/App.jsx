@@ -1,7 +1,9 @@
 import { BrowserRouter, Link, Route, Routes } from 'react-router'
 
+import CompleteProfilePage from '../features/account/CompleteProfilePage.jsx'
 import DataPolicyPage from '../features/account/DataPolicyPage.jsx'
 import LoginPage from '../features/account/LoginPage.jsx'
+import ProfilePage from '../features/account/ProfilePage.jsx'
 import RegisterPage from '../features/account/RegisterPage.jsx'
 import CourseIndexPage from '../features/catalog/CourseIndexPage.jsx'
 import CoursePage from '../features/catalog/CoursePage.jsx'
@@ -13,6 +15,7 @@ import ForumPage from '../features/forum/ForumPage.jsx'
 import QuestionPage from '../features/forum/QuestionPage.jsx'
 import LandingPage from '../features/landing/LandingPage.jsx'
 import StudyGroupsPage from '../features/studygroup/StudyGroupsPage.jsx'
+import RequireCompleteProfile from '../session/RequireCompleteProfile.jsx'
 import SessionProvider from '../session/SessionProvider.jsx'
 import AppLayout from './AppLayout.jsx'
 import { SERVER_STATUS, useServerStatus } from './serverStatus.js'
@@ -27,24 +30,29 @@ export default function App() {
       <SessionProvider>
         <BrowserRouter>
           <Routes>
-            <Route index element={<LandingPage />} />
-            <Route element={<AppLayout />}>
-              <Route path="catalogo" element={<CourseIndexPage />} />
-              <Route path="catalogo/cursos/:courseId" element={<CoursePage />} />
-              <Route path="catalogo/cursos/:courseId/foro" element={<ForumPage />} />
-              <Route path="catalogo/cursos/:courseId/grupos" element={<StudyGroupsPage />} />
-              <Route path="foro/preguntas/:questionId" element={<QuestionPage />} />
-              <Route path="recursos/:resourceId" element={<ResourceDetailPage />} />
-              <Route path="recursos/:resourceId/corregir" element={<EditResourcePage />} />
-              <Route path="subir-apunte" element={<UploadDocumentPage />} />
-              <Route path="registro" element={<RegisterPage />} />
-              <Route path="iniciar-sesion" element={<LoginPage />} />
-              <Route path="politica-de-datos" element={<DataPolicyPage />} />
-            </Route>
-            {/* Pantallas aún sin rediseñar: cada una pasa al grupo de arriba cuando se rediseña. */}
-            <Route element={<AppLayout legacy />}>
-              <Route path="registrar-recurso" element={<CreateResourcePage />} />
-              <Route path="*" element={<NotFoundPage />} />
+            {/* Una cuenta anterior al perfil lo completa antes de seguir (HU506). */}
+            <Route element={<RequireCompleteProfile />}>
+              <Route index element={<LandingPage />} />
+              <Route element={<AppLayout />}>
+                <Route path="catalogo" element={<CourseIndexPage />} />
+                <Route path="catalogo/cursos/:courseId" element={<CoursePage />} />
+                <Route path="catalogo/cursos/:courseId/foro" element={<ForumPage />} />
+                <Route path="catalogo/cursos/:courseId/grupos" element={<StudyGroupsPage />} />
+                <Route path="foro/preguntas/:questionId" element={<QuestionPage />} />
+                <Route path="recursos/:resourceId" element={<ResourceDetailPage />} />
+                <Route path="recursos/:resourceId/corregir" element={<EditResourcePage />} />
+                <Route path="subir-apunte" element={<UploadDocumentPage />} />
+                <Route path="registro" element={<RegisterPage />} />
+                <Route path="iniciar-sesion" element={<LoginPage />} />
+                <Route path="perfil" element={<ProfilePage />} />
+                <Route path="completar-perfil" element={<CompleteProfilePage />} />
+                <Route path="politica-de-datos" element={<DataPolicyPage />} />
+              </Route>
+              {/* Pantallas aún sin rediseñar: cada una pasa al grupo de arriba cuando se rediseña. */}
+              <Route element={<AppLayout legacy />}>
+                <Route path="registrar-recurso" element={<CreateResourcePage />} />
+                <Route path="*" element={<NotFoundPage />} />
+              </Route>
             </Route>
           </Routes>
         </BrowserRouter>

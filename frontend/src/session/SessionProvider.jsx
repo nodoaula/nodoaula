@@ -55,7 +55,17 @@ export default function SessionProvider({ children }) {
     setStatus(SESSION_STATUS.READY)
   }, [])
 
-  const value = useMemo(() => ({ status, account, login, logout }), [status, account, login, logout])
+  // Tras completar el perfil (HU506) la sesión sigue siendo la misma, pero la
+  // cuenta ya tiene nombre: se reemplaza por la que devuelve la API.
+  const updateAccount = useCallback((updated) => {
+    changedByUser.current = true
+    setAccount(updated)
+  }, [])
+
+  const value = useMemo(
+    () => ({ status, account, login, logout, updateAccount }),
+    [status, account, login, logout, updateAccount],
+  )
 
   return <SessionContext value={value}>{children}</SessionContext>
 }

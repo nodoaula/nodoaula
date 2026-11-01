@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { registerAccount } from './api.js'
+import { fetchInstitutions, registerAccount } from './api.js'
 import LoginPage from './LoginPage.jsx'
 import RegisterPage from './RegisterPage.jsx'
 
@@ -13,9 +13,9 @@ import RegisterPage from './RegisterPage.jsx'
 
 let session = { status: 'ready', account: null }
 vi.mock('../../session/useSession.js', () => ({ useSession: () => session }))
-vi.mock('./api.js', () => ({ registerAccount: vi.fn() }))
+vi.mock('./api.js', () => ({ registerAccount: vi.fn(), fetchInstitutions: vi.fn() }))
 
-const ACCOUNT = { id: 5, email: 'lectora@example.com' }
+const ACCOUNT = { id: 5, email: 'lectora@example.com', name: 'Ana Pérez', profileComplete: true }
 
 function renderAt(pathname, state) {
   return render(
@@ -40,6 +40,7 @@ function signInAndRerender(field) {
 describe('volver a la página de origen tras iniciar sesión', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    fetchInstitutions.mockResolvedValue([{ id: 99, name: 'Otra', other: true }])
     session = { status: 'ready', account: null }
   })
 
@@ -71,10 +72,14 @@ describe('volver a la página de origen tras iniciar sesión', () => {
   })
 
   it('si la entrada falla tras crear la cuenta, el inicio de sesión sigue llevando a la ficha', async () => {
-    registerAccount.mockResolvedValue({ id: 5, email: 'lectora@example.com' })
+    registerAccount.mockResolvedValue(ACCOUNT)
     session = { status: 'ready', account: null, login: vi.fn().mockRejectedValue(new Error('Sin conexión')) }
     renderAt('/registro', { from: '/recursos/24' })
 
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Ana Pérez' } })
+    fireEvent.focus(screen.getByRole('combobox', { name: 'Institución' }))
+    fireEvent.mouseDown(await screen.findByRole('option', { name: 'Otra' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Estudiante' }))
     fireEvent.change(screen.getByLabelText('Correo'), { target: { value: 'lectora@example.com' } })
     fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'contrasena-larga' } })
     fireEvent.click(screen.getByRole('checkbox', { name: /autorizo el tratamiento de mis datos personales/ }))

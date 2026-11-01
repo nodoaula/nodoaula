@@ -17,6 +17,24 @@ describe('DataPolicyPage', () => {
     }
   })
 
+  // Historia HU506: antes de guardar el perfil, la política lo dice.
+  it('dice que guarda el nombre, la institución y el tipo de usuario y que se muestran con lo que se aporta', () => {
+    render(<DataPolicyPage />)
+
+    const stored = screen.getByRole('heading', { name: 'Qué datos guardamos' }).closest('section')
+    expect(stored).toHaveTextContent('Tu nombre, tu institución y si eres estudiante o docente.')
+    const purpose = screen.getByRole('heading', { name: 'Para qué los usamos' }).closest('section')
+    expect(purpose).toHaveTextContent('se muestran junto a lo que aportas')
+    expect(purpose).toHaveTextContent('Tu correo no se muestra nunca a nadie más.')
+  })
+
+  it('tiene la nueva fecha de vigencia y dice qué cambió respecto a la anterior', () => {
+    render(<DataPolicyPage />)
+
+    expect(screen.getByText('1 de noviembre de 2026')).toHaveAttribute('datetime', '2026-11-01')
+    expect(screen.getByText(/Esta versión reemplaza a la del 30 de octubre de 2026/)).toBeInTheDocument()
+  })
+
   it('enumera los derechos del artículo 8 de la Ley 1581', () => {
     render(<DataPolicyPage />)
 

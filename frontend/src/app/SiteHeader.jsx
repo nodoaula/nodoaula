@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router'
 
 import { buttonClasses } from '../components/ui/button.js'
+import { initialOf } from '../features/account/profile.js'
 import { SESSION_STATUS } from '../session/SessionContext.js'
 import { useLogout } from '../session/useLogout.js'
 import { useSession } from '../session/useSession.js'
@@ -67,14 +68,23 @@ export default function SiteHeader() {
                 No se pudo cerrar la sesión.
               </span>
             )}
-            <span className="hidden max-w-56 truncate md:block" title={account.email}>
-              {account.email}
-            </span>
+            {account.profileComplete ? (
+              <ProfileLink name={account.name} />
+            ) : (
+              pathname !== '/completar-perfil' && (
+                <Link to="/completar-perfil" className="text-accent hover:underline">
+                  Completar perfil
+                </Link>
+              )
+            )}
+            {/* En pantallas estrechas se cierra sesión desde el perfil: aquí
+                no cabe junto al nombre y a «Aportar». Sin perfil se ofrece
+                siempre, porque el perfil aún no se puede abrir. */}
             <button
               type="button"
               onClick={handleLogout}
               disabled={loggingOut}
-              className="hover:text-content disabled:cursor-not-allowed disabled:opacity-60"
+              className={`hover:text-content disabled:cursor-not-allowed disabled:opacity-60 ${account.profileComplete ? 'hidden sm:block' : ''}`}
             >
               {loggingOut ? 'Cerrando sesión…' : 'Cerrar sesión'}
             </button>
@@ -83,6 +93,29 @@ export default function SiteHeader() {
         )}
       </nav>
     </header>
+  )
+}
+
+/**
+ * El nombre de la cuenta, que lleva a su perfil (HU506). Nunca el correo. En
+ * pantallas estrechas queda la inicial; el nombre sigue siendo el texto del
+ * enlace para un lector de pantalla.
+ */
+function ProfileLink({ name }) {
+  return (
+    <NavLink
+      to="/perfil"
+      title="Ver tu perfil"
+      className={({ isActive }) => `flex min-w-0 items-center gap-2 ${isActive ? 'text-content' : 'hover:text-content'}`}
+    >
+      <span
+        aria-hidden="true"
+        className="grid size-8 shrink-0 place-items-center rounded-full border border-border-strong bg-surface-raised font-semibold text-accent"
+      >
+        {initialOf(name)}
+      </span>
+      <span className="sr-only md:not-sr-only md:max-w-48 md:truncate">{name}</span>
+    </NavLink>
   )
 }
 

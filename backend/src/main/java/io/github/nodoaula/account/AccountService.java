@@ -1,6 +1,9 @@
 package io.github.nodoaula.account;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.Locale;
+import java.util.regex.Pattern;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -10,6 +13,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import io.github.nodoaula.shared.error.FieldValidationException;
+
 /**
  * Único punto público del módulo account, conforme al ADR-008. Es también el
  * UserDetailsService con el que el filtro de login de Spring Security busca la
@@ -18,19 +23,25 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AccountService implements UserDetailsService {
 
+	private static final Pattern WHITESPACE = Pattern.compile("\\s+");
+
 	private final AccountRepository accountRepository;
+	private final InstitutionRepository institutionRepository;
 	private final PasswordEncoder passwordEncoder;
 
-	AccountService(AccountRepository accountRepository, PasswordEncoder passwordEncoder) {
+	AccountService(AccountRepository accountRepository, InstitutionRepository institutionRepository,
+			PasswordEncoder passwordEncoder) {
 		this.accountRepository = accountRepository;
+		this.institutionRepository = institutionRepository;
 		this.passwordEncoder = passwordEncoder;
 	}
 
 	/**
-	 * Crea una cuenta. No inicia sesión: el usuario entra después con el
-	 * formulario de inicio de sesión.
+	 * Crea una cuenta, con su perfil. No inicia sesión: el usuario entra
+	 * después con el formulario de inicio de sesión.
 	 *
 	 * @throws EmailAlreadyInUseException si el correo ya tiene cuenta
+	 * @throws FieldValidationException si la institución no es de la lista
 	 */
 	@Transactional
 	public AccountDto register(RegistrationRequest request) {
@@ -40,7 +51,8 @@ public class AccountService implements UserDetailsService {
 			throw new EmailAlreadyInUseException();
 		}
 
-		Account account = new Account(email, passwordEncoder.encode(request.password()));
+		Account account = new Account(email, passwordEncoder.encode(request.password()), tidyName(request.name()),
+				findInstitution(request.institutionId()), request.userType());
 
 		// La comprobación anterior no cubre dos registros simultáneos con el
 		// mismo correo: el segundo lo detiene la restricción única de la tabla.
@@ -84,6 +96,72 @@ public class AccountService implements UserDetailsService {
 		return accountRepository.existsByIdAndTeamMemberTrue(accountId);
 	}
 
+	/**
+	 * La cuenta con sesión, leída de la base y no de la sesión guardada: el
+	 * nombre puede haber llegado después de iniciarla, al completar el perfil.
+	 */
+	@Transactional(readOnly = true)
+	public AccountDto currentAccount(Long accountId) {
+		return toDto(findAccount(accountId));
+	}
+
+	/** Todos los datos de la cuenta con sesión, para su página de perfil. */
+	@Transactional(readOnly = true)
+	public AccountProfileDto profile(Long accountId) {
+		Account account = findAccount(accountId);
+		Institution institution = account.getInstitution();
+		return new AccountProfileDto(account.getName(), account.getEmail(),
+				institution == null ? null : institution.toDto(), account.getUserType(), account.getCreatedAt(),
+				account.getDataProcessingAuthorizedAt(), account.isTeamMember());
+	}
+
+	/**
+	 * Guarda el perfil de una cuenta creada antes de pedirlo, junto con la
+	 * nueva autorización de tratar sus datos.
+	 *
+	 * @throws ProfileAlreadyCompleteException si la cuenta ya lo tiene
+	 * @throws FieldValidationException si la institución no es de la lista
+	 */
+	@Transactional
+	public AccountDto completeProfile(Long accountId, ProfileCompletionRequest request) {
+		Account account = findAccount(accountId);
+		if (account.isProfileComplete()) {
+			throw new ProfileAlreadyCompleteException();
+		}
+
+		account.completeProfile(tidyName(request.name()), findInstitution(request.institutionId()),
+				request.userType());
+		return toDto(account);
+	}
+
+	/** La lista cerrada de instituciones, por nombre y con «Otra» al final. */
+	@Transactional(readOnly = true)
+	public List<InstitutionDto> listInstitutions() {
+		return institutionRepository.findAllByOrderByName().stream()
+				.sorted(Comparator.comparing(Institution::isOther))
+				.map(Institution::toDto)
+				.toList();
+	}
+
+	// Una sesión cuya cuenta ya no existe se trata como sin sesión: 401.
+	private Account findAccount(Long accountId) {
+		return accountRepository.findById(accountId)
+				.orElseThrow(() -> new UsernameNotFoundException("La cuenta de la sesión no existe"));
+	}
+
+	// Solo de la lista: un identificador que no está en ella se señala en el
+	// campo, como cualquier otro dato del formulario.
+	private Institution findInstitution(Long institutionId) {
+		return institutionRepository.findById(institutionId)
+				.orElseThrow(() -> new FieldValidationException("institutionId",
+						ProfileCompletionRequest.INSTITUTION_REQUIRED));
+	}
+
+	// Como el frontend: sin espacios al principio, al final ni repetidos.
+	private static String tidyName(String name) {
+		return WHITESPACE.matcher(name.strip()).replaceAll(" ");
+	}
+
 	// En minúsculas para que Ana@Ejemplo.com y ana@ejemplo.com sean la misma
 	// cuenta. La tabla rechaza cualquier correo que no llegue así.
 	private static String normalizeEmail(String email) {
@@ -91,7 +169,7 @@ public class AccountService implements UserDetailsService {
 	}
 
 	private static AccountDto toDto(Account account) {
-		return new AccountDto(account.getId(), account.getEmail());
+		return new AccountDto(account.getId(), account.getEmail(), account.getName(), account.isProfileComplete());
 	}
 
 }
