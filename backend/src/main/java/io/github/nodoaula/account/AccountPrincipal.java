@@ -35,8 +35,4 @@ final class AccountPrincipal extends User {
 		return id;
 	}
 
-	AccountDto toDto() {
-		return new AccountDto(id, getUsername());
-	}
-
 }

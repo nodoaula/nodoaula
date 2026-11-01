@@ -14,6 +14,9 @@ import jakarta.validation.constraints.Size;
  * caracteres y, además, no más de 72 bytes: es el límite de bcrypt, que
  * Spring Security rechaza con una excepción en vez de truncar, y 64
  * caracteres con tildes o eñes pueden superarlo.
+ *
+ * El nombre, la institución y el tipo de usuario son el perfil (HU506), con
+ * las mismas reglas que al completarlo (ProfileCompletionRequest).
  */
 public record RegistrationRequest(
 
@@ -28,6 +31,16 @@ public record RegistrationRequest(
 				message = "La contraseña es demasiado larga: las tildes, eñes y otros símbolos ocupan más espacio. Usa menos caracteres.")
 		String password,
 
+		@NotBlank(message = ProfileCompletionRequest.NAME_REQUIRED)
+		@Size(max = ProfileCompletionRequest.NAME_MAX_LENGTH, message = ProfileCompletionRequest.NAME_TOO_LONG)
+		String name,
+
+		@NotNull(message = ProfileCompletionRequest.INSTITUTION_REQUIRED)
+		Long institutionId,
+
+		@NotNull(message = ProfileCompletionRequest.USER_TYPE_REQUIRED)
+		UserType userType,
+
 		// Boolean y no boolean: si la casilla no llega, @NotNull da el mismo
 		// mensaje en vez de un error de conversión.
 		@NotNull(message = DATA_PROCESSING_MESSAGE)
@@ -41,8 +54,9 @@ public record RegistrationRequest(
 	// registro o mensaje de error que incluyera este objeto.
 	@Override
 	public String toString() {
-		return "RegistrationRequest[email=" + email + ", password=***, dataProcessingAuthorized="
-				+ dataProcessingAuthorized + "]";
+		return "RegistrationRequest[email=" + email + ", password=***, name=" + name + ", institutionId="
+				+ institutionId + ", userType=" + userType + ", dataProcessingAuthorized=" + dataProcessingAuthorized
+				+ "]";
 	}
 
 }

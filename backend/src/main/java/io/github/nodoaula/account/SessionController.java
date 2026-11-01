@@ -17,9 +17,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/session")
 class SessionController {
 
+	private final AccountService accountService;
+
+	SessionController(AccountService accountService) {
+		this.accountService = accountService;
+	}
+
 	@GetMapping
-	AccountDto currentAccount(@AuthenticationPrincipal AccountPrincipal principal) {
-		return principal.toDto();
+	AccountDto currentAccount(@AuthenticationPrincipal(expression = "id") Long accountId) {
+		return accountService.currentAccount(accountId);
 	}
 
 }

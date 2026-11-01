@@ -63,6 +63,9 @@ class SecurityConfig {
 						.requestMatchers(HttpMethod.GET, "/api/study-groups", "/api/study-groups/**").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/health", "/api/csrf").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/accounts").permitAll()
+						// El registro elige la institución de esta lista
+						// antes de tener cuenta (HU506).
+						.requestMatchers(HttpMethod.GET, "/api/institutions").permitAll()
 
 						// El health check de Render y la tarea programada que
 						// mantiene activa la base de datos llaman sin sesión.
