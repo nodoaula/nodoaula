@@ -8,10 +8,22 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
-/** Lo que comparten las pruebas del foro: la cuenta con sesión y la del equipo. */
+/**
+ * Lo que comparten las pruebas del foro: la cuenta con sesión, la del equipo y
+ * cómo encontrar en una lista lo que creó la prueba.
+ */
 final class ForumTestSupport {
 
 	private ForumTestSupport() {
+	}
+
+	/**
+	 * El elemento de una lista JSON con ese identificador, como expresión de
+	 * JsonPath. Las pruebas miran solo lo que crean, no el tamaño de la lista,
+	 * que incluye lo que ya hubiera en el foro del curso.
+	 */
+	static String withId(Long id) {
+		return "$[?(@.id == " + id + ")]";
 	}
 
 	static RequestPostProcessor signedInAs(Long accountId) {

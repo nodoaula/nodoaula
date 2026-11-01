@@ -43,16 +43,30 @@ class Question {
 	// La respuesta que quien preguntó marcó como útil, o null.
 	private Long usefulAnswerId;
 
+	// El hilo de un grupo de estudio (HU404): solo lo responden los miembros
+	// del grupo, y se retira con el grupo y no desde el foro.
+	private boolean groupThread;
+
 	protected Question() {
 	}
 
 	Question(Long courseId, Long resourceId, Long authorId, String title, String body) {
+		this(courseId, resourceId, authorId, title, body, false);
+	}
+
+	private Question(Long courseId, Long resourceId, Long authorId, String title, String body, boolean groupThread) {
 		this.courseId = courseId;
 		this.resourceId = resourceId;
 		this.authorId = authorId;
 		this.title = title;
 		this.body = body;
+		this.groupThread = groupThread;
 		this.createdAt = Instant.now();
+	}
+
+	/** El hilo de un grupo: su nombre como título y su descripción, que puede ser vacía, como cuerpo. */
+	static Question groupThread(Long courseId, Long creatorId, String name, String description) {
+		return new Question(courseId, null, creatorId, name, description, true);
 	}
 
 	void retire(Long accountId, Instant at) {
@@ -102,6 +116,10 @@ class Question {
 
 	Long getUsefulAnswerId() {
 		return usefulAnswerId;
+	}
+
+	boolean isGroupThread() {
+		return groupThread;
 	}
 
 }

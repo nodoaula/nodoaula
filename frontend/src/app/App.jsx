@@ -12,6 +12,7 @@ import UploadDocumentPage from '../features/catalog/UploadDocumentPage.jsx'
 import ForumPage from '../features/forum/ForumPage.jsx'
 import QuestionPage from '../features/forum/QuestionPage.jsx'
 import LandingPage from '../features/landing/LandingPage.jsx'
+import StudyGroupsPage from '../features/studygroup/StudyGroupsPage.jsx'
 import SessionProvider from '../session/SessionProvider.jsx'
 import AppLayout from './AppLayout.jsx'
 import { SERVER_STATUS, useServerStatus } from './serverStatus.js'
@@ -31,6 +32,7 @@ export default function App() {
               <Route path="catalogo" element={<CourseIndexPage />} />
               <Route path="catalogo/cursos/:courseId" element={<CoursePage />} />
               <Route path="catalogo/cursos/:courseId/foro" element={<ForumPage />} />
+              <Route path="catalogo/cursos/:courseId/grupos" element={<StudyGroupsPage />} />
               <Route path="foro/preguntas/:questionId" element={<QuestionPage />} />
               <Route path="recursos/:resourceId" element={<ResourceDetailPage />} />
               <Route path="recursos/:resourceId/corregir" element={<EditResourcePage />} />

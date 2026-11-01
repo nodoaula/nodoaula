@@ -197,9 +197,12 @@ class AnswerTests {
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.code").value("QUESTION_NOT_FOUND"));
 
+		// Solo las respuestas de esta pregunta: la base local puede tener otras.
+		// Sigue la previa, sin retirar, y no se añadió la tardía.
 		syncWithDatabase();
-		assertThat(jdbcTemplate.queryForObject("select count(*) from forum_answers where retired_at is null",
-				Integer.class)).isEqualTo(1);
+		assertThat(jdbcTemplate.queryForObject(
+				"select count(*) from forum_answers where question_id = ? and retired_at is null",
+				Integer.class, questionId)).isEqualTo(1);
 	}
 
 	@Test

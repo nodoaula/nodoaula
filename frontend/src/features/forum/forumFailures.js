@@ -7,6 +7,8 @@ const MESSAGES = {
   QUESTION_CHANGE_FORBIDDEN: 'Solo quien publicó esta pregunta o una cuenta del equipo puede retirarla.',
   ANSWER_CHANGE_FORBIDDEN: 'Solo quien publicó esta respuesta o una cuenta del equipo puede retirarla.',
   USEFUL_ANSWER_FORBIDDEN: 'Solo quien hizo la pregunta puede marcar o quitar la respuesta útil.',
+  GROUP_MEMBERS_ONLY: 'Solo los miembros del grupo responden en su hilo. Únete al grupo para participar.',
+  GROUP_THREAD_CHANGE_FORBIDDEN: 'El hilo de un grupo se retira retirando el grupo.',
 }
 
 /**

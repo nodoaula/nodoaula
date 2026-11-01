@@ -279,6 +279,16 @@ public class ResourceService {
 				.isPresent();
 	}
 
+	/**
+	 * La forma comparable de un nombre: la misma con que se comparan los
+	 * cursos y los temas (HU308), sin mayúsculas, tildes ni espacios
+	 * sobrantes. La pide studygroup para que en un curso no haya dos grupos
+	 * con el mismo nombre; NameNormalizer no sale de este módulo (ADR-008).
+	 */
+	public String comparableName(String name) {
+		return NameNormalizer.normalize(name);
+	}
+
 	/** Lista los cursos que tienen al menos un recurso. */
 	@Transactional(readOnly = true)
 	public List<CourseDto> listCoursesWithResources() {
