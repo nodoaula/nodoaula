@@ -9,6 +9,8 @@ const MESSAGES = {
   USEFUL_ANSWER_FORBIDDEN: 'Solo quien hizo la pregunta puede marcar o quitar la respuesta útil.',
   GROUP_MEMBERS_ONLY: 'Solo los miembros del grupo responden en su hilo. Únete al grupo para participar.',
   GROUP_THREAD_CHANGE_FORBIDDEN: 'El hilo de un grupo se retira retirando el grupo.',
+  // Al unirse al grupo desde su hilo (HU405), si lo retiraron mientras tanto.
+  STUDY_GROUP_NOT_FOUND: 'Este grupo ya no está disponible. Recarga la página.',
 }
 
 /**

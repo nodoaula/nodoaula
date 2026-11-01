@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,7 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Los grupos de estudio se listan sin sesión y se crean y retiran con ella,
  * como las preguntas del foro: el GET es público en SecurityConfig y el resto
- * lo cubre anyRequest().authenticated().
+ * lo cubre anyRequest().authenticated(). Unirse, salir y ver los miembros
+ * (HU405) exigen sesión, también el GET de los miembros, que SecurityConfig
+ * excluye de la lectura pública.
  */
 @RestController
 @RequestMapping("/api/study-groups")
@@ -48,6 +51,24 @@ class StudyGroupController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void retireGroup(@PathVariable Long id, @AuthenticationPrincipal(expression = "id") Long accountId) {
 		studyGroupService.retireGroup(id, accountId);
+	}
+
+	@GetMapping("/{id}/members")
+	List<StudyGroupMemberDto> listMembers(@PathVariable Long id,
+			@AuthenticationPrincipal(expression = "id") Long viewerId) {
+		return studyGroupService.listMembers(id, viewerId);
+	}
+
+	// Quien se une o sale es siempre la cuenta con sesión, nunca otra.
+	@PostMapping("/{id}/members")
+	@ResponseStatus(HttpStatus.CREATED)
+	StudyGroupDto joinGroup(@PathVariable Long id, @AuthenticationPrincipal(expression = "id") Long accountId) {
+		return studyGroupService.joinGroup(id, accountId);
+	}
+
+	@DeleteMapping("/{id}/members/me")
+	StudyGroupDto leaveGroup(@PathVariable Long id, @AuthenticationPrincipal(expression = "id") Long accountId) {
+		return studyGroupService.leaveGroup(id, accountId);
 	}
 
 }

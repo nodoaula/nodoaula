@@ -11,6 +11,7 @@ import { useAnnouncer } from '../../components/ui/useAnnouncer.js'
 import { SESSION_STATUS } from '../../session/SessionContext.js'
 import { useSession } from '../../session/useSession.js'
 import { listResources } from '../catalog/api.js'
+import { joinGroupOfThread } from '../studygroup/api.js'
 import AnswerForm from './AnswerForm.jsx'
 import AnswerThread, { FailureMessage, UsefulMark } from './AnswerThread.jsx'
 import {
@@ -265,6 +266,14 @@ function Question({ question: initialQuestion, answers: initialAnswers, resource
     applyAndFocus(() => setAnswers((current) => [...current, answer]), answerElementId(answer.id), 'Publicaste tu respuesta.')
   }
 
+  // Quien se une desde el hilo responde sin salir de la página (HU405): el
+  // formulario aparece en lugar de la invitación y recibe el foco.
+  function joined() {
+    flushSync(() => setQuestion((current) => ({ ...current, canAnswer: true })))
+    answerField.current?.focus()
+    announce('Te uniste al grupo. Ya puedes responder.')
+  }
+
   async function mark(answerId) {
     const done = await run(() => markUsefulAnswer(question.id, answerId), {
       target: answerId,
@@ -361,7 +370,7 @@ function Question({ question: initialQuestion, answers: initialAnswers, resource
             )}
             <div>
               {/* La fecha se entiende sola en la franja del celular; el recurso no. */}
-              <dt className="sr-only text-xs text-content-faint sm:not-sr-only">Publicada</dt>
+              <dt className="sr-only text-xs text-content-faint sm:not-sr-only">Fecha de publicación</dt>
               <dd className="font-mono text-label text-content tabular-nums sm:mt-1">{formatForumDate(question.createdAt)}</dd>
             </div>
             {resource && (
@@ -427,7 +436,9 @@ function Question({ question: initialQuestion, answers: initialAnswers, resource
           {canAnswer && (
             <AnswerForm questionId={question.id} onPublished={published} onTimedOut={refreshThread} fieldRef={answerField} />
           )}
-          {signedIn && !canAnswer && <JoinToAnswer courseId={question.courseId} />}
+          {signedIn && !canAnswer && (
+            <JoinToAnswer courseId={question.courseId} threadId={question.id} onJoined={joined} />
+          )}
           {!signedIn && <SignInToAnswer group={question.group} />}
         </div>
       </div>
@@ -485,22 +496,46 @@ function UsefulAnswerSummary({ answer }) {
 
 /**
  * En el hilo de un grupo, quien no es miembro lo lee pero no responde: la API
- * le respondería 403 (HU404). Se le invita a unirse desde los grupos del curso.
+ * le respondería 403 (HU404). Se le invita a unirse, y se une desde aquí
+ * mismo (HU405) o desde los grupos del curso.
  */
-function JoinToAnswer({ courseId }) {
+function JoinToAnswer({ courseId, threadId, onJoined }) {
+  const [busy, setBusy] = useState(false)
+  const [failure, setFailure] = useState(null)
+
+  async function join() {
+    setBusy(true)
+    setFailure(null)
+    try {
+      await joinGroupOfThread(courseId, threadId)
+    } catch (error) {
+      console.error('No se pudo unir al grupo desde su hilo', error)
+      setBusy(false)
+      setFailure(describeForumFailure(error, 'No se pudo unirte al grupo. Intenta de nuevo.'))
+      return
+    }
+    onJoined()
+  }
+
   return (
     <div className="mt-8">
       <Notice
         title="Únete al grupo para responder"
         action={
-          // Sin el nombre del curso: un botón no parte líneas y desbordaría a 375 px.
-          <Link to={groupsPath(courseId)} className={buttonClasses('secondary')}>
-            Ver los grupos del curso
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <button type="button" onClick={join} disabled={busy} className={buttonClasses('primary')}>
+              Unirse al grupo
+            </button>
+            {/* Sin el nombre del curso: un botón no parte líneas y desbordaría a 375 px. */}
+            <Link to={groupsPath(courseId)} className={buttonClasses('secondary')}>
+              Ver los grupos del curso
+            </Link>
+          </div>
         }
       >
-        Este es el hilo de un grupo de estudio: cualquiera lo lee, pero solo sus miembros responden en él.
+        Debes ser parte del grupo para poder publicar nuevas respuestas.
       </Notice>
+      {failure && <FailureMessage>{failure}</FailureMessage>}
     </div>
   )
 }

@@ -1,8 +1,10 @@
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ApiError } from '../../lib/apiClient.js'
 import { listResources } from '../catalog/api.js'
+import { joinGroupOfThread } from '../studygroup/api.js'
 import { getQuestion, listAnswers, listQuestions } from './api.js'
 import ForumPage from './ForumPage.jsx'
 import QuestionPage from './QuestionPage.jsx'
@@ -10,6 +12,7 @@ import QuestionPage from './QuestionPage.jsx'
 let session = { status: 'ready', account: null }
 vi.mock('../../session/useSession.js', () => ({ useSession: () => session }))
 vi.mock('../catalog/api.js', () => ({ listResources: vi.fn() }))
+vi.mock('../studygroup/api.js', () => ({ joinGroupOfThread: vi.fn() }))
 vi.mock('./api.js', () => ({
   getQuestion: vi.fn(),
   listQuestions: vi.fn(),
@@ -118,6 +121,37 @@ describe('El hilo de un grupo de estudio', () => {
     expect(within(aside).queryByRole('button', { name: 'Responder' })).not.toBeInTheDocument()
     // Sin el formulario, el hilo vacío no invita a escribir abajo.
     expect(screen.getByText('Todavía nadie responde.')).toBeInTheDocument()
+  })
+
+  it('quien no es miembro se une desde el hilo: aparece el formulario con el foco y se anuncia (HU405)', async () => {
+    session = { status: 'ready', account: { id: 6 } }
+    getQuestion.mockResolvedValue({ ...THREAD, canAnswer: false, canMarkUseful: false })
+    joinGroupOfThread.mockResolvedValue(undefined)
+    renderPath('/foro/preguntas/70')
+    await loadedThread()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Unirse al grupo' }))
+
+    await waitFor(() => expect(joinGroupOfThread).toHaveBeenCalledWith(1, 70))
+    expect(await screen.findByRole('form', { name: 'Responder la pregunta' })).toBeInTheDocument()
+    expect(screen.queryByText('Únete al grupo para responder')).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/Tu respuesta/)).toHaveFocus()
+    expect(await screen.findByText('Te uniste al grupo. Ya puedes responder.')).toBeInTheDocument()
+  })
+
+  it('si unirse desde el hilo falla, lo dice y la invitación sigue ahí', async () => {
+    session = { status: 'ready', account: { id: 6 } }
+    getQuestion.mockResolvedValue({ ...THREAD, canAnswer: false, canMarkUseful: false })
+    joinGroupOfThread.mockRejectedValue(new ApiError('x', { status: 404, body: { code: 'STUDY_GROUP_NOT_FOUND' } }))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    renderPath('/foro/preguntas/70')
+    await loadedThread()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Unirse al grupo' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Este grupo ya no está disponible. Recarga la página.')
+    expect(screen.getByRole('button', { name: 'Unirse al grupo' })).toBeEnabled()
+    expect(screen.queryByRole('form', { name: 'Responder la pregunta' })).not.toBeInTheDocument()
   })
 
   it('sin sesión se lee, y la invitación dice que en él responden solo los miembros', async () => {

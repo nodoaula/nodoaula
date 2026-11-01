@@ -12,23 +12,34 @@ import { SESSION_STATUS } from '../../session/SessionContext.js'
 import { useSession } from '../../session/useSession.js'
 import { listResources } from '../catalog/api.js'
 import { formatForumDate } from '../forum/format.js'
-import { listGroups, retireGroup } from './api.js'
+import { joinGroup, leaveGroup, listGroups, retireGroup } from './api.js'
+import { formatMemberCount } from './format.js'
+import GroupMembers from './GroupMembers.jsx'
 import StudyGroupForm from './StudyGroupForm.jsx'
 
 const LIST_HEADING_ID = 'grupos-titulo'
 const groupElementId = (groupId) => `grupo-${groupId}`
 const retireButtonId = (groupId) => `retirar-grupo-${groupId}`
+const joinButtonId = (groupId) => `unirse-grupo-${groupId}`
+const leaveButtonId = (groupId) => `salir-grupo-${groupId}`
+const membersPanelId = (groupId) => `miembros-grupo-${groupId}`
 
 const FAILURES = {
   STUDY_GROUP_CHANGE_FORBIDDEN: 'Solo quien creó este grupo o una cuenta del equipo puede retirarlo.',
+  STUDY_GROUP_NOT_FOUND: 'Este grupo ya no está disponible. Recarga la página.',
   CSRF_TOKEN_INVALID: 'La página caducó. Recárgala e intenta de nuevo.',
 }
 
-function describeRetireFailure(error) {
+/**
+ * Lo que se le dice a quien intentó algo sobre un grupo y falló. `timedOut`
+ * es el mensaje si se agotó el tiempo, y `fallback` si la causa no es
+ * ninguna de las conocidas.
+ */
+function describeFailure(error, { timedOut, fallback }) {
   if (FAILURES[error.code]) return FAILURES[error.code]
   if (error.status === 401) return 'Tu sesión terminó. Inicia sesión de nuevo.'
-  if (error.timedOut) return 'El servidor tardó demasiado. Recarga la página para ver si se retiró.'
-  return 'No se pudo retirar el grupo. Intenta de nuevo.'
+  if (error.timedOut) return timedOut
+  return fallback
 }
 
 // Si otra cuenta ya lo había retirado, desaparece de la lista igual.
@@ -40,11 +51,33 @@ async function retireIfStillThere(groupId) {
   }
 }
 
+// Si ya era miembro, por ejemplo porque se unió en otra pestaña, se da por
+// hecho: la API no deja unirse dos veces (HU405).
+async function joinIfNotMember(group) {
+  try {
+    return await joinGroup(group.id)
+  } catch (error) {
+    if (error.code !== 'ALREADY_A_MEMBER') throw error
+    return { ...group, member: true }
+  }
+}
+
+async function leaveIfMember(group) {
+  try {
+    return await leaveGroup(group.id)
+  } catch (error) {
+    if (error.code !== 'NOT_A_MEMBER') throw error
+    return { ...group, member: false }
+  }
+}
+
 /**
- * Grupos de estudio de un curso (historia HU404), con la maqueta aprobada
- * (opción A, como el foro del curso): el formulario para crear un grupo
- * arriba, con sesión iniciada, y la lista debajo, visible sin sesión. Cada
- * grupo enlaza a su hilo en el foro del curso.
+ * Grupos de estudio de un curso (historias HU404 y HU405), con la maqueta
+ * aprobada (opción A, como el foro del curso): el formulario para crear un
+ * grupo arriba, con sesión iniciada, y la lista debajo, visible sin sesión.
+ * Cada grupo enlaza a su hilo en el foro del curso, dice cuántos miembros
+ * tiene y, con sesión, ofrece unirse o salir. Sus miembros despliegan la
+ * lista de miembros en el mismo grupo, sin pantalla nueva.
  *
  * Lo que se ofrece depende de quién lo ve: se espera a saber si hay sesión,
  * y la key vuelve a cargar al cambiar el curso o la sesión.
@@ -135,38 +168,96 @@ function StudyGroups({ courseId, signedIn }) {
 function CourseGroups({ courseId, courseName, initialGroups, signedIn }) {
   const [groups, setGroups] = useState(initialGroups)
   const [confirming, setConfirming] = useState(null)
+  const [leaving, setLeaving] = useState(null)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState(null)
   const [announcement, announce] = useAnnouncer()
 
   // Aplica el cambio de inmediato para poder llevar el foco al elemento que
-  // lo muestra, que no existe antes del cambio.
+  // lo muestra, que no existe antes del cambio. flushSync aplica también el
+  // fin de `busy`: un botón desactivado no recibe el foco.
   function applyAndFocus(change, elementId, message) {
     flushSync(change)
     document.getElementById(elementId)?.focus()
     announce(message)
   }
 
+  const replaceGroup = (updated) => (current) =>
+    current.map((group) => (group.id === updated.id ? updated : group))
+
+  /**
+   * Hace la petición con las acciones desactivadas. Si falla, el error se
+   * muestra junto al grupo y el foco vuelve al botón que se pulsó. Devuelve
+   * lo que devolvió la petición, o undefined si falló.
+   */
+  async function run(group, request, { buttonId, ...messages }) {
+    setBusy(true)
+    setFailure(null)
+    try {
+      return await request()
+    } catch (error) {
+      console.error('No se pudo completar la acción en el grupo', error)
+      flushSync(() => {
+        setBusy(false)
+        setFailure({ groupId: group.id, message: describeFailure(error, messages) })
+      })
+      document.getElementById(buttonId)?.focus()
+      return undefined
+    }
+  }
+
   function created(group) {
     applyAndFocus(() => setGroups((current) => [group, ...current]), groupElementId(group.id), `Creaste el grupo ${group.name}.`)
+  }
+
+  async function join(group) {
+    const updated = await run(group, () => joinIfNotMember(group), {
+      buttonId: joinButtonId(group.id),
+      timedOut: 'El servidor tardó demasiado. Recarga la página para ver si te uniste.',
+      fallback: 'No se pudo unirte al grupo. Intenta de nuevo.',
+    })
+    if (!updated) return
+    applyAndFocus(
+      () => {
+        setBusy(false)
+        setGroups(replaceGroup(updated))
+      },
+      leaveButtonId(group.id),
+      `Te uniste al grupo ${group.name}. Ya puedes responder en su hilo.`,
+    )
+  }
+
+  async function leave() {
+    const group = leaving
+    setLeaving(null)
+    const updated = await run(group, () => leaveIfMember(group), {
+      buttonId: leaveButtonId(group.id),
+      timedOut: 'El servidor tardó demasiado. Recarga la página para ver si saliste.',
+      fallback: 'No se pudo salir del grupo. Intenta de nuevo.',
+    })
+    if (!updated) return
+    applyAndFocus(
+      () => {
+        setBusy(false)
+        setGroups(replaceGroup(updated))
+      },
+      joinButtonId(group.id),
+      `Saliste del grupo ${group.name}.`,
+    )
   }
 
   async function retire() {
     const group = confirming
     setConfirming(null)
-    setBusy(true)
-    setFailure(null)
-    try {
+    const done = await run(group, async () => {
       await retireIfStillThere(group.id)
-    } catch (error) {
-      console.error('No se pudo retirar el grupo', error)
-      flushSync(() => {
-        setBusy(false)
-        setFailure({ groupId: group.id, message: describeRetireFailure(error) })
-      })
-      document.getElementById(retireButtonId(group.id))?.focus()
-      return
-    }
+      return true
+    }, {
+      buttonId: retireButtonId(group.id),
+      timedOut: 'El servidor tardó demasiado. Recarga la página para ver si se retiró.',
+      fallback: 'No se pudo retirar el grupo. Intenta de nuevo.',
+    })
+    if (!done) return
     applyAndFocus(
       () => {
         setBusy(false)
@@ -198,10 +289,18 @@ function CourseGroups({ courseId, courseName, initialGroups, signedIn }) {
         <h2 id="crear-grupo-titulo" className="mb-4 text-lead font-semibold text-content">
           Crea un grupo
         </h2>
-        {signedIn ? <StudyGroupForm courseId={courseId} onCreated={created} /> : <SignInToCreate />}
+        {signedIn ? <StudyGroupForm courseId={courseId} onCreated={created} /> : <SignInToTakePart />}
       </section>
 
-      <GroupList groups={groups} busy={busy} failure={failure} onRetire={setConfirming} />
+      <GroupList
+        groups={groups}
+        signedIn={signedIn}
+        busy={busy}
+        failure={failure}
+        onJoin={join}
+        onLeave={setLeaving}
+        onRetire={setConfirming}
+      />
 
       <output className="sr-only">{announcement}</output>
 
@@ -215,16 +314,30 @@ function CourseGroups({ courseId, courseName, initialGroups, signedIn }) {
       >
         <p className="text-sm text-slate-700">Dejará de aparecer en los grupos del curso para todos, y su hilo dejará de verse en el foro.</p>
       </Modal>
+
+      <Modal
+        open={leaving !== null}
+        title="¿Salir de este grupo?"
+        actions={[
+          { label: 'Cancelar', onClick: () => setLeaving(null) },
+          { label: 'Sí, salir', onClick: leave, primary: true },
+        ]}
+      >
+        <p className="text-sm text-slate-700">
+          Dejarás de responder en su hilo, aunque podrás seguir leyéndolo y volver a unirte cuando quieras. Si eres el último
+          miembro, el grupo seguirá abierto.
+        </p>
+      </Modal>
     </>
   )
 }
 
-function SignInToCreate() {
+function SignInToTakePart() {
   const { pathname } = useLocation()
   const origin = { from: pathname }
   return (
     <Notice
-      title="Inicia sesión para crear un grupo"
+      title="Inicia sesión para crear un grupo o unirte a uno"
       action={
         <div className="flex flex-wrap gap-3">
           <Link to="/iniciar-sesion" state={origin} className={buttonClasses('primary')}>
@@ -236,12 +349,12 @@ function SignInToCreate() {
         </div>
       }
     >
-      Puedes ver los grupos y leer sus hilos sin cuenta; para crear uno necesitas iniciar sesión.
+      Puedes ver los grupos y leer sus hilos sin cuenta; para crear uno o unirte necesitas iniciar sesión.
     </Notice>
   )
 }
 
-function GroupList({ groups, busy, failure, onRetire }) {
+function GroupList({ groups, signedIn, busy, failure, onJoin, onLeave, onRetire }) {
   return (
     <section aria-labelledby={LIST_HEADING_ID} className="mt-10">
       {/* tabIndex -1: recibe el foco cuando se retira el grupo que lo tenía. */}
@@ -255,7 +368,15 @@ function GroupList({ groups, busy, failure, onRetire }) {
         <ul aria-label="Grupos del curso" className="mt-3.5 max-w-[72ch] border-t border-border">
           {groups.map((group) => (
             <li key={group.id} className="border-b border-border">
-              <GroupRow group={group} busy={busy} failure={failure?.groupId === group.id ? failure.message : null} onRetire={onRetire} />
+              <GroupRow
+                group={group}
+                signedIn={signedIn}
+                busy={busy}
+                failure={failure?.groupId === group.id ? failure.message : null}
+                onJoin={onJoin}
+                onLeave={onLeave}
+                onRetire={onRetire}
+              />
             </li>
           ))}
         </ul>
@@ -264,7 +385,11 @@ function GroupList({ groups, busy, failure, onRetire }) {
   )
 }
 
-function GroupRow({ group, busy, failure, onRetire }) {
+function GroupRow({ group, signedIn, busy, failure, onJoin, onLeave, onRetire }) {
+  const [showingMembers, setShowingMembers] = useState(false)
+  // Quien sale deja de ver la lista: solo la ven los miembros.
+  const membersOpen = showingMembers && group.member
+
   return (
     <article id={groupElementId(group.id)} tabIndex={-1} className="scroll-mt-6 px-1 py-4.5">
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
@@ -280,6 +405,7 @@ function GroupRow({ group, busy, failure, onRetire }) {
       )}
       <div className="mt-2 flex flex-wrap items-center gap-x-3.5 gap-y-1 font-mono text-label text-content-muted tabular-nums">
         <span>{formatForumDate(group.createdAt)}</span>
+        <span>{formatMemberCount(group.memberCount)}</span>
         {group.member && <span className="font-medium text-accent">Eres miembro</span>}
         {group.canRetire && (
           <button
@@ -295,6 +421,50 @@ function GroupRow({ group, busy, failure, onRetire }) {
           </button>
         )}
       </div>
+
+      {/* Sin sesión no se ofrece unirse: la invitación a iniciar sesión está arriba. */}
+      {signedIn && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2.5">
+          {group.member ? (
+            <>
+              <button
+                type="button"
+                aria-expanded={membersOpen}
+                aria-controls={membersPanelId(group.id)}
+                onClick={() => setShowingMembers((open) => !open)}
+                aria-label={`${membersOpen ? 'Ocultar' : 'Ver'} los miembros del grupo ${group.name}`}
+                className={buttonClasses('secondary')}
+              >
+                {membersOpen ? 'Ocultar miembros' : 'Ver miembros'}
+              </button>
+              <button
+                type="button"
+                id={leaveButtonId(group.id)}
+                disabled={busy}
+                onClick={() => onLeave(group)}
+                aria-label={`Salir del grupo ${group.name}`}
+                className="inline-flex min-h-6 items-center text-label text-content-muted underline underline-offset-4 hover:text-content disabled:opacity-60"
+              >
+                Salir del grupo
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              id={joinButtonId(group.id)}
+              disabled={busy}
+              onClick={() => onJoin(group)}
+              aria-label={`Unirse al grupo ${group.name}`}
+              className={buttonClasses('primary')}
+            >
+              Unirse
+            </button>
+          )}
+        </div>
+      )}
+
+      {membersOpen && <GroupMembers groupId={group.id} id={membersPanelId(group.id)} />}
+
       {failure && (
         <p role="alert" className="mt-2 text-label text-error">
           {failure}

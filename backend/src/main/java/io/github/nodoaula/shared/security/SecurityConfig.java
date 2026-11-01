@@ -54,6 +54,10 @@ class SecurityConfig {
 						.requestMatchers(HttpMethod.POST, "/api/resources/*/preview-link").permitAll()
 						// El foro se lee sin cuenta y se escribe con ella (HU401).
 						.requestMatchers(HttpMethod.GET, "/api/forum/**").permitAll()
+						// Quiénes son los miembros de un grupo lo ven solo sus
+						// miembros (HU405): sin sesión, 401. Va antes de la
+						// regla siguiente por la misma razón que la de YouTube.
+						.requestMatchers(HttpMethod.GET, "/api/study-groups/*/members").authenticated()
 						// Los grupos de un curso se ven sin cuenta; crearlos
 						// y retirarlos exige sesión (HU404).
 						.requestMatchers(HttpMethod.GET, "/api/study-groups", "/api/study-groups/**").permitAll()
