@@ -53,7 +53,7 @@ function CourseIndex({ initialSearch }) {
   }, [])
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pt-9 pb-18 sm:px-6">
+    <main className="mx-auto max-w-page px-4 pt-9 pb-18 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-6">
         <div>
           <h1 className="text-[1.875rem] leading-[1.08] font-semibold tracking-tight sm:text-display">Escoge tu curso</h1>

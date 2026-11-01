@@ -28,7 +28,7 @@ export default function SiteHeader() {
   const { pathname } = useLocation()
 
   return (
-    <header className="relative mx-auto flex h-18 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+    <header className="relative mx-auto flex h-18 max-w-page items-center justify-between gap-4 px-4 sm:px-6">
       <Link to="/" className="flex items-center gap-2.5 text-lg font-semibold tracking-tight text-content">
         <Logo />
         NodoAula

@@ -48,7 +48,7 @@ export default function LandingPage() {
         <SiteHeader />
 
         <main>
-          <section className="relative mx-auto grid max-w-6xl items-center gap-8 px-4 pt-7 pb-10 sm:px-6 lg:grid-cols-[1.05fr_.95fr] lg:pt-14 lg:pb-16">
+          <section className="relative mx-auto grid max-w-page items-center gap-8 px-4 pt-7 pb-10 sm:px-6 lg:grid-cols-[1.05fr_.95fr] lg:pt-14 lg:pb-16">
             <div>
               <p className="inline-flex items-center gap-2 rounded-full border border-border-strong px-3 py-1 font-mono text-xs text-content-muted">
                 <span aria-hidden="true" className="size-1.5 rounded-full bg-accent" />
@@ -78,11 +78,11 @@ export default function LandingPage() {
             <NodeGraph />
           </section>
 
-          <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="relative mx-auto max-w-page px-4 sm:px-6">
             <CatalogPreview />
           </div>
 
-          <section className="mx-auto max-w-6xl px-4 pt-16 sm:px-6 sm:pt-24">
+          <section className="mx-auto max-w-page px-4 pt-16 sm:px-6 sm:pt-24">
             <p className={EYEBROW}>Cómo funciona</p>
             <h2 className={SECTION_TITLE}>Buscar, abrir y aportar</h2>
             <ol className="mt-10 grid gap-4 md:grid-cols-3">
@@ -101,7 +101,7 @@ export default function LandingPage() {
             </ol>
           </section>
 
-          <section className="mx-auto max-w-6xl px-4 pt-16 sm:px-6 sm:pt-24">
+          <section className="mx-auto max-w-page px-4 pt-16 sm:px-6 sm:pt-24">
             <p className={EYEBROW}>Para quién es</p>
             <h2 className={SECTION_TITLE}>Para quien estudia y para quien quiere aportar</h2>
             <div className="mt-10 grid gap-4 md:grid-cols-2">
@@ -143,7 +143,7 @@ export default function LandingPage() {
       </div>
 
       <footer className="mt-16 border-t border-border sm:mt-24">
-        <div className="mx-auto flex max-w-6xl flex-wrap justify-between gap-3 px-4 py-6 font-mono text-xs text-content-faint sm:px-6">
+        <div className="mx-auto flex max-w-page flex-wrap justify-between gap-3 px-4 py-6 font-mono text-xs text-content-faint sm:px-6">
           <span>NodoAula · Proyecto Integrador I · Universidad de Antioquia</span>
           <span className="flex gap-4">
             <Link to="/politica-de-datos" className="text-content-muted hover:text-content">

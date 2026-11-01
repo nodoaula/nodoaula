@@ -35,7 +35,7 @@ function ContactEmail() {
  */
 export default function DataPolicyPage() {
   return (
-    <main className="mx-auto max-w-6xl px-4 pt-9 pb-18 sm:px-6">
+    <main className="mx-auto max-w-page px-4 pt-9 pb-18 sm:px-6">
       <article className="max-w-140 text-body leading-relaxed text-pretty text-content">
         <h1 className="text-[1.875rem] leading-[1.08] font-semibold tracking-tight text-balance sm:text-display">
           Política de tratamiento de datos

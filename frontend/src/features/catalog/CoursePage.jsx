@@ -54,7 +54,7 @@ function Course({ courseId }) {
   }, [courseId, validId])
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pt-9 pb-18 sm:px-6">
+    <main className="mx-auto max-w-page px-4 pt-9 pb-18 sm:px-6">
       {error && (
         <Notice title="No se pudo cargar el curso" role="alert">
           Recarga la página para reintentar.

@@ -100,7 +100,7 @@ function ResourceDetail({ resourceId, corrected }) {
   }, [resourceId])
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pt-9 pb-18 sm:px-6">
+    <main className="mx-auto max-w-page px-4 pt-9 pb-18 sm:px-6">
       {error && <LoadError error={error} />}
 
       {!error && resource === null && (
