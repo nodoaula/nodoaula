@@ -386,4 +386,32 @@ describe('ResourceDetailPage: retirar y volver a publicar', () => {
     expect(alert).toHaveTextContent('No se volvió a publicar el recurso')
     expect(alert).toHaveTextContent('Solo quien retiró este recurso puede volver a publicarlo.')
   })
+
+  // Historia HU507: la ficha de un video y la de un apunte dicen quién lo aportó y cuándo.
+  it.each([
+    ['un video', VIDEO],
+    ['un apunte', DOCUMENT],
+  ])('la ficha de %s muestra la ficha de usuario de quien lo aportó', async (_, resource) => {
+    getResource.mockResolvedValue({
+      ...resource,
+      contributor: { origin: 'COMMUNITY', name: 'Ana Pérez', userType: 'TEACHER', institution: 'Universidad de Antioquia' },
+      contributedOn: '2026-10-06',
+    })
+    renderDetail()
+
+    const card = await screen.findByRole('region', { name: 'Quién lo aportó' })
+    expect(card).toHaveTextContent('Ana Pérez')
+    expect(card).toHaveTextContent('Docente · Universidad de Antioquia')
+    expect(card).toHaveTextContent('Aportado el 6 de octubre de 2026')
+    // No es el perfil de la cuenta: no lleva a él.
+    expect(screen.queryByRole('link', { name: /Ana Pérez/ })).not.toBeInTheDocument()
+  })
+
+  it('un recurso retirado no dice quién lo aportó', async () => {
+    getResource.mockResolvedValue({ id: 24, retired: true, canRepublish: false, contributor: null, topics: [] })
+    renderDetail()
+
+    expect(await screen.findByText('Este recurso ya no está disponible')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Quién lo aportó' })).not.toBeInTheDocument()
+  })
 })

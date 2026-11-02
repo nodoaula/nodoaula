@@ -3,6 +3,8 @@ package io.github.nodoaula.catalog;
 import java.time.LocalDate;
 import java.util.List;
 
+import io.github.nodoaula.account.ContributorDto;
+
 /**
  * Vista pública de la ficha de un recurso (historia HU108): los nueve campos
  * vigentes del esquema de metadatos, más su identificador y el de su curso,
@@ -25,6 +27,10 @@ import java.util.List;
  * pageCount y fileSizeBytes describen el archivo de un apunte (historia
  * HU411); en un video llegan en null. previewPageCount son las páginas de su
  * vista previa (historia HU412), en null si no la tiene.
+ *
+ * contributor es quien lo aportó, sin su correo, y contributedOn el día en
+ * que lo aportó (historia HU507): en null en los videos aportados antes de
+ * guardarlo. Un recurso retirado no trae ninguno de los dos.
  */
 public record ResourceDetailDto(
 		Long id,
@@ -44,5 +50,7 @@ public record ResourceDetailDto(
 		boolean canRepublish,
 		Integer pageCount,
 		Long fileSizeBytes,
-		Integer previewPageCount) {
+		Integer previewPageCount,
+		ContributorDto contributor,
+		LocalDate contributedOn) {
 }
