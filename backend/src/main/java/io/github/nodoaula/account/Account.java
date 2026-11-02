@@ -30,6 +30,11 @@ class Account {
 	// de datos, nunca desde la aplicación: una cuenta nueva no la tiene.
 	private boolean teamMember;
 
+	// Cuenta de prueba del equipo, creada antes de pedir la autorización de
+	// datos (HU507): lo que aporta se muestra como del equipo. La marca una
+	// migración; no da permisos y una cuenta nueva no la tiene.
+	private boolean teamTestAccount;
+
 	private Instant dataProcessingAuthorizedAt;
 
 	// El perfil (HU506). Vacío en las cuentas creadas antes de pedirlo, hasta
@@ -91,6 +96,10 @@ class Account {
 
 	boolean isTeamMember() {
 		return teamMember;
+	}
+
+	boolean isTeamTestAccount() {
+		return teamTestAccount;
 	}
 
 	Instant getDataProcessingAuthorizedAt() {

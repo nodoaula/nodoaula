@@ -4,7 +4,6 @@ import java.nio.file.Path;
 import java.text.Normalizer;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -33,10 +32,6 @@ public class ResourceService {
 	// Por debajo del giga del plan gratuito de Supabase: pasarlo restringe el
 	// proyecto entero, base de datos incluida (HU301).
 	static final long STORAGE_LIMIT_BYTES = 900L * 1024 * 1024;
-
-	// La fecha de un apunte es el día en que se sube, en la zona de los
-	// usuarios del proyecto.
-	private static final ZoneId UPLOAD_ZONE = ZoneId.of("America/Bogota");
 
 	private final ResourceRepository resourceRepository;
 	private final CourseRepository courseRepository;
@@ -479,7 +474,8 @@ public class ResourceService {
 		Resource resource = Resource.document(
 				request.title().strip(),
 				blankToNull(request.description()),
-				LocalDate.now(UPLOAD_ZONE),
+				// La fecha de un apunte es el día en que se sube.
+				LocalDate.now(Resource.USERS_ZONE),
 				course,
 				authorId,
 				file);
@@ -572,7 +568,11 @@ public class ResourceService {
 				false,
 				file == null ? null : file.pageCount(),
 				file == null ? null : file.sizeBytes(),
-				preview == null ? null : preview.pageCount());
+				preview == null ? null : preview.pageCount(),
+				// Quien lo aportó se le pide a account por su identificador
+				// (ADR-008), sin su correo (HU507).
+				accountService.contributor(resource.getAuthorId()),
+				resource.getContributedOn());
 	}
 
 	// Sin su contenido: lo retirado por moderación no sigue a la vista por
@@ -595,6 +595,8 @@ public class ResourceService {
 				true,
 				false,
 				canRepublish,
+				null,
+				null,
 				null,
 				null,
 				null);

@@ -134,6 +134,30 @@ public class AccountService implements UserDetailsService {
 		return toDto(account);
 	}
 
+	/**
+	 * La ficha de quien aportó un recurso (HU507), que puede ver cualquiera:
+	 * nunca el correo. Sin una cuenta de autor, como el catálogo semilla, o
+	 * desde una cuenta de prueba, el aporte es del equipo y no lleva nombre.
+	 * Una cuenta del equipo con perfil lleva su nombre; una sin perfil, ninguno.
+	 * «Otra» no dice nada de la institución, así que no se muestra.
+	 */
+	@Transactional(readOnly = true)
+	public ContributorDto contributor(Long authorId) {
+		Account account = accountRepository.findById(authorId).orElse(null);
+		if (account == null || account.isTeamTestAccount()) {
+			return ContributorDto.TEAM;
+		}
+
+		ContributorOrigin origin = account.isTeamMember() ? ContributorOrigin.TEAM : ContributorOrigin.COMMUNITY;
+		if (!account.isProfileComplete()) {
+			return origin == ContributorOrigin.TEAM ? ContributorDto.TEAM : ContributorDto.COMMUNITY_MEMBER;
+		}
+
+		Institution institution = account.getInstitution();
+		return new ContributorDto(origin, account.getName(), account.getUserType(),
+				institution.isOther() ? null : institution.getName());
+	}
+
 	/** La lista cerrada de instituciones, por nombre y con «Otra» al final. */
 	@Transactional(readOnly = true)
 	public List<InstitutionDto> listInstitutions() {
