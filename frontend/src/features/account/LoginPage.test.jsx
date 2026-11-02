@@ -40,11 +40,27 @@ describe('pantalla de inicio de sesión', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }))
 
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('No se inició la sesión')
+    expect(alert).toHaveTextContent('Falló el inicio de sesión')
     expect(alert).toHaveTextContent('El correo o la contraseña no son correctos.')
     expect(screen.getByLabelText('Contraseña')).toHaveValue('')
     await waitFor(() => expect(screen.getByLabelText('Contraseña')).toHaveFocus())
     expect(screen.getByLabelText('Correo')).toHaveValue('lectora@example.com')
+  })
+
+  it('por exceso de fallos lo avisa sin decir cuánto falta y conserva la contraseña', async () => {
+    login.mockRejectedValue({ code: 'TOO_MANY_LOGIN_ATTEMPTS', status: 429 })
+    renderLogin()
+
+    fireEvent.change(screen.getByLabelText('Correo'), { target: { value: 'lectora@example.com' } })
+    fireEvent.change(screen.getByLabelText('Contraseña'), { target: { value: 'quizas-correcta' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Iniciar sesión' }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Falló el inicio de sesión')
+    expect(alert).toHaveTextContent('Demasiados intentos fallidos con este correo. Espera un momento y vuelve a intentarlo.')
+    expect(alert).not.toHaveTextContent(/\d/)
+    expect(screen.getByLabelText('Contraseña')).toHaveValue('quizas-correcta')
+    expect(screen.getByRole('button', { name: 'Iniciar sesión' })).toHaveAttribute('aria-disabled', 'false')
   })
 
   it('un envío con campos vacíos lleva el foco al primero y no llama al servidor', () => {

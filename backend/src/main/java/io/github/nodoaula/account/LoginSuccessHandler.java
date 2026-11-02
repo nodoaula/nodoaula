@@ -26,16 +26,19 @@ class LoginSuccessHandler implements AuthenticationSuccessHandler {
 
 	private final JsonMapper jsonMapper;
 	private final AccountService accountService;
+	private final LoginAttemptService loginAttempts;
 
-	LoginSuccessHandler(JsonMapper jsonMapper, AccountService accountService) {
+	LoginSuccessHandler(JsonMapper jsonMapper, AccountService accountService, LoginAttemptService loginAttempts) {
 		this.jsonMapper = jsonMapper;
 		this.accountService = accountService;
+		this.loginAttempts = loginAttempts;
 	}
 
 	@Override
 	public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
 			Authentication authentication) throws IOException {
 		AccountPrincipal principal = (AccountPrincipal) authentication.getPrincipal();
+		loginAttempts.reset(principal.getUsername());
 
 		response.setStatus(HttpStatus.OK.value());
 		response.setContentType(MediaType.APPLICATION_JSON_VALUE);

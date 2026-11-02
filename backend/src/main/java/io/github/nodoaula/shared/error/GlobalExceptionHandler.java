@@ -122,6 +122,14 @@ class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return problem(HttpStatus.CONFLICT, exception.getCode(), "Conflicto", exception.getMessage());
 	}
 
+	@ExceptionHandler(TooManyRequestsException.class)
+	ResponseEntity<ProblemDetail> handleTooManyRequests(TooManyRequestsException exception) {
+		return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+				.header(HttpHeaders.RETRY_AFTER, String.valueOf(exception.getRetryAfterSeconds()))
+				.body(problem(HttpStatus.TOO_MANY_REQUESTS, exception.getCode(), "Demasiados intentos",
+						exception.getMessage()));
+	}
+
 	@ExceptionHandler(PayloadTooLargeException.class)
 	ProblemDetail handlePayloadTooLarge(PayloadTooLargeException exception) {
 		return payloadTooLarge();
