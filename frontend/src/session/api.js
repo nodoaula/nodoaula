@@ -17,7 +17,8 @@ export async function fetchCurrentAccount() {
 
 /**
  * Inicia sesión. Devuelve `{ id, email, name, profileComplete }`. Si las credenciales no valen, el
- * error lleva el código INVALID_CREDENTIALS, el mismo exista o no el correo.
+ * error lleva el código INVALID_CREDENTIALS, el mismo exista o no el correo. Si
+ * el correo acumula demasiados fallos, lleva TOO_MANY_LOGIN_ATTEMPTS.
  * El backend renueva el token CSRF en la propia respuesta.
  */
 export function login({ email, password }) {

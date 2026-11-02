@@ -188,7 +188,7 @@ public class AccountService implements UserDetailsService {
 
 	// En minúsculas para que Ana@Ejemplo.com y ana@ejemplo.com sean la misma
 	// cuenta. La tabla rechaza cualquier correo que no llegue así.
-	private static String normalizeEmail(String email) {
+	static String normalizeEmail(String email) {
 		return email.strip().toLowerCase(Locale.ROOT);
 	}
 
