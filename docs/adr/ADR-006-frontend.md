@@ -69,6 +69,8 @@ El **Static Site** no se suspende por inactividad, como sí ocurre con el Web Se
 
 El código del frontend llama a la API mediante rutas relativas, como `/api/resources`, y nunca contiene la dirección del backend. Esa dirección vive únicamente en la regla de reescritura declarada en el proveedor. Es el mismo criterio que el ADR-004 aplicó a los secretos y el ADR-005 a la cadena de conexión: lo que depende de dónde se ejecuta la aplicación se declara en el proveedor, de modo que un cambio de dirección o de proveedor no modifica el código. En desarrollo local, el servidor de Vite reenvía `/api` al backend local de la misma forma.
 
+La única excepción es la dirección pública del propio sitio en las etiquetas de `index.html` que leen WhatsApp y las redes sociales al compartir un enlace: deben llevar la dirección completa y sus robots no ejecutan JavaScript, así que va escrita ahí, y un cambio de dominio se corrige en ese archivo.
+
 Todas las llamadas a la API se hacen desde un único módulo del frontend; ningún componente llama a la API directamente. Así, la forma de llegar al backend, el envío del token CSRF que exige el ADR-007 y el tratamiento de errores se resuelven en un solo lugar.
 
 ## Consecuencias

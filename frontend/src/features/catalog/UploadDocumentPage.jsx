@@ -245,7 +245,7 @@ export default function UploadDocumentPage() {
   const processing = sending && progress === 100
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pt-9 pb-18 sm:px-6">
+    <main className="mx-auto max-w-page px-4 pt-9 pb-18 sm:px-6">
       <NodePath label="Ubicación" items={pathItems} current="Subir un apunte" />
       <h1 className="mt-5 text-[1.875rem] leading-[1.08] font-semibold tracking-tight sm:text-display">Subir un apunte</h1>
       <p className="mt-2.5 max-w-[60ch] text-body text-content-muted">

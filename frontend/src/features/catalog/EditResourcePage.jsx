@@ -129,7 +129,7 @@ function EditResource({ resourceId }) {
 
   if (loadError) {
     return (
-      <main className="mx-auto max-w-6xl px-4 pt-9 pb-18 sm:px-6">
+      <main className="mx-auto max-w-page px-4 pt-9 pb-18 sm:px-6">
         <LoadError error={loadError} />
       </main>
     )
@@ -137,7 +137,7 @@ function EditResource({ resourceId }) {
 
   if (resource === null) {
     return (
-      <main className="mx-auto max-w-6xl px-4 pt-9 pb-18 sm:px-6">
+      <main className="mx-auto max-w-page px-4 pt-9 pb-18 sm:px-6">
         <output className="text-body text-content-muted">Cargando recurso…</output>
       </main>
     )
@@ -149,7 +149,7 @@ function EditResource({ resourceId }) {
   // mostrar: se avisa en vez de mostrar el formulario.
   if (resource.retired) {
     return (
-      <main className="mx-auto max-w-6xl px-4 pt-9 pb-18 sm:px-6">
+      <main className="mx-auto max-w-page px-4 pt-9 pb-18 sm:px-6">
         <Notice
           title="Este recurso está retirado"
           action={<Link to={detailPath} className={buttonClasses('secondary')}>Ir a la ficha</Link>}
@@ -162,7 +162,7 @@ function EditResource({ resourceId }) {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pt-9 pb-18 sm:px-6">
+    <main className="mx-auto max-w-page px-4 pt-9 pb-18 sm:px-6">
       <NodePath
         label="Ubicación"
         items={[

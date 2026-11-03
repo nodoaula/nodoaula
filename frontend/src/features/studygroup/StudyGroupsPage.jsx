@@ -92,7 +92,7 @@ export default function StudyGroupsPage() {
 }
 
 function Page({ children }) {
-  return <main className="mx-auto max-w-6xl px-4 pt-9 pb-18 sm:px-6">{children}</main>
+  return <main className="mx-auto max-w-page px-4 pt-9 pb-18 sm:px-6">{children}</main>
 }
 
 function Loading() {

@@ -64,7 +64,7 @@ function Forum({ courseId, questionRetired: arrivedFromRetirement }) {
 
   if (error) {
     return (
-      <main className="mx-auto max-w-6xl px-4 pt-9 pb-18 sm:px-6">
+      <main className="mx-auto max-w-page px-4 pt-9 pb-18 sm:px-6">
         <Notice title="No se pudo cargar el foro" role="alert">
           Recarga la página para reintentar.
         </Notice>
@@ -74,7 +74,7 @@ function Forum({ courseId, questionRetired: arrivedFromRetirement }) {
 
   if (resources === null || questions === null) {
     return (
-      <main className="mx-auto max-w-6xl px-4 pt-9 pb-18 sm:px-6">
+      <main className="mx-auto max-w-page px-4 pt-9 pb-18 sm:px-6">
         <output className="block text-body text-content-muted">Cargando foro…</output>
       </main>
     )
@@ -83,7 +83,7 @@ function Forum({ courseId, questionRetired: arrivedFromRetirement }) {
   // El listado solo incluye cursos con recursos: vacío es lo mismo que no encontrado.
   if (resources.length === 0) {
     return (
-      <main className="mx-auto max-w-6xl px-4 pt-9 pb-18 sm:px-6">
+      <main className="mx-auto max-w-page px-4 pt-9 pb-18 sm:px-6">
         <Notice
           title="Curso no encontrado"
           action={
@@ -101,7 +101,7 @@ function Forum({ courseId, questionRetired: arrivedFromRetirement }) {
   const name = resources[0].course
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pt-9 pb-18 sm:px-6">
+    <main className="mx-auto max-w-page px-4 pt-9 pb-18 sm:px-6">
       <NodePath
         label="Ubicación"
         items={[

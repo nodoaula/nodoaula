@@ -1,12 +1,10 @@
 package io.github.nodoaula.catalog;
 
 import java.nio.file.Path;
-import java.text.Normalizer;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -57,8 +55,9 @@ public class ResourceService {
 
 	/**
 	 * Lista los recursos del catálogo, filtrados por curso, tema, tipo de
-	 * recurso (historia HU206) y un texto de búsqueda libre sobre título,
-	 * descripción y temas (historia HU207). Los cuatro filtros son opcionales
+	 * recurso (historia HU206) y un texto de búsqueda libre (historia HU207):
+	 * cada palabra, en cualquier orden, en el título, la descripción, los temas
+	 * o el curso, y «apuntes» o «videos» como tipo. Los cuatro filtros son opcionales
 	 * y cada uno admite uno o varios valores a la vez: una lista vacía o en
 	 * null (o, para tipo, una lista con ambos valores) no restringe nada.
 	 * Entre los cuatro filtros se combinan con AND; dentro de cada uno, los
@@ -81,36 +80,14 @@ public class ResourceService {
 		// La búsqueda de texto (historia HU207) se aplica en memoria y no en la
 		// consulta: normalizar mayúsculas y tildes es más simple en Java que en
 		// SQL portable, y el catálogo no es lo bastante grande para que importe.
-		String normalizedQuery = normalize(query);
-		if (normalizedQuery != null && !normalizedQuery.isBlank()) {
-			resources = resources.stream().filter(resource -> matches(resource, normalizedQuery)).toList();
+		TextQuery textQuery = TextQuery.parse(query);
+		if (!textQuery.isEmpty()) {
+			resources = resources.stream().filter(textQuery::matches).toList();
 		}
 
 		return resources.stream()
 				.map(this::toDto)
 				.toList();
-	}
-
-	// Compara título, descripción y temas: coincide si el texto buscado
-	// aparece en cualquiera de los tres.
-	private static boolean matches(Resource resource, String normalizedQuery) {
-		if (contains(resource.getTitle(), normalizedQuery)) return true;
-		if (contains(resource.getDescription(), normalizedQuery)) return true;
-		return resource.getTopics().stream().anyMatch(topic -> contains(topic.getName(), normalizedQuery));
-	}
-
-	private static boolean contains(String value, String normalizedQuery) {
-		String normalizedValue = normalize(value);
-		return normalizedValue != null && normalizedValue.contains(normalizedQuery);
-	}
-
-	// Quita tildes (forma NFD: separa cada letra de su diacrítico, y \p{M}
-	// borra el diacrítico) y pasa a minúsculas, para comparar sin distinguir
-	// mayúsculas ni acentos.
-	private static String normalize(String value) {
-		if (value == null) return null;
-		String withoutAccents = Normalizer.normalize(value, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
-		return withoutAccents.toLowerCase(Locale.ROOT);
 	}
 
 	// Una lista vacía de ids equivale a no elegir ninguno, y eso significa "no

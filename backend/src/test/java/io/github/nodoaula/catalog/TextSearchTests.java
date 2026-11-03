@@ -13,10 +13,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Pruebas de HU207 (buscar recursos por texto): la busqueda considera
- * titulo, descripcion y temas; es insensible a mayusculas y tildes; se
- * combina (AND) con los filtros de curso, tema y tipo (HU206); y sin
- * resultados responde una lista vacia, no un error.
+ * Pruebas de HU207 (buscar recursos por texto): cada palabra debe aparecer,
+ * en cualquier orden, en el titulo, la descripcion, los temas o el curso;
+ * «apuntes» y «videos» filtran por tipo; es insensible a mayusculas y
+ * tildes; se combina (AND) con los filtros de curso, tema y tipo (HU206); y
+ * sin resultados responde una lista vacia, no un error.
  *
  * La base puede tener otros recursos que coincidan con las busquedas (el
  * catalogo semilla o lo que se haya aportado), asi que las pruebas comprueban
@@ -109,6 +110,59 @@ class TextSearchTests {
 		assertTrue(ids.contains(matches.id()));
 		assertFalse(ids.contains(document));
 		assertTrue(results.stream().allMatch(result -> result.resourceType() == ResourceType.VIDEO));
+	}
+
+	@Test
+	void searchFindsTheWordsInAnyOrderAndInDifferentFields() {
+		ResourceDto resource = resourceService.createResource(
+				request("Series de potencia", "Descripcion", List.of("Radio de convergencia"), "busqueda-orden"),
+				AUTHOR_ID);
+
+		assertTrue(idsOf(resourceService.listResources(null, null, null, "convergencia series")).contains(resource.id()),
+				"titulo y tema, en orden inverso");
+	}
+
+	@Test
+	void searchMatchesTheCourseName() {
+		ResourceDto resource = resourceService.createResource(
+				request("Recurso generico", "Descripcion generica", List.of("Tema generico"), "busqueda-curso"),
+				AUTHOR_ID);
+
+		assertTrue(idsOf(resourceService.listResources(null, null, null, "curso busqueda")).contains(resource.id()));
+	}
+
+	@Test
+	void searchRequiresEveryWord() {
+		ResourceDto resource = resourceService.createResource(
+				request("Series de potencia", "Descripcion", List.of("Radio de convergencia"), "busqueda-todas"),
+				AUTHOR_ID);
+
+		assertFalse(idsOf(resourceService.listResources(null, null, null, "series zzzsinpareja")).contains(resource.id()));
+	}
+
+	@Test
+	void typeWordsFilterByTypeInsteadOfMatchingText() {
+		ResourceDto video = resourceService.createResource(
+				request("Arboles rojinegros", "Descripcion", List.of("Tema de arboles"), "busqueda-tipo"),
+				AUTHOR_ID);
+		Long document = saveDocument("Arboles rojinegros resueltos", "Curso de la busqueda de texto", "Tema de arboles");
+
+		List<Long> notes = idsOf(resourceService.listResources(null, null, null, "apuntes rojinegros"));
+		assertTrue(notes.contains(document), "«apuntes» deja el apunte");
+		assertFalse(notes.contains(video.id()), "«apuntes» quita el video");
+
+		List<Long> pdf = idsOf(resourceService.listResources(null, null, null, "rojinegros pdf"));
+		assertTrue(pdf.contains(document), "«pdf» es lo mismo que «apuntes»");
+		assertFalse(pdf.contains(video.id()));
+
+		List<Long> videos = idsOf(resourceService.listResources(null, null, null, "Videos rojinegros"));
+		assertTrue(videos.contains(video.id()));
+		assertFalse(videos.contains(document));
+
+		// Solo la palabra del tipo: todos los apuntes y ningún video.
+		List<ResourceDto> onlyNotes = resourceService.listResources(null, null, null, "apunte");
+		assertTrue(idsOf(onlyNotes).contains(document));
+		assertTrue(onlyNotes.stream().allMatch(result -> result.resourceType() == ResourceType.DOCUMENT));
 	}
 
 	@Test
