@@ -1,5 +1,9 @@
 package io.github.nodoaula.shared.security;
 
+import jakarta.servlet.Filter;
+
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -9,6 +13,7 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.savedrequest.NullRequestCache;
@@ -27,10 +32,13 @@ class SecurityConfig {
 	/**
 	 * @param loginSuccessHandler lo aporta el módulo account, que es el que
 	 *        sabe qué devolver de la cuenta que acaba de entrar
+	 * @param loginThrottleFilter también de account, que lleva la cuenta de los
+	 *        intentos fallidos (HU508)
 	 */
 	@Bean
 	SecurityFilterChain securityFilterChain(HttpSecurity http, SecurityErrorHandler errorHandler,
-			AuthenticationSuccessHandler loginSuccessHandler) {
+			AuthenticationSuccessHandler loginSuccessHandler,
+			@Qualifier("loginThrottleFilter") Filter loginThrottleFilter) {
 		http
 				.authorizeHttpRequests(requests -> requests
 						// Sin esto, un error dentro de una petición pública
@@ -54,8 +62,18 @@ class SecurityConfig {
 						.requestMatchers(HttpMethod.POST, "/api/resources/*/preview-link").permitAll()
 						// El foro se lee sin cuenta y se escribe con ella (HU401).
 						.requestMatchers(HttpMethod.GET, "/api/forum/**").permitAll()
+						// Quiénes son los miembros de un grupo lo ven solo sus
+						// miembros (HU405): sin sesión, 401. Va antes de la
+						// regla siguiente por la misma razón que la de YouTube.
+						.requestMatchers(HttpMethod.GET, "/api/study-groups/*/members").authenticated()
+						// Los grupos de un curso se ven sin cuenta; crearlos
+						// y retirarlos exige sesión (HU404).
+						.requestMatchers(HttpMethod.GET, "/api/study-groups", "/api/study-groups/**").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/health", "/api/csrf").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/accounts").permitAll()
+						// El registro elige la institución de esta lista
+						// antes de tener cuenta (HU506).
+						.requestMatchers(HttpMethod.GET, "/api/institutions").permitAll()
 
 						// El health check de Render y la tarea programada que
 						// mantiene activa la base de datos llaman sin sesión.
@@ -86,6 +104,10 @@ class SecurityConfig {
 						.successHandler(loginSuccessHandler)
 						.failureHandler(errorHandler))
 
+				// Rechaza el intento si su correo está en espera, antes de
+				// comprobar la contraseña y después del token CSRF.
+				.addFilterBefore(loginThrottleFilter, UsernamePasswordAuthenticationFilter.class)
+
 				// Invalida la sesión, que se borra de la base de datos, y
 				// responde 204 sin redirigir. Exige el token CSRF, como
 				// cualquier DELETE.
@@ -107,6 +129,19 @@ class SecurityConfig {
 						.accessDeniedHandler(errorHandler));
 
 		return http.build();
+	}
+
+	/**
+	 * Spring Boot registra en el servidor todo filtro que sea un bean. Este no
+	 * debe registrarse: correría fuera de la cadena, antes de comprobar el token
+	 * CSRF, y una petición sin token contaría como intento.
+	 */
+	@Bean
+	FilterRegistrationBean<Filter> loginThrottleFilterRegistration(
+			@Qualifier("loginThrottleFilter") Filter loginThrottleFilter) {
+		FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>(loginThrottleFilter);
+		registration.setEnabled(false);
+		return registration;
 	}
 
 	/**

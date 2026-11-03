@@ -1,14 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
-import { Link, useLocation, useNavigate, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
 import Modal from '../../components/ui/Modal.jsx'
 import NodePath from '../../components/ui/NodePath.jsx'
 import Notice from '../../components/ui/Notice.jsx'
+import Tag from '../../components/ui/Tag.jsx'
+import { useAnnouncer } from '../../components/ui/useAnnouncer.js'
 import { SESSION_STATUS } from '../../session/SessionContext.js'
+import SignInNotice from '../../session/SignInNotice.jsx'
 import { useSession } from '../../session/useSession.js'
 import { listResources } from '../catalog/api.js'
+import { joinGroupOfThread } from '../studygroup/api.js'
 import AnswerForm from './AnswerForm.jsx'
 import AnswerThread, { FailureMessage, UsefulMark } from './AnswerThread.jsx'
 import {
@@ -37,6 +41,7 @@ function isNotFound(error) {
 }
 
 const forumPath = (courseId) => `/catalogo/cursos/${courseId}/foro`
+const groupsPath = (courseId) => `/catalogo/cursos/${courseId}/grupos`
 
 const asRetired = (question) => ({ id: question.id, courseId: question.courseId, retired: true })
 
@@ -200,25 +205,6 @@ function RetiredQuestion({ courseId, courseName, takeFocus }) {
   )
 }
 
-/**
- * Anuncia un cambio a los lectores de pantalla. Vacía la región antes de
- * escribir, para que un mismo texto se anuncie también dos veces seguidas.
- */
-function useAnnouncer() {
-  const [message, setMessage] = useState('')
-  const timer = useRef(null)
-
-  useEffect(() => () => clearTimeout(timer.current), [])
-
-  function announce(text) {
-    setMessage('')
-    clearTimeout(timer.current)
-    timer.current = setTimeout(() => setMessage(text), 100)
-  }
-
-  return [message, announce]
-}
-
 function Question({ question: initialQuestion, answers: initialAnswers, resources, signedIn, onRetiredMeanwhile }) {
   const navigate = useNavigate()
   const [question, setQuestion] = useState(initialQuestion)
@@ -231,6 +217,8 @@ function Question({ question: initialQuestion, answers: initialAnswers, resource
 
   const courseName = resources[0]?.course
   const resource = resources.find(({ id }) => id === question.resourceId)
+  // En el hilo de un grupo (HU404) solo responden sus miembros: lo dice la API.
+  const canAnswer = signedIn && (!question.group || question.canAnswer)
   const usefulAnswer = answers.find(({ id }) => id === question.usefulAnswerId)
 
   // Aplica el cambio de inmediato para poder llevar el foco al elemento que
@@ -277,6 +265,14 @@ function Question({ question: initialQuestion, answers: initialAnswers, resource
 
   function published(answer) {
     applyAndFocus(() => setAnswers((current) => [...current, answer]), answerElementId(answer.id), 'Publicaste tu respuesta.')
+  }
+
+  // Quien se une desde el hilo responde sin salir de la página (HU405): el
+  // formulario aparece en lugar de la invitación y recibe el foco.
+  function joined() {
+    flushSync(() => setQuestion((current) => ({ ...current, canAnswer: true })))
+    answerField.current?.focus()
+    announce('Te uniste al grupo. Ya puedes responder.')
   }
 
   async function mark(answerId) {
@@ -348,12 +344,14 @@ function Question({ question: initialQuestion, answers: initialAnswers, resource
           ...(courseName ? [{ label: courseName, to: `/catalogo/cursos/${question.courseId}` }] : []),
           { label: 'Foro', to: forumPath(question.courseId) },
         ]}
-        current="Pregunta"
+        current={question.group ? 'Hilo del grupo' : 'Pregunta'}
       />
 
       {/* En el celular, una columna en el orden del código: título, datos,
           pregunta e hilo. En el computador los datos pasan a la derecha. */}
-      <div className="mt-5.5 grid items-start gap-x-14 sm:grid-cols-[minmax(0,37.5rem)_17.5rem]">
+      {/* minmax(0, 1fr) en el celular: sin él, la columna crece hasta la
+          palabra más larga del título y la página desborda a 375 px. */}
+      <div className="mt-5.5 grid grid-cols-[minmax(0,1fr)] items-start gap-x-14 sm:grid-cols-[minmax(0,37.5rem)_17.5rem]">
         <h1 className="max-w-[24ch] text-[1.625rem] leading-[1.12] font-semibold tracking-tight text-balance wrap-break-word sm:col-start-1 sm:text-[2.125rem]">
           {question.title}
         </h1>
@@ -363,9 +361,17 @@ function Question({ question: initialQuestion, answers: initialAnswers, resource
           className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2.5 sm:sticky sm:top-6 sm:col-start-2 sm:row-span-3 sm:row-start-1 sm:mt-0 sm:flex-col sm:items-stretch sm:gap-4.5 sm:rounded-[1.125rem] sm:border sm:border-border sm:bg-surface-raised sm:p-5"
         >
           <dl className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:grid sm:gap-3.5">
+            {question.group && (
+              <div>
+                <dt className="sr-only">Tipo</dt>
+                <dd>
+                  <Tag>Grupo</Tag>
+                </dd>
+              </div>
+            )}
             <div>
               {/* La fecha se entiende sola en la franja del celular; el recurso no. */}
-              <dt className="sr-only text-xs text-content-faint sm:not-sr-only">Publicada</dt>
+              <dt className="sr-only text-xs text-content-faint sm:not-sr-only">Fecha de publicación</dt>
               <dd className="font-mono text-label text-content tabular-nums sm:mt-1">{formatForumDate(question.createdAt)}</dd>
             </div>
             {resource && (
@@ -379,7 +385,12 @@ function Question({ question: initialQuestion, answers: initialAnswers, resource
               </div>
             )}
           </dl>
-          {signedIn && (
+          {question.group && (
+            <Link to={groupsPath(question.courseId)} className="text-label text-content-muted underline underline-offset-4 hover:text-content sm:self-start">
+              {courseName ? `Grupos de ${courseName}` : 'Grupos del curso'}
+            </Link>
+          )}
+          {canAnswer && (
             <button type="button" onClick={() => answerField.current?.focus()} className={`${buttonClasses('secondary')} sm:self-start`}>
               Responder
             </button>
@@ -387,7 +398,10 @@ function Question({ question: initialQuestion, answers: initialAnswers, resource
         </aside>
 
         <div className="sm:col-start-1">
-          <p className="mt-5 max-w-150 text-body leading-relaxed whitespace-pre-line wrap-break-word text-content">{question.body}</p>
+          {/* El hilo de un grupo sin descripción no tiene cuerpo. */}
+          {question.body && (
+            <p className="mt-5 max-w-150 text-body leading-relaxed whitespace-pre-line wrap-break-word text-content">{question.body}</p>
+          )}
 
           {question.canRetire && (
             <div className="mt-3.5">
@@ -412,7 +426,7 @@ function Question({ question: initialQuestion, answers: initialAnswers, resource
             answers={answers}
             usefulAnswerId={question.usefulAnswerId}
             canMarkUseful={question.canMarkUseful}
-            signedIn={signedIn}
+            signedIn={canAnswer}
             busy={busy}
             failure={failure}
             onMark={mark}
@@ -420,10 +434,13 @@ function Question({ question: initialQuestion, answers: initialAnswers, resource
             onRetire={retire}
           />
 
-          {signedIn && (
+          {canAnswer && (
             <AnswerForm questionId={question.id} onPublished={published} onTimedOut={refreshThread} fieldRef={answerField} />
           )}
-          {!signedIn && <SignInToAnswer />}
+          {signedIn && !canAnswer && (
+            <JoinToAnswer courseId={question.courseId} threadId={question.id} onJoined={joined} />
+          )}
+          {!signedIn && <SignInToAnswer group={question.group} />}
         </div>
       </div>
 
@@ -478,26 +495,60 @@ function UsefulAnswerSummary({ answer }) {
   )
 }
 
-function SignInToAnswer() {
-  const { pathname } = useLocation()
-  const origin = { from: pathname }
+/**
+ * En el hilo de un grupo, quien no es miembro lo lee pero no responde: la API
+ * le respondería 403 (HU404). Se le invita a unirse, y se une desde aquí
+ * mismo (HU405) o desde los grupos del curso.
+ */
+function JoinToAnswer({ courseId, threadId, onJoined }) {
+  const [busy, setBusy] = useState(false)
+  const [failure, setFailure] = useState(null)
+
+  async function join() {
+    setBusy(true)
+    setFailure(null)
+    try {
+      await joinGroupOfThread(courseId, threadId)
+    } catch (error) {
+      console.error('No se pudo unir al grupo desde su hilo', error)
+      setBusy(false)
+      setFailure(describeForumFailure(error, 'No se pudo unirte al grupo. Intenta de nuevo.'))
+      return
+    }
+    onJoined()
+  }
+
   return (
     <div className="mt-8">
       <Notice
-        title="Inicia sesión para responder"
+        title="Únete al grupo para responder"
         action={
           <div className="flex flex-wrap gap-3">
-            <Link to="/iniciar-sesion" state={origin} className={buttonClasses('primary')}>
-              Iniciar sesión
-            </Link>
-            <Link to="/registro" state={origin} className={buttonClasses('secondary')}>
-              Crear cuenta
+            <button type="button" onClick={join} disabled={busy} className={buttonClasses('primary')}>
+              Unirse al grupo
+            </button>
+            {/* Sin el nombre del curso: un botón no parte líneas y desbordaría a 375 px. */}
+            <Link to={groupsPath(courseId)} className={buttonClasses('secondary')}>
+              Ver los grupos del curso
             </Link>
           </div>
         }
       >
-        Puedes leer las respuestas sin cuenta; para responder necesitas iniciar sesión.
+        Debes ser parte del grupo para poder publicar nuevas respuestas.
       </Notice>
+      {failure && <FailureMessage>{failure}</FailureMessage>}
+    </div>
+  )
+}
+
+function SignInToAnswer({ group }) {
+  return (
+    <div className="mt-8">
+      <SignInNotice title={group ? 'Inicia sesión y únete al grupo para responder' : 'Inicia sesión para responder'}>
+        {group
+          ? 'Puedes leer este hilo sin cuenta; en él responden solo los miembros del grupo.'
+          : 'Puedes leer las respuestas sin cuenta; para responder necesitas iniciar sesión.'}
+      </SignInNotice>
     </div>
   )
 }

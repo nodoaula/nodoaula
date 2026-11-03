@@ -24,11 +24,18 @@ const QUESTION = {
   canRetire: false,
 }
 
+function Destination({ name }) {
+  const { state } = useLocation()
+  return <p>{`${name} desde ${state?.from ?? 'ninguna'}`}</p>
+}
+
 function renderForum(courseId = '1') {
   return render(
     <MemoryRouter initialEntries={[`/catalogo/cursos/${courseId}/foro`]}>
       <Routes>
         <Route path="/catalogo/cursos/:courseId/foro" element={<ForumPage />} />
+        <Route path="/iniciar-sesion" element={<Destination name="Inicio de sesión" />} />
+        <Route path="/registro" element={<Destination name="Registro" />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -55,6 +62,18 @@ describe('ForumPage', () => {
     expect(screen.getByRole('link', { name: 'Crear cuenta' })).toHaveAttribute('href', '/registro')
     expect(screen.queryByRole('form')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Retirar' })).not.toBeInTheDocument()
+  })
+
+  // Historia HU403: quien intenta preguntar sin sesión vuelve al foro al entrar.
+  it('iniciar sesión o crear una cuenta lleva el foro para volver a él', async () => {
+    renderForum()
+    fireEvent.click(await screen.findByRole('link', { name: 'Iniciar sesión' }))
+    expect(await screen.findByText('Inicio de sesión desde /catalogo/cursos/1/foro')).toBeInTheDocument()
+
+    cleanup()
+    renderForum()
+    fireEvent.click(await screen.findByRole('link', { name: 'Crear cuenta' }))
+    expect(await screen.findByText('Registro desde /catalogo/cursos/1/foro')).toBeInTheDocument()
   })
 
   it('un curso sin recursos se trata como no encontrado', async () => {

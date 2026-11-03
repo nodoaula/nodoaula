@@ -19,12 +19,14 @@ class AnswerService {
 	private final AnswerRepository answerRepository;
 	private final QuestionRepository questionRepository;
 	private final AccountService accountService;
+	private final GroupThreadMembership groupThreadMembership;
 
 	AnswerService(AnswerRepository answerRepository, QuestionRepository questionRepository,
-			AccountService accountService) {
+			AccountService accountService, GroupThreadMembership groupThreadMembership) {
 		this.answerRepository = answerRepository;
 		this.questionRepository = questionRepository;
 		this.accountService = accountService;
+		this.groupThreadMembership = groupThreadMembership;
 	}
 
 	/**
@@ -45,13 +47,19 @@ class AnswerService {
 	}
 
 	/**
-	 * Publica una respuesta, sin los espacios de los extremos.
+	 * Publica una respuesta, sin los espacios de los extremos. En el hilo de
+	 * un grupo de estudio solo responden sus miembros (HU404).
 	 *
 	 * @throws QuestionNotFoundException si la pregunta no existe o está retirada
+	 * @throws GroupMembersOnlyException si es el hilo de un grupo y quien
+	 *         responde no es miembro
 	 */
 	@Transactional
 	public AnswerDto createAnswer(Long questionId, CreateAnswerRequest request, Long authorId) {
 		Question question = questionRepository.getVisibleForShare(questionId);
+		if (question.isGroupThread() && !groupThreadMembership.isMember(questionId, authorId)) {
+			throw new GroupMembersOnlyException();
+		}
 		Answer answer = answerRepository.save(new Answer(question.getId(), authorId, request.body().strip()));
 		return toDto(answer, authorId, false);
 	}

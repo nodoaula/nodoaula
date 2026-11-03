@@ -11,21 +11,21 @@ import { useSession } from '../../session/useSession.js'
 import { validateLogin } from './validation.js'
 
 const INVALID_CREDENTIALS = 'INVALID_CREDENTIALS'
+const TOO_MANY_ATTEMPTS = 'TOO_MANY_LOGIN_ATTEMPTS'
 
-// Traduce el error de la API al aviso del formulario. Las credenciales
-// incorrectas no se señalan en un campo concreto: el backend no dice cuál
-// falló, para no revelar si el correo tiene cuenta.
 function describeFailure(error) {
   if (error.code === INVALID_CREDENTIALS) {
     return 'El correo o la contraseña no son correctos.'
+  }
+
+  if (error.code === TOO_MANY_ATTEMPTS) {
+    return 'Demasiados intentos fallidos con este correo. Espera un momento y vuelve a intentarlo.'
   }
 
   if (error.code === CSRF_ERROR_CODE) {
     return 'No se pudo verificar la seguridad del formulario. Recarga la página e inténtalo de nuevo.'
   }
 
-  // Iniciar sesión dos veces no hace daño, así que aquí sí se puede invitar a
-  // repetir sin más.
   if (error.timedOut) {
     return 'El servidor tardó demasiado en responder. Vuelve a intentarlo.'
   }
@@ -138,7 +138,7 @@ export default function LoginPage() {
           />
 
           {formError && (
-            <Notice role="alert" title="No se inició la sesión">
+            <Notice role="alert" title="Falló el inicio de sesión">
               {formError}
             </Notice>
           )}

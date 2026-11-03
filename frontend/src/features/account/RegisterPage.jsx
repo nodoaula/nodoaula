@@ -7,8 +7,13 @@ import PasswordInput from '../../components/ui/PasswordInput.jsx'
 import TextInput from '../../components/ui/TextInput.jsx'
 import { useFocusFirstInvalid } from '../../components/ui/useFocusFirstInvalid.js'
 import { CSRF_ERROR_CODE } from '../../lib/apiClient.js'
+import { tidyText } from '../../lib/text.js'
 import { useSession } from '../../session/useSession.js'
 import { registerAccount } from './api.js'
+import DataProcessingConsent from './DataProcessingConsent.jsx'
+import InstitutionPicker from './InstitutionPicker.jsx'
+import { useInstitutions } from './useInstitutions.js'
+import UserTypeField from './UserTypeField.jsx'
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, validateRegistration } from './validation.js'
 
 const EMAIL_ALREADY_IN_USE = 'EMAIL_ALREADY_IN_USE'
@@ -61,9 +66,13 @@ export default function RegisterPage() {
   const navigate = useNavigate()
   const from = useLocation().state?.from
   const { account, login } = useSession()
+  const { institutions, failed: institutionsFailed } = useInstitutions()
 
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [institution, setInstitution] = useState(null)
+  const [userType, setUserType] = useState(null)
   const [dataProcessingAuthorized, setDataProcessingAuthorized] = useState(false)
   const [fieldErrors, setFieldErrors] = useState({})
   const [emailInUse, setEmailInUse] = useState(false)
@@ -80,6 +89,21 @@ export default function RegisterPage() {
   // Al editar un campo su error deja de aplicar; los de los demás se quedan.
   function clearFieldError(field) {
     setFieldErrors((errors) => ({ ...errors, [field]: undefined }))
+  }
+
+  function changeName(value) {
+    setName(value)
+    clearFieldError('name')
+  }
+
+  function changeInstitution(value) {
+    setInstitution(value)
+    clearFieldError('institutionId')
+  }
+
+  function changeUserType(value) {
+    setUserType(value)
+    clearFieldError('userType')
   }
 
   function changeEmail(value) {
@@ -110,8 +134,16 @@ export default function RegisterPage() {
     if (submitting) return
 
     // El correo se recorta porque un espacio pegado al copiarlo no es parte
-    // de él. La contraseña no: un espacio en ella sí cuenta.
-    const data = { email: email.trim(), password, dataProcessingAuthorized }
+    // de él. La contraseña no: un espacio en ella sí cuenta. El nombre se
+    // envía como se guardará, sin espacios de sobra.
+    const data = {
+      name: tidyText(name),
+      email: email.trim(),
+      password,
+      institutionId: institution?.id ?? null,
+      userType,
+      dataProcessingAuthorized,
+    }
 
     const errors = validateRegistration(data)
     if (Object.keys(errors).length > 0) {
@@ -153,6 +185,16 @@ export default function RegisterPage() {
         </p>
 
         <form ref={formRef} className="mt-8 flex flex-col gap-5.5" onSubmit={handleSubmit} noValidate>
+          <TextInput
+            id="register-name"
+            label="Nombre"
+            autoComplete="name"
+            value={name}
+            onChange={changeName}
+            hint="Se mostrará junto a lo que aportes."
+            error={fieldErrors.name}
+          />
+
           <div className="flex flex-col gap-2">
             <TextInput
               id="register-email"
@@ -188,36 +230,23 @@ export default function RegisterPage() {
             error={fieldErrors.password}
           />
 
-          <div className="flex flex-col gap-2">
-            <label className="flex cursor-pointer items-start gap-3 text-sm text-content">
-              <input
-                id="register-data-processing"
-                type="checkbox"
-                checked={dataProcessingAuthorized}
-                onChange={(event) => changeDataProcessingAuthorized(event.target.checked)}
-                aria-invalid={fieldErrors.dataProcessingAuthorized ? true : undefined}
-                aria-describedby={fieldErrors.dataProcessingAuthorized ? 'register-data-processing-error' : undefined}
-                className="mt-0.5 size-4.5 shrink-0 scheme-dark accent-accent"
-              />
-              <span>
-                Tengo 18 años o más y autorizo el tratamiento de mis datos personales según la{' '}
-                <a
-                  href="/politica-de-datos"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-accent underline underline-offset-3 hover:decoration-2"
-                >
-                  política (se abre en otra pestaña)
-                </a>
-                .
-              </span>
-            </label>
-            {fieldErrors.dataProcessingAuthorized && (
-              <p id="register-data-processing-error" className="pl-7.5 text-label text-error">
-                {fieldErrors.dataProcessingAuthorized}
-              </p>
-            )}
-          </div>
+          <InstitutionPicker
+            id="register-institution"
+            institutions={institutions}
+            loadFailed={institutionsFailed}
+            value={institution}
+            onChange={changeInstitution}
+            error={fieldErrors.institutionId}
+          />
+
+          <UserTypeField id="register-user-type" value={userType} onChange={changeUserType} error={fieldErrors.userType} />
+
+          <DataProcessingConsent
+            id="register-data-processing"
+            checked={dataProcessingAuthorized}
+            onChange={changeDataProcessingAuthorized}
+            error={fieldErrors.dataProcessingAuthorized}
+          />
 
           {formError && (
             <Notice role="alert" title="No se completó el registro">

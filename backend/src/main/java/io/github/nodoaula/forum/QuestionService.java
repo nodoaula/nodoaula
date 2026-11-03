@@ -1,8 +1,10 @@
 package io.github.nodoaula.forum;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -15,7 +17,8 @@ import io.github.nodoaula.shared.error.FieldValidationException;
 /**
  * Único punto público del módulo forum, conforme al ADR-008. Del catálogo
  * pregunta si un curso o un recurso existen y de account si una cuenta es del
- * equipo, siempre a través de sus servicios.
+ * equipo, siempre a través de sus servicios. Quién es miembro del grupo de un
+ * hilo lo responde GroupThreadMembership, que implementa studygroup.
  */
 @Service
 public class QuestionService {
@@ -24,13 +27,16 @@ public class QuestionService {
 	private final AnswerRepository answerRepository;
 	private final ResourceService resourceService;
 	private final AccountService accountService;
+	private final GroupThreadMembership groupThreadMembership;
 
 	QuestionService(QuestionRepository questionRepository, AnswerRepository answerRepository,
-			ResourceService resourceService, AccountService accountService) {
+			ResourceService resourceService, AccountService accountService,
+			GroupThreadMembership groupThreadMembership) {
 		this.questionRepository = questionRepository;
 		this.answerRepository = answerRepository;
 		this.resourceService = resourceService;
 		this.accountService = accountService;
+		this.groupThreadMembership = groupThreadMembership;
 	}
 
 	/**
@@ -43,10 +49,20 @@ public class QuestionService {
 		List<Question> questions = questionRepository
 				.findByCourseIdAndRetiredAtIsNullOrderByCreatedAtDescIdDesc(courseId);
 		Map<Long, Long> answerCounts = countAnswers(questions);
+		Set<Long> memberThreads = groupThreadsOfMember(questions, viewerId);
 		return questions.stream()
 				.map(question -> toDto(question, answerCounts.getOrDefault(question.getId(), 0L), viewerId,
-						viewerIsTeam))
+						viewerIsTeam, memberThreads))
 				.toList();
+	}
+
+	// Una sola consulta para todos los hilos de grupo de la lista, no una por hilo.
+	private Set<Long> groupThreadsOfMember(Collection<Question> questions, Long viewerId) {
+		if (viewerId == null) {
+			return Set.of();
+		}
+		List<Long> groupThreads = questions.stream().filter(Question::isGroupThread).map(Question::getId).toList();
+		return groupThreads.isEmpty() ? Set.of() : groupThreadMembership.threadsWithMember(groupThreads, viewerId);
 	}
 
 	private Map<Long, Long> countAnswers(List<Question> questions) {
@@ -69,10 +85,11 @@ public class QuestionService {
 		Question question = questionRepository.findById(id).orElseThrow(QuestionNotFoundException::new);
 		if (question.isRetired()) {
 			return new QuestionDto(question.getId(), question.getCourseId(), null, null, null, null, null, 0, true,
-					false, false);
+					false, false, false, false);
 		}
 		boolean viewerIsTeam = viewerId != null && accountService.isTeamMember(viewerId);
-		return toDto(question, answerRepository.countByQuestionIdAndRetiredAtIsNull(id), viewerId, viewerIsTeam);
+		return toDto(question, answerRepository.countByQuestionIdAndRetiredAtIsNull(id), viewerId, viewerIsTeam,
+				groupThreadsOfMember(List.of(question), viewerId));
 	}
 
 	/**
@@ -94,7 +111,34 @@ public class QuestionService {
 
 		Question question = questionRepository.save(new Question(request.courseId(), request.resourceId(), authorId,
 				request.title().strip(), request.body().strip()));
-		return toDto(question, 0, authorId, false);
+		return toDto(question, 0, authorId, false, Set.of());
+	}
+
+	/**
+	 * Crea el hilo de un grupo de estudio en el foro de su curso (HU404), con
+	 * el nombre y la descripción del grupo, y devuelve su identificador. Lo
+	 * llama studygroup dentro de la transacción en que crea el grupo, después
+	 * de comprobar el curso y el texto: si el grupo no se guarda, el hilo
+	 * tampoco.
+	 *
+	 * @param description la descripción ya sin espacios en los extremos, o
+	 *        vacía si el grupo no tiene
+	 */
+	@Transactional
+	public Long createGroupThread(Long courseId, String name, String description, Long creatorId) {
+		return questionRepository.save(Question.groupThread(courseId, creatorId, name, description)).getId();
+	}
+
+	/**
+	 * Retira el hilo de un grupo al retirar el grupo (HU404). Quién puede
+	 * hacerlo lo decide studygroup, que es el que conoce al creador del grupo.
+	 * Si el hilo ya no se ve, no hace nada.
+	 */
+	@Transactional
+	public void retireGroupThread(Long threadId, Long accountId) {
+		questionRepository.findForUpdateByIdAndRetiredAtIsNull(threadId)
+				.filter(Question::isGroupThread)
+				.ifPresent(thread -> thread.retire(accountId, Instant.now()));
 	}
 
 	/**
@@ -102,11 +146,15 @@ public class QuestionService {
 	 * borra. La retira quien la publicó o una cuenta del equipo.
 	 *
 	 * @throws QuestionNotFoundException si no existe o ya estaba retirada
+	 * @throws GroupThreadChangeForbiddenException si es el hilo de un grupo
 	 * @throws QuestionChangeForbiddenException si quien pide no puede
 	 */
 	@Transactional
 	public void retireQuestion(Long id, Long accountId) {
 		Question question = questionRepository.getVisibleForUpdate(id);
+		if (question.isGroupThread()) {
+			throw new GroupThreadChangeForbiddenException();
+		}
 		if (!canRetire(question, accountId, accountService.isTeamMember(accountId))) {
 			throw new QuestionChangeForbiddenException();
 		}
@@ -149,15 +197,24 @@ public class QuestionService {
 		return question;
 	}
 
+	// El hilo de un grupo no se retira desde el foro, sino con el grupo.
 	private static boolean canRetire(Question question, Long viewerId, boolean viewerIsTeam) {
-		return viewerId != null && (viewerIsTeam || viewerId.equals(question.getAuthorId()));
+		return !question.isGroupThread() && viewerId != null
+				&& (viewerIsTeam || viewerId.equals(question.getAuthorId()));
 	}
 
-	private static QuestionDto toDto(Question question, long answerCount, Long viewerId, boolean viewerIsTeam) {
+	private static boolean canAnswer(Question question, Long viewerId, Set<Long> memberThreads) {
+		return viewerId != null && (!question.isGroupThread() || memberThreads.contains(question.getId()));
+	}
+
+	/** @param memberThreads los hilos de grupo de cuyo grupo es miembro quien mira */
+	private static QuestionDto toDto(Question question, long answerCount, Long viewerId, boolean viewerIsTeam,
+			Set<Long> memberThreads) {
 		return new QuestionDto(question.getId(), question.getCourseId(), question.getResourceId(),
 				question.getTitle(), question.getBody(), question.getCreatedAt(), question.getUsefulAnswerId(),
 				answerCount, false, canRetire(question, viewerId, viewerIsTeam),
-				question.getAuthorId().equals(viewerId));
+				question.getAuthorId().equals(viewerId), question.isGroupThread(),
+				canAnswer(question, viewerId, memberThreads));
 	}
 
 }

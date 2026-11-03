@@ -9,6 +9,7 @@ import Tag from '../../components/ui/Tag.jsx'
 import { SESSION_STATUS } from '../../session/SessionContext.js'
 import { useSession } from '../../session/useSession.js'
 import { getResource, republishResource, retireResource } from './api.js'
+import ContributorCard from './ContributorCard.jsx'
 import DocumentLoading from './DocumentLoading.jsx'
 import DocumentSignIn from './DocumentSignIn.jsx'
 import {
@@ -239,6 +240,24 @@ function ResourceSheet({ resource, busy, onRetire }) {
             </Fragment>
           ))}
         </span>
+      </div>
+
+      {/* Quién lo aportó y cuándo, a la vista antes de usarlo (HU507). */}
+      {resource.contributor && (
+        <div className="mt-6">
+          <ContributorCard contributor={resource.contributor} contributedOn={resource.contributedOn} />
+        </div>
+      )}
+
+      {/* El foro y los grupos de su curso, con o sin sesión, como desde la
+          página del curso (HU403). */}
+      <div className="mt-5 flex flex-wrap gap-3">
+        <Link to={`/catalogo/cursos/${resource.courseId}/foro`} className={buttonClasses('secondary')}>
+          Foro del curso
+        </Link>
+        <Link to={`/catalogo/cursos/${resource.courseId}/grupos`} className={buttonClasses('secondary')}>
+          Grupos de estudio
+        </Link>
       </div>
 
       <div className="mt-8">

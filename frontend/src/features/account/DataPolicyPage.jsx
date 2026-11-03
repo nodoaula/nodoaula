@@ -41,7 +41,7 @@ export default function DataPolicyPage() {
           Política de tratamiento de datos
         </h1>
         <p className="mt-3 font-mono text-label text-content-muted">
-          Vigente desde el <time dateTime="2026-10-30">30 de octubre de 2026</time>
+          Vigente desde el <time dateTime="2026-11-01">1 de noviembre de 2026</time>
         </p>
 
         <p className="mt-6">
@@ -60,6 +60,7 @@ export default function DataPolicyPage() {
           <p>Para consultar el catálogo no necesitas cuenta y no te pedimos ningún dato. Si creas una cuenta, guardamos:</p>
           <List>
             <li>Tu correo, con el que inicias sesión. Nadie más lo ve.</li>
+            <li>Tu nombre, tu institución y si eres estudiante o docente.</li>
             <li>Tu contraseña, guardada de forma que nadie, ni siquiera el equipo, puede leerla.</li>
             <li>La fecha en que creaste la cuenta y la fecha en que diste esta autorización.</li>
             <li>Lo que publicas: los recursos y apuntes que aportas, y tus preguntas y respuestas en el foro.</li>
@@ -71,6 +72,10 @@ export default function DataPolicyPage() {
             Solo para que NodoAula funcione: iniciar tu sesión, mostrar lo que publicas y saber qué aportaste, para que
             solo tú, o el equipo al moderar, pueda corregirlo o retirarlo. No los vendemos, no se los entregamos a
             terceros y no te enviamos publicidad.
+          </p>
+          <p>
+            Tu nombre, tu institución y si eres estudiante o docente se muestran junto a lo que aportas, para que quien
+            lo vea pueda valorar su procedencia. Tu correo no se muestra nunca a nadie más.
           </p>
         </Section>
 
@@ -107,6 +112,11 @@ export default function DataPolicyPage() {
           <p>
             Guardamos tus datos mientras tengas la cuenta y NodoAula esté en funcionamiento. Si cambiamos esta política
             en algo importante, te avisaremos antes de aplicar el cambio.
+          </p>
+          <p>
+            Esta versión reemplaza a la del 30 de octubre de 2026: añade tu nombre, tu institución y si eres estudiante o
+            docente, y que se muestran junto a lo que aportas. Si tu cuenta es anterior, te pedimos estos datos y tu
+            autorización la próxima vez que inicies sesión, y no los guardamos hasta que la des.
           </p>
         </Section>
       </article>

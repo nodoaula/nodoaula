@@ -2,6 +2,7 @@ package io.github.nodoaula.catalog;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -23,6 +24,10 @@ import jakarta.persistence.Table;
 @Entity
 @Table(name = "resources")
 class Resource {
+
+	// Las fechas de un recurso son días en la zona de los usuarios del
+	// proyecto: la de un apunte y la de su aporte.
+	static final ZoneId USERS_ZONE = ZoneId.of("America/Bogota");
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -80,6 +85,10 @@ class Resource {
 
 	private Long retiredBy;
 
+	// Día en que se aportó (HU507). En null en los videos aportados antes de
+	// guardarlo, que no tienen cómo saberlo.
+	private LocalDate contributedOn;
+
 	protected Resource() {
 	}
 
@@ -100,6 +109,7 @@ class Resource {
 		this.course = course;
 		this.authorId = authorId;
 		this.entryMethod = entryMethod;
+		this.contributedOn = LocalDate.now(USERS_ZONE);
 	}
 
 	// Para registrar un apunte subido (historia HU302). Siempre entra por el
@@ -115,6 +125,8 @@ class Resource {
 		resource.authorId = authorId;
 		resource.entryMethod = EntryMethod.MANUAL;
 		resource.file = file;
+		// Un apunte se aporta el día en que se sube, que es su fecha.
+		resource.contributedOn = publishedAt;
 		return resource;
 	}
 
@@ -215,6 +227,10 @@ class Resource {
 
 	Long getRetiredBy() {
 		return retiredBy;
+	}
+
+	LocalDate getContributedOn() {
+		return contributedOn;
 	}
 
 }

@@ -85,6 +85,20 @@ describe('apiClient', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
+  it('un 429 no se reintenta: llega con su código', async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ code: 'TOO_MANY_LOGIN_ATTEMPTS' }), {
+      status: 429,
+      headers: { 'Content-Type': 'application/problem+json', 'Retry-After': '30' },
+    }))
+
+    const error = await postForm('/session', { email: 'a@b.co', password: 'secreta' }).catch((failure) => failure)
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error.status).toBe(429)
+    expect(error.code).toBe('TOO_MANY_LOGIN_ATTEMPTS')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
   it('un fallo de red en un POST se informa sin reintentar', async () => {
     fetchMock.mockRejectedValue(new TypeError('Failed to fetch'))
 

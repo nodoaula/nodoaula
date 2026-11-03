@@ -5,7 +5,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import SiteHeader from './SiteHeader.jsx'
 
-let session = { status: 'ready', account: { id: 7, email: 'aporte@ejemplo.com' } }
+const ACCOUNT = { id: 7, email: 'aporte@ejemplo.com', name: 'Ana Pérez', profileComplete: true }
+
+let session = { status: 'ready', account: ACCOUNT }
 vi.mock('../session/useSession.js', () => ({ useSession: () => session }))
 vi.mock('../session/useLogout.js', () => ({
   useLogout: () => ({ loggingOut: false, logoutFailed: false, handleLogout: vi.fn() }),
@@ -43,7 +45,27 @@ function renderSignedOutHeaderAt(entry) {
 describe('SiteHeader', () => {
   afterEach(() => {
     cleanup()
-    session = { status: 'ready', account: { id: 7, email: 'aporte@ejemplo.com' } }
+    session = { status: 'ready', account: ACCOUNT }
+  })
+
+  // Historia HU506: el nombre, y no el correo, enlaza al perfil.
+  it('con sesión muestra el nombre como enlace al perfil y nunca el correo', () => {
+    renderHeader()
+
+    const profile = screen.getByRole('link', { name: 'Ana Pérez' })
+    expect(profile).toHaveAttribute('href', '/perfil')
+    expect(profile).toHaveTextContent('A')
+    expect(screen.queryByText('aporte@ejemplo.com')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('aporte@ejemplo.com')).not.toBeInTheDocument()
+  })
+
+  it('una cuenta sin perfil ve cómo completarlo en lugar del nombre', () => {
+    session = { status: 'ready', account: { ...ACCOUNT, name: null, profileComplete: false } }
+    renderHeader()
+
+    expect(screen.getByRole('link', { name: 'Completar perfil' })).toHaveAttribute('href', '/completar-perfil')
+    expect(screen.queryByRole('link', { name: 'Ana Pérez' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cerrar sesión' })).toBeInTheDocument()
   })
 
   // Historia HU412: quien se convence leyendo la vista previa no pierde el apunte.

@@ -104,6 +104,24 @@ describe('ResourceDetailPage', () => {
     expect(screen.getByText(dataLine('Video · 1 h 40 min · YouTube'))).toBeInTheDocument()
   })
 
+  // Historia HU403: desde la ficha se llega al foro y a los grupos del curso.
+  it('enlaza al foro y a los grupos de estudio de su curso, sin sesión', async () => {
+    getResource.mockResolvedValue(VIDEO)
+    renderDetail()
+
+    expect(await screen.findByRole('link', { name: 'Foro del curso' })).toHaveAttribute('href', '/catalogo/cursos/7/foro')
+    expect(screen.getByRole('link', { name: 'Grupos de estudio' })).toHaveAttribute('href', '/catalogo/cursos/7/grupos')
+  })
+
+  it('un apunte también enlaza al foro y a los grupos de su curso, con sesión', async () => {
+    session = { status: 'ready', account: { id: 5, email: 'lectora@example.com' } }
+    getResource.mockResolvedValue({ ...DOCUMENT, courseId: 3 })
+    renderDetail()
+
+    expect(await screen.findByRole('link', { name: 'Foro del curso' })).toHaveAttribute('href', '/catalogo/cursos/3/foro')
+    expect(screen.getByRole('link', { name: 'Grupos de estudio' })).toHaveAttribute('href', '/catalogo/cursos/3/grupos')
+  })
+
   it('muestra los datos en la pestaña Detalles, sin el identificador del recurso', async () => {
     getResource.mockResolvedValue(VIDEO)
     renderDetail()
@@ -305,6 +323,9 @@ describe('ResourceDetailPage: retirar y volver a publicar', () => {
     expect(screen.queryByRole('button', { name: 'Volver a publicar' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Corregir datos' })).not.toBeInTheDocument()
+    // Sin curso que mostrar, tampoco lleva a su foro ni a sus grupos (HU403).
+    expect(screen.queryByRole('link', { name: 'Foro del curso' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Grupos de estudio' })).not.toBeInTheDocument()
   })
 
   it('quien lo retiró lo vuelve a publicar y la ficha confirma que reaparece en el catálogo', async () => {
@@ -364,5 +385,33 @@ describe('ResourceDetailPage: retirar y volver a publicar', () => {
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('No se volvió a publicar el recurso')
     expect(alert).toHaveTextContent('Solo quien retiró este recurso puede volver a publicarlo.')
+  })
+
+  // Historia HU507: la ficha de un video y la de un apunte dicen quién lo aportó y cuándo.
+  it.each([
+    ['un video', VIDEO],
+    ['un apunte', DOCUMENT],
+  ])('la ficha de %s muestra la ficha de usuario de quien lo aportó', async (_, resource) => {
+    getResource.mockResolvedValue({
+      ...resource,
+      contributor: { origin: 'COMMUNITY', name: 'Ana Pérez', userType: 'TEACHER', institution: 'Universidad de Antioquia' },
+      contributedOn: '2026-10-06',
+    })
+    renderDetail()
+
+    const card = await screen.findByRole('region', { name: 'Quién lo aportó' })
+    expect(card).toHaveTextContent('Ana Pérez')
+    expect(card).toHaveTextContent('Docente · Universidad de Antioquia')
+    expect(card).toHaveTextContent('Aportado el 6 de octubre de 2026')
+    // No es el perfil de la cuenta: no lleva a él.
+    expect(screen.queryByRole('link', { name: /Ana Pérez/ })).not.toBeInTheDocument()
+  })
+
+  it('un recurso retirado no dice quién lo aportó', async () => {
+    getResource.mockResolvedValue({ id: 24, retired: true, canRepublish: false, contributor: null, topics: [] })
+    renderDetail()
+
+    expect(await screen.findByText('Este recurso ya no está disponible')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Quién lo aportó' })).not.toBeInTheDocument()
   })
 })

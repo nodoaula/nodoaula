@@ -70,6 +70,14 @@ describe('CoursePage', () => {
     expect(listedTitles()).toHaveLength(3)
   })
 
+  it('enlaza al foro y a los grupos de estudio del curso, también sin sesión', async () => {
+    renderCourse()
+    await advanceTime(0)
+
+    expect(screen.getByRole('link', { name: 'Foro del curso' })).toHaveAttribute('href', '/catalogo/cursos/1/foro')
+    expect(screen.getByRole('link', { name: 'Grupos de estudio' })).toHaveAttribute('href', '/catalogo/cursos/1/grupos')
+  })
+
   it('un apunte muestra sus páginas donde un video muestra su duración', async () => {
     renderCourse()
     await advanceTime(0)
