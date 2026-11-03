@@ -5,6 +5,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -29,7 +30,7 @@ record TextQuery(List<String> words, Set<ResourceType> types) {
 				.filter(word -> !word.isEmpty())
 				.toList();
 		Set<ResourceType> types = EnumSet.noneOf(ResourceType.class);
-		all.stream().map(TYPE_WORDS::get).filter(type -> type != null).forEach(types::add);
+		all.stream().map(TYPE_WORDS::get).filter(Objects::nonNull).forEach(types::add);
 		return new TextQuery(all.stream().filter(word -> !TYPE_WORDS.containsKey(word)).toList(), types);
 	}
 
@@ -44,13 +45,13 @@ record TextQuery(List<String> words, Set<ResourceType> types) {
 		String text = normalize(Stream.concat(
 				Stream.of(resource.getTitle(), resource.getDescription(), resource.getCourse().getName()),
 				resource.getTopics().stream().map(Topic::getName))
-				.filter(value -> value != null)
+				.filter(Objects::nonNull)
 				.reduce("", (joined, value) -> joined + " " + value));
 		return words.stream().allMatch(text::contains);
 	}
 
-	// Quita tildes (forma NFD: separa cada letra de su diacrítico, y \p{M}
-	// borra el diacrítico) y pasa a minúsculas.
+	// Quita tildes y pasa a minúsculas. La forma NFD separa cada letra de su
+	// diacrítico, y \p{M} borra el diacrítico.
 	private static String normalize(String value) {
 		String withoutAccents = Normalizer.normalize(value, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
 		return withoutAccents.toLowerCase(Locale.ROOT);

@@ -79,7 +79,7 @@ export function graphGeometry(rows, tree) {
       rowX: 40,
       ys,
       paths: ys.map((y) => `M${node.x} ${node.y} L${node.x} ${y - 14} Q${node.x} ${y} ${node.x + 14} ${y} L40 ${y}`),
-      height: ys[ys.length - 1] + 24,
+      height: ys.at(-1) + 24,
     }
   }
 
