@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 
 import { useMediaQuery } from './useMediaQuery.js'
@@ -24,18 +24,37 @@ export function NameAndCount({ name, count, nameClassName, countClassName }) {
   )
 }
 
+const REPLAYED = new Set(['draw', 'node-in', 'ring', 'nudge'])
+
 /**
  * La gráfica de la entrada: el nodo de «Todos los cursos» o del curso
  * escogido, y una fila por curso o por tema. Cada fila se escoge ahí mismo;
  * el nombre del nodo lleva a su página del catálogo. `tree` la dibuja en
- * vertical, para una sola columna. Se monta de nuevo en cada cambio (la
- * página le da otra `key`) para que sus filas vuelvan a salir del nodo.
+ * vertical, para una sola columna. Cada cambio sube `version`.
  */
-export default function CourseGraph({ label, detail, to, items, more, moreTo, selected, onPick, goText, onGoDown, tree }) {
+export default function CourseGraph({ version, label, detail, to, items, more, moreTo, selected, onPick, goText, onGoDown, tree }) {
+  const figureRef = useRef(null)
   const graphRef = useRef(null)
   const [hot, setHot] = useState(-1)
   const [onScreen, setOnScreen] = useState(true)
   const canHover = useMediaQuery('(hover: hover)')
+  const keyboardRow = useRef(null)
+
+  // Con cada cambio, las aristas se dibujan otra vez, las filas vuelven a
+  // salir del nodo y el aro y la flecha se repiten; las señales siguen su
+  // recorrido. Se reinician sin montar de nuevo los botones, que perderían el foco.
+  useLayoutEffect(() => {
+    for (const animation of figureRef.current.getAnimations?.({ subtree: true }) ?? []) {
+      if (REPLAYED.has(animation.animationName)) animation.currentTime = 0
+    }
+    // Si la fila escogida con el teclado ya no existe (el curso trae menos temas), el foco pasa a la última.
+    const row = keyboardRow.current
+    keyboardRow.current = null
+    if (row !== null && !figureRef.current.contains(document.activeElement)) {
+      const rows = graphRef.current.querySelectorAll('button[aria-pressed]')
+      rows[rows.length - 1]?.focus()
+    }
+  }, [version])
 
   // Las señales que recorren las aristas se paran cuando la gráfica no se ve.
   useEffect(() => {
@@ -51,7 +70,7 @@ export default function CourseGraph({ label, detail, to, items, more, moreTo, se
   const fromNode = (y) => ({ '--dy': `${node.y - y}px`, ...(tree ? { '--dx': `${node.x - rowX}px` } : {}) })
 
   return (
-    <figure aria-label={selected.course ? `Gráfica de ${label} y sus temas` : 'Gráfica de los cursos'} className="relative m-0 flex flex-col justify-center">
+    <figure ref={figureRef} aria-label={selected.course ? `Gráfica de ${label} y sus temas` : 'Gráfica de los cursos'} className="relative m-0 flex flex-col justify-center">
       <div ref={graphRef} className={`relative ${tree ? '' : 'h-145'}`} style={tree ? { height } : undefined}>
         <svg
           viewBox={`0 0 ${tree ? 48 : 540} ${height}`}
@@ -76,12 +95,14 @@ export default function CourseGraph({ label, detail, to, items, more, moreTo, se
           ))}
         </svg>
 
-        {items.map((item, index) => (
+        {/* Señales y filas van por posición, no por nombre: al cambiar de curso
+            siguen en su sitio, con su recorrido, el puntero y el foco. */}
+        {items.map((_, slot) => (
           <span
-            key={`senal-${item.name}`}
+            key={slot}
             aria-hidden="true"
             className="pointer-events-none absolute top-0 left-0 size-1.5 rounded-full bg-accent opacity-0 shadow-[0_0_8px_rgb(79_209_197/0.7)] [offset-rotate:0deg] motion-safe:animate-signal motion-reduce:hidden"
-            style={{ offsetPath: `path('${paths[index]}')`, animationDelay: `${1400 + index * 180}ms`, animationPlayState: onScreen ? 'running' : 'paused' }}
+            style={{ offsetPath: `path('${paths[slot]}')`, animationDelay: `${1400 + slot * 180}ms`, animationPlayState: onScreen ? 'running' : 'paused' }}
           />
         ))}
 
@@ -102,10 +123,14 @@ export default function CourseGraph({ label, detail, to, items, more, moreTo, se
           const on = item.name === selected.topic
           return (
             <button
-              key={item.name}
+              key={index}
               type="button"
               aria-pressed={on}
-              onClick={() => onPick(item)}
+              onClick={(event) => {
+                // Un clic con detail 0 viene del teclado (Enter o espacio), no del ratón.
+                keyboardRow.current = event.detail === 0 ? index : null
+                onPick(item)
+              }}
               onMouseEnter={() => canHover && setHot(index)}
               onMouseLeave={() => setHot(-1)}
               onFocus={() => setHot(index)}
