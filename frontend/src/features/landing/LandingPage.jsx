@@ -173,7 +173,7 @@ export default function LandingPage() {
           {ready && (
             <div ref={graphRef} className="grid">
               <CourseGraph
-                key={selection.version}
+                version={selection.version}
                 label={featured ? featured.name : 'Todos los cursos'}
                 detail={formatCourseSummary({ videoCount, documentCount })}
                 to={featured ? courseLink(featured.id, selection.topic) : '/catalogo'}

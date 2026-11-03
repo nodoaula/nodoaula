@@ -138,6 +138,57 @@ describe('LandingPage', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Física de Campos' })).toHaveFocus()
   })
 
+  it('al cambiar de curso, las señales siguen su recorrido y lo demás de la gráfica vuelve a empezar', async () => {
+    await renderLoaded()
+    const figure = screen.getByRole('figure')
+    const signals = () => [...figure.querySelectorAll('[class*="animate-signal"]')]
+    // jsdom no anima; basta con ver qué animaciones se reinician.
+    const ring = { animationName: 'ring', currentTime: 500 }
+    const signal = { animationName: 'signal', currentTime: 500 }
+    figure.getAnimations = () => [ring, signal]
+    const [firstSignal] = signals()
+    expect(signals()).toHaveLength(3)
+
+    fireEvent.click(graph().getByRole('button', { name: counted('Gestión de proyectos', 1) }))
+
+    expect(signals()).toEqual([firstSignal])
+    expect(ring.currentTime).toBe(0)
+    expect(signal.currentTime).toBe(500)
+  })
+
+  it('con el teclado, escoger en la gráfica deja el foco en ella', async () => {
+    await renderLoaded()
+    const course = graph().getByRole('button', { name: counted('Cálculo Integral', 3) })
+    course.focus()
+    fireEvent.click(course)
+    // Era la primera fila; el foco queda en la primera fila de sus temas.
+    expect(graph().getByRole('button', { name: counted('Integral definida', 2) })).toHaveFocus()
+
+    const topic = graph().getByRole('button', { name: counted('Integral definida', 2) })
+    topic.focus()
+    fireEvent.click(topic)
+    expect(topic).toHaveFocus()
+    expect(topic).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('si la fila escogida con el teclado desaparece, el foco pasa a la última fila', async () => {
+    await renderLoaded()
+    const course = graph().getByRole('button', { name: counted('Gestión de proyectos', 1) })
+    course.focus()
+    fireEvent.click(course)
+
+    expect(graph().getByRole('button', { name: counted('Scrum', 1) })).toHaveFocus()
+  })
+
+  it('con el ratón, escoger en la gráfica no mueve el foco', async () => {
+    await renderLoaded()
+    const course = graph().getByRole('button', { name: counted('Gestión de proyectos', 1) })
+    course.focus()
+    fireEvent.click(course, { detail: 1 })
+
+    expect(graph().getByRole('button', { name: counted('Scrum', 1) })).not.toHaveFocus()
+  })
+
   it('el nodo de la gráfica resume videos y apuntes, sin las horas de video', async () => {
     await renderLoaded()
     expect(graph().getByText('6 videos · 1 apunte')).toBeInTheDocument()
@@ -174,7 +225,6 @@ describe('LandingPage', () => {
 
     fireEvent.click(graph().getByRole('button', { name: counted('Integral definida', 2) }))
 
-    // La gráfica se monta de nuevo en cada cambio: hay que volver a buscar el botón.
     expect(graph().getByRole('button', { name: counted('Integral definida', 2) })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('heading', { level: 2, name: 'Cálculo Integral\u00a0· Integral definida' })).toBeInTheDocument()
     const hrefs = within(results('Cálculo Integral\u00a0· Integral definida')).getAllByRole('link').map((link) => link.getAttribute('href'))

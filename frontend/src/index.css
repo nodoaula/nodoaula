@@ -34,11 +34,13 @@
   --animate-dash-flow: dash-flow 1.4s linear infinite;
   /* Una línea con pathLength="1" se dibuja de principio a fin. */
   --animate-draw: draw 0.7s var(--ease-arrive) both;
-  /* Un tema sale del nodo de su curso (--dx, --dy: del tema al nodo) y se acomoda. */
-  --animate-node-in: node-in 0.7s var(--ease-arrive) backwards;
-  --animate-ring: ring 0.9s var(--ease-arrive);
+  /* Un tema sale del nodo de su curso (--dx, --dy: del tema al nodo) y se acomoda.
+     Las de la gráfica se quedan en su estado final (both), que es el de reposo,
+     para que el navegador las conserve y la gráfica pueda repetirlas. */
+  --animate-node-in: node-in 0.7s var(--ease-arrive) both;
+  --animate-ring: ring 0.9s var(--ease-arrive) both;
   --animate-grow-y: grow-y 0.3s var(--ease-arrive);
-  --animate-nudge: nudge 0.6s 0.6s 2 ease-in-out;
+  --animate-nudge: nudge 0.6s 0.6s 2 ease-in-out both;
   --animate-rise: rise 0.45s var(--ease-arrive) backwards;
   --animate-drop: drop 0.18s var(--ease-arrive);
   --animate-pop: pop 0.4s var(--ease-arrive) both;
@@ -135,5 +137,12 @@
   :focus-visible {
     outline: 2px solid var(--color-accent);
     outline-offset: 3px;
+  }
+
+  /* Tailwind 4 deja los botones con la flecha del navegador; el sitio usa la
+     mano en todo lo que se pulsa. Los desactivados siguen con su cursor. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
   }
 }
