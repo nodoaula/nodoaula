@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { get, loadCsrfToken } from '../lib/apiClient.js'
 
-// El plan gratuito suspende el backend tras quince minutos sin tráfico y
-// volver a arrancarlo lleva cerca de dos minutos. Sin aviso, esa espera se ve
-// como una página que no carga.
-const SERVER_WAKE_TIMEOUT_MS = 180_000
+// El plan gratuito suspende el backend tras quince minutos sin tráfico, y
+// volver a arrancarlo llevó entre 3:00 y 3:07 en las medidas de producción.
+// Cinco minutos dejan margen antes de dar por caído el servidor.
+const SERVER_WAKE_TIMEOUT_MS = 300_000
 
 export const SERVER_STATUS = {
   STARTING: 'starting',
@@ -13,8 +13,13 @@ export const SERVER_STATUS = {
   UNREACHABLE: 'unreachable',
 }
 
+/**
+ * Estado del servidor y la función que vuelve a preguntarle tras darlo por
+ * inalcanzable.
+ */
 export function useServerStatus() {
   const [status, setStatus] = useState(SERVER_STATUS.STARTING)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     // StrictMode ejecuta el efecto dos veces en desarrollo; este indicador
@@ -40,7 +45,12 @@ export function useServerStatus() {
     return () => {
       active = false
     }
+  }, [attempt])
+
+  const retry = useCallback(() => {
+    setStatus(SERVER_STATUS.STARTING)
+    setAttempt((count) => count + 1)
   }, [])
 
-  return status
+  return [status, retry]
 }
