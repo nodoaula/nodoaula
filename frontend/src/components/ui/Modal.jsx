@@ -1,11 +1,6 @@
 import { useEffect, useId, useRef } from 'react'
 
-const BUTTON_CLASSES = {
-  primary:
-    'rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60',
-  secondary:
-    'rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:border-slate-500 hover:bg-slate-50',
-}
+import { buttonClasses } from './button.js'
 
 // Escape dispara cancel; cancelarlo deja la ventana abierta.
 function preventCancel(event) {
@@ -54,23 +49,23 @@ export default function Modal({ open, title, children, actions }) {
       closedby="none"
       onCancel={preventCancel}
       onClose={handleClose}
-      className="m-auto w-[calc(100%-2rem)] max-w-lg rounded-md border border-slate-300 bg-white p-0 text-slate-900 shadow-lg backdrop:bg-slate-900/60"
+      className="m-auto w-[calc(100%-2rem)] max-w-110 rounded-2xl border border-border-strong bg-surface-raised p-0 text-content shadow-[0_24px_60px_-20px_rgb(0_0_0/0.85)] backdrop:bg-[rgb(5_7_13/0.72)]"
     >
-      <div className="flex max-h-[85vh] flex-col">
-        <h2 id={titleId} className="border-b border-slate-200 px-5 py-4 text-lg font-semibold">
+      <div className="flex max-h-[85vh] flex-col p-6">
+        <h2 id={titleId} className="text-lead font-semibold tracking-tight">
           {title}
         </h2>
 
-        <div className="overflow-y-auto px-5 py-4">{children}</div>
+        <div className="mt-2 overflow-y-auto text-body leading-relaxed text-content-muted">{children}</div>
 
-        <div className="flex flex-col-reverse gap-2 border-t border-slate-200 px-5 py-4 sm:flex-row sm:justify-end">
+        <div className="mt-6 flex flex-wrap justify-end gap-3">
           {actions.map((action) => (
             <button
               key={action.label}
               ref={action.primary ? primaryRef : undefined}
               type="button"
               onClick={action.onClick}
-              className={action.primary ? BUTTON_CLASSES.primary : BUTTON_CLASSES.secondary}
+              className={buttonClasses(action.primary ? 'primary' : 'secondary')}
             >
               {action.label}
             </button>

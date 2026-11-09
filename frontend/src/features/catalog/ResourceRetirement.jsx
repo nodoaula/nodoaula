@@ -31,7 +31,7 @@ export function RetireAction({ busy, onConfirm }) {
           { label: 'Sí, retirar', onClick: confirmRetirement, primary: true },
         ]}
       >
-        <p className="text-sm text-slate-700">
+        <p>
           Dejará de aparecer en el catálogo, en la página de su curso, en la búsqueda y en la portada. No se borra:
           quien abra su enlace verá que ya no está disponible, y podrás volver a publicarlo desde esta ficha.
         </p>

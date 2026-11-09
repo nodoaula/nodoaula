@@ -573,17 +573,17 @@ export default function CreateResourcePage() {
         ]}
       >
         {appliedIndexing !== null && (
-          <p className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="alert">
+          <p className="mb-4 rounded-xl border border-border-strong bg-surface-hover px-3.5 py-3 text-content" role="alert">
             Ya insertaste los datos de otro video. Si insertas estos, se borrará todo lo que hayas ingresado en el
             formulario, incluidos el curso y los temas.
           </p>
         )}
         {pendingMetadata !== null && (
-          <dl className="space-y-3 text-sm">
+          <dl className="space-y-3">
             {describeMetadata(pendingMetadata).map((row) => (
               <div key={row.field}>
-                <dt className="font-medium text-slate-700">{row.label}</dt>
-                <dd className="mt-0.5 whitespace-pre-line wrap-break-word text-slate-900">{row.value}</dd>
+                <dt className="text-label font-medium text-content-muted">{row.label}</dt>
+                <dd className="mt-0.5 whitespace-pre-line wrap-break-word text-content">{row.value}</dd>
               </div>
             ))}
           </dl>

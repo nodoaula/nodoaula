@@ -313,7 +313,7 @@ function CourseGroups({ courseId, courseName, initialGroups, signedIn }) {
           { label: 'Sí, retirar', onClick: retire, primary: true },
         ]}
       >
-        <p className="text-sm text-slate-700">Dejará de aparecer en los grupos del curso para todos, y su hilo dejará de verse en el foro.</p>
+        <p>Dejará de aparecer en los grupos del curso para todos, y su hilo dejará de verse en el foro.</p>
       </Modal>
 
       <Modal
@@ -324,7 +324,7 @@ function CourseGroups({ courseId, courseName, initialGroups, signedIn }) {
           { label: 'Sí, salir', onClick: leave, primary: true },
         ]}
       >
-        <p className="text-sm text-slate-700">
+        <p>
           Dejarás de responder en su hilo, aunque podrás seguir leyéndolo y volver a unirte cuando quieras. Si eres el último
           miembro, el grupo seguirá abierto.
         </p>

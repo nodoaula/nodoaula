@@ -1,4 +1,4 @@
-import { BrowserRouter, Link, Route, Routes } from 'react-router'
+import { BrowserRouter, Route, Routes } from 'react-router'
 
 import CompleteProfilePage from '../features/account/CompleteProfilePage.jsx'
 import DataPolicyPage from '../features/account/DataPolicyPage.jsx'
@@ -18,6 +18,7 @@ import StudyGroupsPage from '../features/studygroup/StudyGroupsPage.jsx'
 import RequireCompleteProfile from '../session/RequireCompleteProfile.jsx'
 import SessionProvider from '../session/SessionProvider.jsx'
 import AppLayout from './AppLayout.jsx'
+import NotFoundPage from './NotFoundPage.jsx'
 import { SERVER_STATUS, useServerStatus } from './serverStatus.js'
 import ServerWakeScreen from './ServerWakeScreen.jsx'
 
@@ -48,11 +49,11 @@ export default function App() {
                 <Route path="perfil" element={<ProfilePage />} />
                 <Route path="completar-perfil" element={<CompleteProfilePage />} />
                 <Route path="politica-de-datos" element={<DataPolicyPage />} />
+                <Route path="*" element={<NotFoundPage />} />
               </Route>
               {/* Pantallas aún sin rediseñar: cada una pasa al grupo de arriba cuando se rediseña. */}
               <Route element={<AppLayout legacy />}>
                 <Route path="registrar-recurso" element={<CreateResourcePage />} />
-                <Route path="*" element={<NotFoundPage />} />
               </Route>
             </Route>
           </Routes>
@@ -62,20 +63,4 @@ export default function App() {
   }
 
   return <ServerWakeScreen status={serverStatus} onRetry={retryServer} />
-}
-
-function NotFoundPage() {
-  return (
-    <main className="px-4 py-10">
-      <div className="mx-auto max-w-3xl">
-        <h1 className="text-2xl font-semibold text-slate-900">Página no encontrada</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          La dirección no corresponde a ninguna página.{' '}
-          <Link to="/catalogo" className="font-medium text-slate-900 underline">
-            Volver al catálogo
-          </Link>
-        </p>
-      </div>
-    </main>
-  )
 }
