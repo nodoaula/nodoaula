@@ -25,9 +25,9 @@ const curveTo = ([x1, y1], [x2, y2]) => `C${(x1 + x2) / 2} ${y1} ${(x1 + x2) / 2
 const edge = (from, to) => `M${from[0]} ${from[1]} ${curveTo(from, to)}`
 const route = (topic) => `${edge(ROOT, courseOf(topic))} ${curveTo(courseOf(topic), TOPICS[topic])}`
 
-// Lo que tardó el arranque en las medidas de producción: pasado eso, la
-// pantalla avisa de que va más lento de lo normal.
-const USUAL_WAKE_SECONDS = 180
+// El arranque tardó entre 3:00 y 3:07 en las medidas de producción: pasados
+// 3:30, la pantalla avisa de que va más lento de lo normal.
+const USUAL_WAKE_SECONDS = 210
 
 // La primera señal sale cuando el mapa ya terminó de dibujarse.
 const FIRST_SIGNAL_MS = 1300
@@ -60,7 +60,11 @@ export default function ServerWakeScreen({ status, onRetry }) {
         </header>
       </div>
       <main className="grid flex-1 place-items-center px-4 pt-12 pb-30 sm:px-6">
-        {status === SERVER_STATUS.UNREACHABLE ? <Unreachable onRetry={retry} /> : <Waking focusTitle={retried} />}
+        {status === SERVER_STATUS.UNREACHABLE ? (
+          <Unreachable onRetry={retry} focusButton={retried} />
+        ) : (
+          <Waking focusTitle={retried} />
+        )}
       </main>
     </div>
   )
@@ -108,7 +112,14 @@ function Elapsed() {
   )
 }
 
-function Unreachable({ onRetry }) {
+// Si un reintento vuelve a fallar, el foco pasa al botón: el título de la
+// espera, que lo tenía, ya no está.
+function Unreachable({ onRetry, focusButton }) {
+  const button = useRef(null)
+  useEffect(() => {
+    if (focusButton) button.current.focus()
+  }, [focusButton])
+
   return (
     <div role="alert" className="flex max-w-130 flex-col items-center text-center">
       <span aria-hidden="true" className="grid size-12 place-items-center rounded-full bg-surface-hover text-error">
@@ -118,7 +129,7 @@ function Unreachable({ onRetry }) {
       </span>
       <h1 className={TITLE}>No pudimos despertar el servidor</h1>
       <p className={TEXT}>El servidor no contestó. Puede estar caído o puede fallar tu conexión.</p>
-      <button type="button" onClick={onRetry} className={`${buttonClasses('primary')} mt-6`}>
+      <button ref={button} type="button" onClick={onRetry} className={`${buttonClasses('primary')} mt-6`}>
         Volver a intentarlo
       </button>
     </div>

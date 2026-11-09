@@ -566,6 +566,7 @@ export default function CreateResourcePage() {
 
       <Modal
         open={pendingMetadata !== null}
+        destructive={appliedIndexing !== null}
         title="Datos obtenidos de YouTube"
         actions={[
           { label: 'Cancelar', onClick: cancelMetadata },

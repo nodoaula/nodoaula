@@ -13,6 +13,7 @@ import { listResources } from '../catalog/api.js'
 import { listQuestions } from './api.js'
 import { formatAnswerCount, formatForumDate } from './format.js'
 import QuestionForm from './QuestionForm.jsx'
+import { questionElementId } from './threadIds.js'
 
 /**
  * Foro de un curso (HU401): lista de preguntas, visible sin sesión, y
@@ -25,29 +26,22 @@ export default function ForumPage() {
   const { courseId } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
+  // Las marcas de llegada valen una vez y salen del historial en una sola
+  // navegación, para que recargar o volver atrás no las repita: el aviso de
+  // pregunta retirada (HU402) y `?preguntar`, que abre el formulario. Forum
+  // las conserva mientras siga montado.
   const questionRetired = location.state?.questionRetired === true
-
-  // Al volver de retirar una pregunta desde su página (HU402), el foro lo
-  // confirma una vez: la marca sale del historial para que el aviso no vuelva
-  // al recargar ni al volver atrás. Forum la conserva mientras siga montado.
-  useEffect(() => {
-    if (!questionRetired) return
-    navigate({ pathname: location.pathname, search: location.search, hash: location.hash }, { replace: true, state: null })
-  }, [questionRetired, location.pathname, location.search, location.hash, navigate])
-
-  // `?preguntar` abre el formulario una sola vez: sale de la dirección para
-  // que volver atrás o recargar no lo abra de nuevo.
   const askOnArrival = new URLSearchParams(location.search).has('preguntar')
   useEffect(() => {
-    if (!askOnArrival) return
+    if (!questionRetired && !askOnArrival) return
     const params = new URLSearchParams(location.search)
     params.delete('preguntar')
     const search = params.toString()
     navigate(
       { pathname: location.pathname, search: search && `?${search}`, hash: location.hash },
-      { replace: true, state: location.state },
+      { replace: true, state: null },
     )
-  }, [askOnArrival, location.pathname, location.search, location.hash, location.state, navigate])
+  }, [questionRetired, askOnArrival, location.pathname, location.search, location.hash, navigate])
 
   return <Forum key={courseId} courseId={courseId} questionRetired={questionRetired} askOnArrival={askOnArrival} />
 }
@@ -236,8 +230,6 @@ function QuestionList({ questions, resources }) {
     </section>
   )
 }
-
-const questionElementId = (id) => `pregunta-${id}`
 
 function QuestionRow({ question, resourceTitle }) {
   return (

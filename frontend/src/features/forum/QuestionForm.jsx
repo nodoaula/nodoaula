@@ -92,8 +92,10 @@ export default function QuestionForm({ open, courseId, resources, onPublished, o
     }
   }
 
-  // Lo escrito se conserva al cancelar; los errores de ese intento, no.
+  // Lo escrito se conserva al cancelar; los errores de ese intento, no. Con
+  // el envío en camino no se cancela: su resultado llegará igual.
   function cancel() {
+    if (busy) return
     setFieldErrors({})
     setGeneral(null)
     onCancel()
@@ -188,7 +190,12 @@ export default function QuestionForm({ open, courseId, resources, onPublished, o
           Detalle hasta {MAX_BODY} caracteres
         </span>
         <div className="flex gap-3">
-          <button type="button" onClick={cancel} className={buttonClasses('secondary')}>
+          <button
+            type="button"
+            aria-disabled={busy}
+            onClick={cancel}
+            className={`${buttonClasses('secondary')} aria-disabled:cursor-not-allowed aria-disabled:opacity-60`}
+          >
             Cancelar
           </button>
           {/* aria-disabled y no disabled: un botón deshabilitado pierde el foco. */}

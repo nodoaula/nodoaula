@@ -26,14 +26,20 @@ describe('Modal', () => {
     return { ...utils, onConfirm, onDismiss }
   }
 
-  // Con una acción difícil de deshacer, como retirar, un Enter sin querer no
-  // debe confirmarla: el foco empieza en la opción que no cambia nada.
-  it('se abre como modal, nombrada por su título y con el foco en la opción que no cambia nada', () => {
+  it('se abre como modal, nombrada por su título y con el foco en el botón principal', () => {
     renderModal()
     const dialog = screen.getByRole('dialog', { name: 'Título de la ventana' })
 
     expect(dialog.open).toBe(true)
     expect(screen.getByText('Contenido')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Aceptar' })).toHaveFocus()
+  })
+
+  // Con una acción difícil de deshacer, como retirar, un Enter sin querer no
+  // debe confirmarla: el foco empieza en la opción que no cambia nada.
+  it('si lo que confirma es destructivo, el foco empieza en la opción que no cambia nada', () => {
+    renderModal({ destructive: true })
+
     expect(screen.getByRole('button', { name: 'Cancelar' })).toHaveFocus()
   })
 

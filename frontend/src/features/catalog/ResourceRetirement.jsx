@@ -24,6 +24,7 @@ export function RetireAction({ busy, onConfirm }) {
       </button>
 
       <Modal
+        destructive
         open={confirming}
         title="¿Retirar este recurso?"
         actions={[

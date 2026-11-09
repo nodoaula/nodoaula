@@ -21,27 +21,28 @@ function preventCancel(event) {
  * @param {boolean} open si la ventana está abierta
  * @param {string} title título, que también la nombra para un lector de pantalla
  * @param {Array<{label: string, onClick: Function, primary?: boolean}>} actions
- *        botones del pie, en orden. El foco empieza en el primero que no es el
- *        principal: confirmaciones como retirar no se deshacen, y un Enter sin
- *        querer no debe aceptarlas.
+ *        botones del pie, en orden; el foco empieza en el principal
+ * @param {boolean} destructive si lo que se confirma no se deshace (retirar,
+ *        salir): entonces el foco empieza en el primero que no es el
+ *        principal, para que un Enter sin querer no lo acepte
  */
-export default function Modal({ open, title, children, actions }) {
+export default function Modal({ open, title, children, actions, destructive = false }) {
   const dialogRef = useRef(null)
-  const safeRef = useRef(null)
+  const firstFocusRef = useRef(null)
   const titleId = useId()
 
   useEffect(() => {
     const dialog = dialogRef.current
     if (open && !dialog.open) {
       dialog.showModal()
-      safeRef.current?.focus()
+      firstFocusRef.current?.focus()
     } else if (!open && dialog.open) {
       dialog.close()
     }
   }, [open])
 
-  const safeIndex = Math.max(
-    actions.findIndex((action) => !action.primary),
+  const firstFocus = Math.max(
+    actions.findIndex((action) => (destructive ? !action.primary : action.primary)),
     0,
   )
 
@@ -69,7 +70,7 @@ export default function Modal({ open, title, children, actions }) {
           {actions.map((action, index) => (
             <button
               key={action.label}
-              ref={index === safeIndex ? safeRef : undefined}
+              ref={index === firstFocus ? firstFocusRef : undefined}
               type="button"
               onClick={action.onClick}
               className={buttonClasses(action.primary ? 'primary' : 'secondary')}

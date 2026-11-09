@@ -447,6 +447,7 @@ function Question({ question: initialQuestion, answers: initialAnswers, resource
       <output className="sr-only">{announcement}</output>
 
       <Modal
+        destructive
         open={confirmingRetirement}
         title="¿Retirar esta pregunta?"
         actions={[

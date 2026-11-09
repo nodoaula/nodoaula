@@ -5,7 +5,7 @@
  * y 3 cuando va dentro de una sección que ya tiene su h2.
  */
 export default function Notice({ title, children, action, role = 'status', titleLevel = 2 }) {
-  const Title = `h${titleLevel}`
+  const Title = { 1: 'h1', 3: 'h3' }[titleLevel] ?? 'h2'
   return (
     <div role={role} className="flex max-w-2xl gap-4 rounded-2xl border border-border-strong bg-surface-raised p-6">
       <span

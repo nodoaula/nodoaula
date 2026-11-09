@@ -97,6 +97,7 @@ export default function AnswerThread({ answers, usefulAnswerId, canMarkUseful, s
       })}
 
       <Modal
+        destructive
         open={confirming !== null}
         title="¿Retirar esta respuesta?"
         actions={[

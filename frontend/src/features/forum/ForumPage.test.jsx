@@ -206,6 +206,11 @@ describe('ForumPage', () => {
     expect(busy).toHaveAttribute('aria-disabled', 'true')
     fireEvent.click(busy)
     expect(createQuestion).toHaveBeenCalledTimes(1)
+    // Tampoco se cancela a medias: el envío ya salió.
+    const cancel = screen.getByRole('button', { name: 'Cancelar' })
+    expect(cancel).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(cancel)
+    expect(screen.getByRole('form', { name: 'Publicar una pregunta' })).toBeInTheDocument()
 
     await act(async () => resolve({ ...QUESTION, id: 2 }))
   })

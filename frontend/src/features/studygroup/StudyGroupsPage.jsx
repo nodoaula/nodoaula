@@ -306,6 +306,7 @@ function CourseGroups({ courseId, courseName, initialGroups, signedIn }) {
       <output className="sr-only">{announcement}</output>
 
       <Modal
+        destructive
         open={confirming !== null}
         title="¿Retirar este grupo?"
         actions={[
@@ -317,6 +318,7 @@ function CourseGroups({ courseId, courseName, initialGroups, signedIn }) {
       </Modal>
 
       <Modal
+        destructive
         open={leaving !== null}
         title="¿Salir de este grupo?"
         actions={[
