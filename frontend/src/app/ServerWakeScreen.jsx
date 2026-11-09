@@ -76,7 +76,9 @@ function Waking() {
         Lleva {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
       </p>
       {seconds >= USUAL_WAKE_SECONDS && (
-        <p className="mt-2 text-label text-content-muted">Está tardando más de lo normal; seguimos esperando a que conteste.</p>
+        <output className="mt-2 block text-label text-content-muted">
+          Está tardando más de lo normal; seguimos esperando a que conteste.
+        </output>
       )}
     </div>
   )

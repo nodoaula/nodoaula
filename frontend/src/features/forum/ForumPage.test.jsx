@@ -128,10 +128,10 @@ describe('ForumPage', () => {
     const rows = within(list).getAllByRole('link')
     expect(rows[0]).toHaveTextContent('Otra duda')
     expect(rows[0]).toHaveAttribute('href', '/foro/preguntas/2')
-    // Al publicar se cierra, se anuncia y el foco vuelve al botón.
+    // Al publicar se cierra y, como al responder, el foco va a lo publicado.
     expect(screen.queryByRole('form')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Hacer una pregunta' })).toHaveFocus()
-    expect(await screen.findByText('Pregunta publicada.')).toBeInTheDocument()
+    expect(rows[0]).toHaveFocus()
+    expect(await screen.findByText('Publicaste tu pregunta.')).toBeInTheDocument()
   })
 
   it('el botón abre el formulario con el foco en el título y «Cancelar» lo cierra conservando lo escrito', async () => {

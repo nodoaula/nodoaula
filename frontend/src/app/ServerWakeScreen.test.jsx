@@ -41,7 +41,8 @@ describe('ServerWakeScreen', () => {
     act(() => vi.advanceTimersByTime(179_000))
     expect(screen.queryByText(/más de lo normal/)).not.toBeInTheDocument()
     act(() => vi.advanceTimersByTime(1000))
-    expect(screen.getByText(/Está tardando más de lo normal/)).toBeInTheDocument()
+    // Se anuncia una sola vez, a diferencia del reloj.
+    expect(screen.getByRole('status')).toHaveTextContent('Está tardando más de lo normal')
   })
 
   it('si no responde lo avisa con una alerta y deja volver a intentarlo', () => {

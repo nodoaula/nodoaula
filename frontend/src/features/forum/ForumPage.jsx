@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
@@ -173,9 +174,13 @@ function Forum({ courseId, questionRetired: arrivedFromRetirement, askOnArrival 
             resources={resources}
             onCancel={closeForm}
             onPublished={(question) => {
-              setQuestions((current) => [question, ...current])
-              closeForm()
-              announce('Pregunta publicada.')
+              // Como al responder: el foco va a lo publicado, que ya está pintado.
+              flushSync(() => {
+                setQuestions((current) => [question, ...current])
+                setAsking(false)
+              })
+              document.getElementById(questionElementId(question.id))?.focus()
+              announce('Publicaste tu pregunta.')
             }}
           />
         </section>
@@ -222,9 +227,11 @@ function QuestionList({ questions, resources }) {
   )
 }
 
+const questionElementId = (id) => `pregunta-${id}`
+
 function QuestionRow({ question, resourceTitle }) {
   return (
-    <Link to={`/foro/preguntas/${question.id}`} className="group block px-1 py-4.5">
+    <Link id={questionElementId(question.id)} to={`/foro/preguntas/${question.id}`} className="group block px-1 py-4.5">
       <span className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
         <span className="min-w-0 text-[1.03125rem] leading-snug font-semibold wrap-break-word text-content transition-colors group-hover:text-accent">
           {question.title}
