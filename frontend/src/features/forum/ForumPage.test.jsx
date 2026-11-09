@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -29,9 +29,9 @@ function Destination({ name }) {
   return <p>{`${name} desde ${state?.from ?? 'ninguna'}`}</p>
 }
 
-function renderForum(courseId = '1') {
+function renderForum(courseId = '1', search = '') {
   return render(
-    <MemoryRouter initialEntries={[`/catalogo/cursos/${courseId}/foro`]}>
+    <MemoryRouter initialEntries={[`/catalogo/cursos/${courseId}/foro${search}`]}>
       <Routes>
         <Route path="/catalogo/cursos/:courseId/foro" element={<ForumPage />} />
         <Route path="/iniciar-sesion" element={<Destination name="Inicio de sesión" />} />
@@ -39,6 +39,12 @@ function renderForum(courseId = '1') {
       </Routes>
     </MemoryRouter>,
   )
+}
+
+async function openForm() {
+  renderForum()
+  fireEvent.click(await screen.findByRole('button', { name: 'Hacer una pregunta' }))
+  return screen.findByRole('form', { name: 'Publicar una pregunta' })
 }
 
 describe('ForumPage', () => {
@@ -51,29 +57,40 @@ describe('ForumPage', () => {
 
   afterEach(cleanup)
 
-  it('sin sesión muestra las preguntas y la invitación a iniciar sesión, sin formulario', async () => {
+  it('sin sesión muestra las preguntas y «Hacer una pregunta» lleva a iniciar sesión, sin formulario', async () => {
     renderForum()
 
     expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Foro de Arquitectura de Software')
     expect(listQuestions).toHaveBeenCalledWith('1')
     expect(screen.getByText('¿Cuándo usar un monolito modular?')).toBeInTheDocument()
     expect(screen.getByText(/Sobre «Spring Boot 2026-2»/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Iniciar sesión' })).toHaveAttribute('href', '/iniciar-sesion')
-    expect(screen.getByRole('link', { name: 'Crear cuenta' })).toHaveAttribute('href', '/registro')
+    expect(screen.getByRole('link', { name: 'Hacer una pregunta' })).toHaveAttribute('href', '/iniciar-sesion')
     expect(screen.queryByRole('form')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Retirar' })).not.toBeInTheDocument()
   })
 
-  // Historia HU403: quien intenta preguntar sin sesión vuelve al foro al entrar.
-  it('iniciar sesión o crear una cuenta lleva el foro para volver a él', async () => {
+  // Historia HU403: quien intenta preguntar sin sesión vuelve al foro al
+  // entrar, y con el formulario ya abierto.
+  it('sin sesión, «Hacer una pregunta» recuerda el foro para volver a él con el formulario abierto', async () => {
     renderForum()
-    fireEvent.click(await screen.findByRole('link', { name: 'Iniciar sesión' }))
-    expect(await screen.findByText('Inicio de sesión desde /catalogo/cursos/1/foro')).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('link', { name: 'Hacer una pregunta' }))
+    expect(await screen.findByText('Inicio de sesión desde /catalogo/cursos/1/foro?preguntar')).toBeInTheDocument()
+  })
 
-    cleanup()
-    renderForum()
-    fireEvent.click(await screen.findByRole('link', { name: 'Crear cuenta' }))
-    expect(await screen.findByText('Registro desde /catalogo/cursos/1/foro')).toBeInTheDocument()
+  it('sin sesión, llegar con ?preguntar no abre el formulario', async () => {
+    renderForum('1', '?preguntar')
+
+    expect(await screen.findByRole('link', { name: 'Hacer una pregunta' })).toBeInTheDocument()
+    expect(screen.queryByRole('form')).not.toBeInTheDocument()
+  })
+
+  it('con sesión, al llegar con ?preguntar el formulario ya está abierto', async () => {
+    session = { status: 'ready', account: { id: 5 } }
+    renderForum('1', '?preguntar')
+
+    expect(await screen.findByRole('form', { name: 'Publicar una pregunta' })).toBeInTheDocument()
+    // El formulario aparece al llegar los datos, y el foco se mueve después de pintarlo.
+    await waitFor(() => expect(screen.getByLabelText('Título')).toHaveFocus())
   })
 
   it('un curso sin recursos se trata como no encontrado', async () => {
@@ -93,8 +110,7 @@ describe('ForumPage', () => {
   it('con sesión publica una pregunta y aparece primero en la lista', async () => {
     session = { status: 'ready', account: { id: 5 } }
     createQuestion.mockResolvedValue({ ...QUESTION, id: 2, title: 'Otra duda', resourceId: null, canRetire: true })
-    renderForum()
-    await screen.findByRole('form', { name: 'Publicar una pregunta' })
+    await openForm()
 
     fireEvent.change(screen.getByLabelText('Título'), { target: { value: '  Otra duda ' } })
     fireEvent.change(screen.getByLabelText('Detalle'), { target: { value: 'Detalle de la duda' } })
@@ -112,18 +128,66 @@ describe('ForumPage', () => {
     const rows = within(list).getAllByRole('link')
     expect(rows[0]).toHaveTextContent('Otra duda')
     expect(rows[0]).toHaveAttribute('href', '/foro/preguntas/2')
-    expect(screen.getByLabelText('Título')).toHaveValue('')
+    // Al publicar se cierra, se anuncia y el foco vuelve al botón.
+    expect(screen.queryByRole('form')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Hacer una pregunta' })).toHaveFocus()
+    expect(await screen.findByText('Pregunta publicada.')).toBeInTheDocument()
+  })
+
+  it('el botón abre el formulario con el foco en el título y «Cancelar» lo cierra sin guardar lo escrito', async () => {
+    session = { status: 'ready', account: { id: 5 } }
+    await openForm()
+    expect(screen.getByLabelText('Título')).toHaveFocus()
+    expect(screen.queryByRole('button', { name: 'Hacer una pregunta' })).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'Borrador' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    expect(screen.queryByRole('form')).not.toBeInTheDocument()
+    const ask = screen.getByRole('button', { name: 'Hacer una pregunta' })
+    expect(ask).toHaveFocus()
+    fireEvent.click(ask)
+    expect(await screen.findByLabelText('Título')).toHaveValue('')
+  })
+
+  it('mientras publica no deja enviar dos veces', async () => {
+    session = { status: 'ready', account: { id: 5 } }
+    let resolve
+    createQuestion.mockReturnValue(new Promise((r) => (resolve = r)))
+    await openForm()
+
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'T' } })
+    fireEvent.change(screen.getByLabelText('Detalle'), { target: { value: 'D' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Publicar pregunta' }))
+    const busy = await screen.findByRole('button', { name: 'Publicando…' })
+    expect(busy).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.click(busy)
+    expect(createQuestion).toHaveBeenCalledTimes(1)
+
+    await act(async () => resolve({ ...QUESTION, id: 2 }))
+  })
+
+  it('si el servidor falla lo avisa con una alerta y conserva lo escrito', async () => {
+    session = { status: 'ready', account: { id: 5 } }
+    createQuestion.mockRejectedValue(new ApiError('x', { status: 500 }))
+    await openForm()
+
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'Mi duda' } })
+    fireEvent.change(screen.getByLabelText('Detalle'), { target: { value: 'D' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Publicar pregunta' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo publicar la pregunta')
+    expect(screen.getByLabelText('Título')).toHaveValue('Mi duda')
   })
 
   it('puede asociar la pregunta a un recurso del curso', async () => {
     session = { status: 'ready', account: { id: 5 } }
     createQuestion.mockResolvedValue({ ...QUESTION, id: 2 })
-    renderForum()
-    await screen.findByRole('form', { name: 'Publicar una pregunta' })
+    await openForm()
 
     fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'T' } })
     fireEvent.change(screen.getByLabelText('Detalle'), { target: { value: 'D' } })
-    fireEvent.change(screen.getByLabelText('Recurso relacionado (opcional)'), { target: { value: '10' } })
+    fireEvent.change(screen.getByLabelText(/Recurso relacionado/), { target: { value: '10' } })
     fireEvent.click(screen.getByRole('button', { name: 'Publicar pregunta' }))
 
     await waitFor(() => expect(createQuestion).toHaveBeenCalledWith(expect.objectContaining({ resourceId: 10 })))
@@ -131,14 +195,24 @@ describe('ForumPage', () => {
 
   it('con campos vacíos muestra los errores y no llama al backend', async () => {
     session = { status: 'ready', account: { id: 5 } }
-    renderForum()
-    await screen.findByRole('form', { name: 'Publicar una pregunta' })
+    await openForm()
 
     fireEvent.click(screen.getByRole('button', { name: 'Publicar pregunta' }))
 
     expect(await screen.findByText('Escribe el título de tu pregunta.')).toBeInTheDocument()
     expect(screen.getByText('Cuenta tu duda con más detalle.')).toBeInTheDocument()
     expect(createQuestion).not.toHaveBeenCalled()
+  })
+
+  it('tras un envío con errores lleva el foco al primer campo con error', async () => {
+    session = { status: 'ready', account: { id: 5 } }
+    await openForm()
+
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'Con título' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Publicar pregunta' }))
+
+    expect(await screen.findByText('Cuenta tu duda con más detalle.')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByLabelText('Detalle')).toHaveFocus())
   })
 
   it('muestra junto al campo el error de validación del backend', async () => {
@@ -149,12 +223,11 @@ describe('ForumPage', () => {
         body: { code: 'VALIDATION_FAILED', errors: [{ field: 'resourceId', message: 'El recurso no está publicado en ese curso.' }] },
       }),
     )
-    renderForum()
-    await screen.findByRole('form', { name: 'Publicar una pregunta' })
+    await openForm()
 
     fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'T' } })
     fireEvent.change(screen.getByLabelText('Detalle'), { target: { value: 'D' } })
-    fireEvent.change(screen.getByLabelText('Recurso relacionado (opcional)'), { target: { value: '10' } })
+    fireEvent.change(screen.getByLabelText(/Recurso relacionado/), { target: { value: '10' } })
     fireEvent.click(screen.getByRole('button', { name: 'Publicar pregunta' }))
 
     expect(await screen.findByText('El recurso no está publicado en ese curso.')).toBeInTheDocument()
