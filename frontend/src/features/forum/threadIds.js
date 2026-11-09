@@ -5,3 +5,4 @@ export const markButtonId = (answerId) => `marcar-util-${answerId}`
 export const unmarkButtonId = (answerId) => `quitar-marca-${answerId}`
 export const retireButtonId = (answerId) => `retirar-respuesta-${answerId}`
 export const RETIRE_QUESTION_BUTTON_ID = 'retirar-pregunta'
+export const questionElementId = (questionId) => `pregunta-${questionId}`

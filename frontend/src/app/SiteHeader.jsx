@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router'
 
 import { buttonClasses } from '../components/ui/button.js'
+import Logo from '../components/ui/Logo.jsx'
 import { initialOf } from '../features/account/profile.js'
 import { SESSION_STATUS } from '../session/SessionContext.js'
 import { useLogout } from '../session/useLogout.js'
@@ -187,16 +188,5 @@ function ContributeMenu() {
         ))}
       </ul>
     </div>
-  )
-}
-
-function Logo() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" className="size-6">
-      <path d="M5 5 19 12 5 19" className="stroke-border-strong" strokeWidth="2" />
-      <circle cx="5" cy="5" r="3.5" className="fill-content" />
-      <circle cx="5" cy="19" r="3.5" className="fill-content" />
-      <circle cx="19" cy="12" r="4.5" className="fill-accent" />
-    </svg>
   )
 }

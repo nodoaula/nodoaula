@@ -97,6 +97,7 @@ export default function AnswerThread({ answers, usefulAnswerId, canMarkUseful, s
       })}
 
       <Modal
+        destructive
         open={confirming !== null}
         title="¿Retirar esta respuesta?"
         actions={[
@@ -104,7 +105,7 @@ export default function AnswerThread({ answers, usefulAnswerId, canMarkUseful, s
           { label: 'Sí, retirar', onClick: retire, primary: true },
         ]}
       >
-        <p className="text-sm text-slate-700">Dejará de verse en esta pregunta para todos.</p>
+        <p>Dejará de verse en esta pregunta para todos.</p>
       </Modal>
     </section>
   )

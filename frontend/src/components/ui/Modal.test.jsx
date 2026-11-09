@@ -35,6 +35,14 @@ describe('Modal', () => {
     expect(screen.getByRole('button', { name: 'Aceptar' })).toHaveFocus()
   })
 
+  // Con una acción difícil de deshacer, como retirar, un Enter sin querer no
+  // debe confirmarla: el foco empieza en la opción que no cambia nada.
+  it('si lo que confirma es destructivo, el foco empieza en la opción que no cambia nada', () => {
+    renderModal({ destructive: true })
+
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toHaveFocus()
+  })
+
   it('cada botón llama a su acción', () => {
     const { onConfirm, onDismiss } = renderModal()
 

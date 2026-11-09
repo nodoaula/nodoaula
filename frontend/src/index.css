@@ -46,6 +46,12 @@
   --animate-pop: pop 0.4s var(--ease-arrive) both;
   /* Una señal recorre una arista (offset-path) y se apaga al llegar. */
   --animate-signal: signal 3.6s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+  /* Mientras despierta el servidor: una señal hace un solo viaje hasta un tema,
+     que se enciende al llegarle. La señal llega a los 1,6 s (88 % de 1,8 s) y
+     el tema se enciende entre 1,5 y 1,7 s (58–66 % de 2,6 s). */
+  --animate-signal-once: signal-once 1.8s cubic-bezier(0.45, 0, 0.25, 1) both;
+  --animate-glow: glow 2.6s linear both;
+  --animate-pulse-ring: ring 2.4s var(--ease-arrive) 0.2s infinite;
 
   @keyframes dash-flow {
     to {
@@ -123,6 +129,38 @@
     100% {
       offset-distance: 100%;
       opacity: 0;
+    }
+  }
+  @keyframes signal-once {
+    0% {
+      offset-distance: 0%;
+      opacity: 0;
+    }
+    8% {
+      opacity: 1;
+    }
+    88% {
+      offset-distance: 100%;
+      opacity: 1;
+    }
+    100% {
+      offset-distance: 100%;
+      opacity: 0;
+    }
+  }
+  @keyframes glow {
+    0%,
+    58% {
+      opacity: 0;
+      transform: scale(0.7);
+    }
+    66% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(1);
     }
   }
 }

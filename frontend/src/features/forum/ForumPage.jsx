@@ -1,20 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
 import NodePath from '../../components/ui/NodePath.jsx'
 import Notice from '../../components/ui/Notice.jsx'
 import Tag from '../../components/ui/Tag.jsx'
-import SignInNotice from '../../session/SignInNotice.jsx'
+import { useAnnouncer } from '../../components/ui/useAnnouncer.js'
+import { SESSION_STATUS } from '../../session/SessionContext.js'
 import { useSession } from '../../session/useSession.js'
 import { listResources } from '../catalog/api.js'
 import { listQuestions } from './api.js'
 import { formatAnswerCount, formatForumDate } from './format.js'
 import QuestionForm from './QuestionForm.jsx'
+import { questionElementId } from './threadIds.js'
 
 /**
  * Foro de un curso (HU401): lista de preguntas, visible sin sesión, y
- * formulario para publicar con sesión iniciada. Cada pregunta enlaza a su
+ * formulario para publicar, que se abre con «Hacer una pregunta». Sin sesión,
+ * ese botón lleva a iniciarla y vuelve con `?preguntar`, que lo deja abierto. Cada pregunta enlaza a su
  * página, donde se responde y se retira (HU402). El autor no se muestra hasta
  * que exista el perfil público (HU506).
  */
@@ -22,23 +26,48 @@ export default function ForumPage() {
   const { courseId } = useParams()
   const location = useLocation()
   const navigate = useNavigate()
+  // Las marcas de llegada valen una vez y salen del historial en una sola
+  // navegación, para que recargar o volver atrás no las repita: el aviso de
+  // pregunta retirada (HU402) y `?preguntar`, que abre el formulario. Forum
+  // las conserva mientras siga montado.
   const questionRetired = location.state?.questionRetired === true
-
-  // Al volver de retirar una pregunta desde su página (HU402), el foro lo
-  // confirma una vez: la marca sale del historial para que el aviso no vuelva
-  // al recargar ni al volver atrás. Forum la conserva mientras siga montado.
+  const askOnArrival = new URLSearchParams(location.search).has('preguntar')
   useEffect(() => {
-    if (!questionRetired) return
-    navigate({ pathname: location.pathname, search: location.search, hash: location.hash }, { replace: true, state: null })
-  }, [questionRetired, location.pathname, location.search, location.hash, navigate])
+    if (!questionRetired && !askOnArrival) return
+    const params = new URLSearchParams(location.search)
+    params.delete('preguntar')
+    const search = params.toString()
+    navigate(
+      { pathname: location.pathname, search: search && `?${search}`, hash: location.hash },
+      { replace: true, state: null },
+    )
+  }, [questionRetired, askOnArrival, location.pathname, location.search, location.hash, navigate])
 
-  return <Forum key={courseId} courseId={courseId} questionRetired={questionRetired} />
+  return <Forum key={courseId} courseId={courseId} questionRetired={questionRetired} askOnArrival={askOnArrival} />
 }
 
-function Forum({ courseId, questionRetired: arrivedFromRetirement }) {
+function Forum({ courseId, questionRetired: arrivedFromRetirement, askOnArrival }) {
   const [questionRetired] = useState(arrivedFromRetirement)
   const validId = /^\d+$/.test(courseId)
-  const { account } = useSession()
+  const { status: sessionStatus, account } = useSession()
+  const { pathname } = useLocation()
+  const [asking, setAsking] = useState(askOnArrival)
+  const [announcement, announce] = useAnnouncer()
+  const askButton = useRef(null)
+  const closedByUser = useRef(false)
+
+  // Al cerrar el formulario, el foco vuelve al botón que lo abrió: el que
+  // tenía desaparece con el formulario.
+  useEffect(() => {
+    if (asking || !closedByUser.current) return
+    closedByUser.current = false
+    askButton.current?.focus()
+  }, [asking])
+
+  function closeForm() {
+    closedByUser.current = true
+    setAsking(false)
+  }
   const [resources, setResources] = useState(validId ? null : [])
   const [questions, setQuestions] = useState(validId ? null : [])
   const [error, setError] = useState(null)
@@ -99,6 +128,7 @@ function Forum({ courseId, questionRetired: arrivedFromRetirement }) {
   }
 
   const name = resources[0].course
+  const formOpen = asking && account !== null
 
   return (
     <main className="mx-auto max-w-page px-4 pt-9 pb-18 sm:px-6">
@@ -110,29 +140,56 @@ function Forum({ courseId, questionRetired: arrivedFromRetirement }) {
         ]}
         current="Foro"
       />
-      <h1 className="mt-5 text-[1.875rem] leading-[1.08] font-semibold tracking-tight text-balance sm:text-display">
-        Foro de {name}
-      </h1>
+      <div className="mt-5 flex max-w-[72ch] flex-wrap items-end justify-between gap-x-6 gap-y-4">
+        <h1 className="text-[1.875rem] leading-[1.08] font-semibold tracking-tight text-balance sm:text-display">
+          Foro de {name}
+        </h1>
+        {/* Hasta saber si hay sesión no se ofrece: sin ella lleva a iniciarla. */}
+        {!formOpen &&
+          sessionStatus === SESSION_STATUS.READY &&
+          (account === null ? (
+            // Vuelve al foro con el formulario abierto al iniciar sesión o
+            // crear la cuenta (HU403).
+            <Link to="/iniciar-sesion" state={{ from: `${pathname}?preguntar` }} className={buttonClasses('primary', 'lg')}>
+              Hacer una pregunta
+            </Link>
+          ) : (
+            <button ref={askButton} type="button" onClick={() => setAsking(true)} className={buttonClasses('primary', 'lg')}>
+              Hacer una pregunta
+            </button>
+          ))}
+      </div>
 
       {questionRetired && <RetiredQuestionNotice />}
 
-      <section aria-labelledby="ask-heading" className="mt-8">
-        <h2 id="ask-heading" className="mb-4 text-lead font-semibold text-content">
-          Haz una pregunta
-        </h2>
-        {/* Vuelve al foro al iniciar sesión o crear la cuenta (HU403). */}
-        {account === null ? (
-          <SignInNotice title="Inicia sesión para preguntar">
-            Puedes leer las preguntas sin cuenta; para publicar una necesitas iniciar sesión.
-          </SignInNotice>
-        ) : (
+      {/* Oculto y no desmontado: «Cancelar» guarda lo escrito para la próxima vez. */}
+      {account !== null && (
+        <section
+          hidden={!formOpen}
+          aria-labelledby="ask-heading"
+          className="mt-8 max-w-[72ch] rounded-2xl border border-border-strong p-6"
+        >
+          <h2 id="ask-heading" className="mb-4 text-lead font-semibold text-content">
+            Tu pregunta
+          </h2>
           <QuestionForm
+            open={formOpen}
             courseId={courseId}
             resources={resources}
-            onPublished={(question) => setQuestions((current) => [question, ...current])}
+            onCancel={closeForm}
+            onPublished={(question) => {
+              // Como al responder: el foco va a lo publicado, que ya está pintado.
+              flushSync(() => {
+                setQuestions((current) => [question, ...current])
+                setAsking(false)
+              })
+              document.getElementById(questionElementId(question.id))?.focus()
+              announce('Publicaste tu pregunta.')
+            }}
           />
-        )}
-      </section>
+        </section>
+      )}
+      <output className="sr-only">{announcement}</output>
 
       <QuestionList questions={questions} resources={resources} />
     </main>
@@ -176,7 +233,7 @@ function QuestionList({ questions, resources }) {
 
 function QuestionRow({ question, resourceTitle }) {
   return (
-    <Link to={`/foro/preguntas/${question.id}`} className="group block px-1 py-4.5">
+    <Link id={questionElementId(question.id)} to={`/foro/preguntas/${question.id}`} className="group block px-1 py-4.5">
       <span className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
         <span className="min-w-0 text-[1.03125rem] leading-snug font-semibold wrap-break-word text-content transition-colors group-hover:text-accent">
           {question.title}

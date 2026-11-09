@@ -447,6 +447,7 @@ function Question({ question: initialQuestion, answers: initialAnswers, resource
       <output className="sr-only">{announcement}</output>
 
       <Modal
+        destructive
         open={confirmingRetirement}
         title="¿Retirar esta pregunta?"
         actions={[
@@ -454,7 +455,7 @@ function Question({ question: initialQuestion, answers: initialAnswers, resource
           { label: 'Sí, retirar', onClick: retireTheQuestion, primary: true },
         ]}
       >
-        <p className="text-sm text-slate-700">Dejará de aparecer en el foro del curso para todos, con sus respuestas.</p>
+        <p>Dejará de aparecer en el foro del curso para todos, con sus respuestas.</p>
       </Modal>
     </>
   )
