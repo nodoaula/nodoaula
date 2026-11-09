@@ -36,7 +36,7 @@ describe('NotFoundPage', () => {
     renderAt('/no-existe')
 
     fireEvent.change(screen.getByLabelText('Busca lo que necesitabas'), { target: { value: ' integral definida ' } })
-    fireEvent.submit(screen.getByLabelText('Busca lo que necesitabas'))
+    fireEvent.submit(screen.getByLabelText('Busca lo que necesitabas').form)
 
     expect(screen.getByTestId('location')).toHaveTextContent('/catalogo?q=integral+definida')
   })
@@ -44,7 +44,7 @@ describe('NotFoundPage', () => {
   it('buscar sin escribir nada abre el catálogo entero', () => {
     renderAt('/no-existe')
 
-    fireEvent.submit(screen.getByLabelText('Busca lo que necesitabas'))
+    fireEvent.submit(screen.getByLabelText('Busca lo que necesitabas').form)
 
     expect(screen.getByTestId('location')).toHaveTextContent(/^\/catalogo$/)
   })
