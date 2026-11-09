@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { buttonClasses } from '../components/ui/button.js'
 import Logo from '../components/ui/Logo.jsx'
@@ -41,6 +41,14 @@ const MAX_SIGNALS = 6
  * rutas, por eso la cabecera solo lleva el logotipo.
  */
 export default function ServerWakeScreen({ status, onRetry }) {
+  // Tras «Volver a intentarlo» el botón desaparece: el foco pasa al título.
+  const [retried, setRetried] = useState(false)
+
+  function retry() {
+    setRetried(true)
+    onRetry()
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-surface text-content">
       <div className="border-b border-border">
@@ -52,7 +60,7 @@ export default function ServerWakeScreen({ status, onRetry }) {
         </header>
       </div>
       <main className="grid flex-1 place-items-center px-4 pt-12 pb-30 sm:px-6">
-        {status === SERVER_STATUS.UNREACHABLE ? <Unreachable onRetry={onRetry} /> : <Waking />}
+        {status === SERVER_STATUS.UNREACHABLE ? <Unreachable onRetry={retry} /> : <Waking focusTitle={retried} />}
       </main>
     </div>
   )
@@ -61,26 +69,42 @@ export default function ServerWakeScreen({ status, onRetry }) {
 const TITLE = 'mt-7 text-[1.875rem] leading-[1.15] font-semibold tracking-tight text-balance'
 const TEXT = 'mt-3 text-base leading-[1.55] text-pretty text-content-muted'
 
-function Waking() {
-  const seconds = useElapsedSeconds()
+function Waking({ focusTitle }) {
+  const title = useRef(null)
+  useEffect(() => {
+    if (focusTitle) title.current.focus()
+  }, [focusTitle])
+
   return (
     <div className="flex max-w-130 flex-col items-center text-center">
       <WakeGraph />
-      <h1 className={TITLE}>Despertando NodoAula</h1>
+      <h1 ref={title} tabIndex={-1} className={TITLE}>
+        Despertando NodoAula
+      </h1>
       <p className={TEXT}>
         El servidor es gratuito y se duerme cuando nadie lo usa. Tarda unos tres minutos en despertar, y esta página se
         abre sola en cuanto conteste.
       </p>
+      <Elapsed />
+    </div>
+  )
+}
+
+// Aparte del mapa: el reloj cambia cada segundo y así no vuelve a pintarlo.
+function Elapsed() {
+  const seconds = useElapsedSeconds()
+  return (
+    <>
       {/* Sin región viva: un lector de pantalla leería cada segundo. */}
       <p className="mt-4 font-mono text-label text-content-muted tabular-nums">
         Lleva {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
       </p>
-      {seconds >= USUAL_WAKE_SECONDS && (
-        <output className="mt-2 block text-label text-content-muted">
-          Está tardando más de lo normal; seguimos esperando a que conteste.
-        </output>
-      )}
-    </div>
+      {/* La región está desde el principio, vacía, porque un lector de
+          pantalla solo anuncia lo que cambia dentro de una que ya estaba. */}
+      <output className="mt-2 block text-label text-content-muted">
+        {seconds >= USUAL_WAKE_SECONDS ? 'Está tardando más de lo normal; seguimos esperando a que conteste.' : ''}
+      </output>
+    </>
   )
 }
 

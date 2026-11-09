@@ -7,6 +7,7 @@ import NodePath from '../../components/ui/NodePath.jsx'
 import Notice from '../../components/ui/Notice.jsx'
 import Tag from '../../components/ui/Tag.jsx'
 import { useAnnouncer } from '../../components/ui/useAnnouncer.js'
+import { SESSION_STATUS } from '../../session/SessionContext.js'
 import { useSession } from '../../session/useSession.js'
 import { listResources } from '../catalog/api.js'
 import { listQuestions } from './api.js'
@@ -34,20 +35,27 @@ export default function ForumPage() {
     navigate({ pathname: location.pathname, search: location.search, hash: location.hash }, { replace: true, state: null })
   }, [questionRetired, location.pathname, location.search, location.hash, navigate])
 
-  return (
-    <Forum
-      key={courseId}
-      courseId={courseId}
-      questionRetired={questionRetired}
-      askOnArrival={new URLSearchParams(location.search).has('preguntar')}
-    />
-  )
+  // `?preguntar` abre el formulario una sola vez: sale de la dirección para
+  // que volver atrás o recargar no lo abra de nuevo.
+  const askOnArrival = new URLSearchParams(location.search).has('preguntar')
+  useEffect(() => {
+    if (!askOnArrival) return
+    const params = new URLSearchParams(location.search)
+    params.delete('preguntar')
+    const search = params.toString()
+    navigate(
+      { pathname: location.pathname, search: search && `?${search}`, hash: location.hash },
+      { replace: true, state: location.state },
+    )
+  }, [askOnArrival, location.pathname, location.search, location.hash, location.state, navigate])
+
+  return <Forum key={courseId} courseId={courseId} questionRetired={questionRetired} askOnArrival={askOnArrival} />
 }
 
 function Forum({ courseId, questionRetired: arrivedFromRetirement, askOnArrival }) {
   const [questionRetired] = useState(arrivedFromRetirement)
   const validId = /^\d+$/.test(courseId)
-  const { account } = useSession()
+  const { status: sessionStatus, account } = useSession()
   const { pathname } = useLocation()
   const [asking, setAsking] = useState(askOnArrival)
   const [announcement, announce] = useAnnouncer()
@@ -142,7 +150,9 @@ function Forum({ courseId, questionRetired: arrivedFromRetirement, askOnArrival 
         <h1 className="text-[1.875rem] leading-[1.08] font-semibold tracking-tight text-balance sm:text-display">
           Foro de {name}
         </h1>
+        {/* Hasta saber si hay sesión no se ofrece: sin ella lleva a iniciarla. */}
         {!formOpen &&
+          sessionStatus === SESSION_STATUS.READY &&
           (account === null ? (
             // Vuelve al foro con el formulario abierto al iniciar sesión o
             // crear la cuenta (HU403).

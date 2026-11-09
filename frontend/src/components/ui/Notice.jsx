@@ -1,10 +1,11 @@
 /**
  * Aviso dentro de una página: qué pasa y, si hay, qué hacer. `role` decide
  * cómo lo anuncia un lector de pantalla: "status" espera a que termine de
- * leer, "alert" interrumpe. `titleLevel` 1 cuando el aviso es toda la página.
+ * leer, "alert" interrumpe. `titleLevel` 1 cuando el aviso es toda la página,
+ * y 3 cuando va dentro de una sección que ya tiene su h2.
  */
 export default function Notice({ title, children, action, role = 'status', titleLevel = 2 }) {
-  const Title = titleLevel === 1 ? 'h1' : 'h2'
+  const Title = `h${titleLevel}`
   return (
     <div role={role} className="flex max-w-2xl gap-4 rounded-2xl border border-border-strong bg-surface-raised p-6">
       <span

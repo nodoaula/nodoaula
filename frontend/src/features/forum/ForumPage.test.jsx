@@ -29,9 +29,15 @@ function Destination({ name }) {
   return <p>{`${name} desde ${state?.from ?? 'ninguna'}`}</p>
 }
 
+function CurrentLocation() {
+  const { pathname, search } = useLocation()
+  return <p data-testid="location">{pathname + search}</p>
+}
+
 function renderForum(courseId = '1', search = '') {
   return render(
     <MemoryRouter initialEntries={[`/catalogo/cursos/${courseId}/foro${search}`]}>
+      <CurrentLocation />
       <Routes>
         <Route path="/catalogo/cursos/:courseId/foro" element={<ForumPage />} />
         <Route path="/iniciar-sesion" element={<Destination name="Inicio de sesión" />} />
@@ -84,13 +90,23 @@ describe('ForumPage', () => {
     expect(screen.queryByRole('form')).not.toBeInTheDocument()
   })
 
-  it('con sesión, al llegar con ?preguntar el formulario ya está abierto', async () => {
+  it('mientras se sabe si hay sesión no ofrece «Hacer una pregunta»', async () => {
+    session = { status: 'loading', account: null }
+    renderForum()
+
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument()
+    expect(screen.queryByText('Hacer una pregunta')).not.toBeInTheDocument()
+  })
+
+  it('con sesión, al llegar con ?preguntar el formulario ya está abierto y la marca sale de la dirección', async () => {
     session = { status: 'ready', account: { id: 5 } }
     renderForum('1', '?preguntar')
 
     expect(await screen.findByRole('form', { name: 'Publicar una pregunta' })).toBeInTheDocument()
     // El formulario aparece al llegar los datos, y el foco se mueve después de pintarlo.
     await waitFor(() => expect(screen.getByLabelText('Título')).toHaveFocus())
+    // Así, volver atrás o recargar no lo abre otra vez.
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/catalogo\/cursos\/1\/foro$/)
   })
 
   it('un curso sin recursos se trata como no encontrado', async () => {
@@ -165,7 +181,7 @@ describe('ForumPage', () => {
     expect(screen.getByLabelText('Detalle')).toHaveValue('')
   })
 
-  it('si el envío agota el tiempo pide recargar para comprobar si se publicó', async () => {
+  it('si el envío agota el tiempo pide comprobar el foro sin perder lo escrito', async () => {
     session = { status: 'ready', account: { id: 5 } }
     createQuestion.mockRejectedValue(new ApiError('x', { timedOut: true }))
     await openForm()
@@ -174,7 +190,7 @@ describe('ForumPage', () => {
     fireEvent.change(screen.getByLabelText('Detalle'), { target: { value: 'D' } })
     fireEvent.click(screen.getByRole('button', { name: 'Publicar pregunta' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('recarga la página para comprobarlo')
+    expect(await screen.findByRole('alert')).toHaveTextContent('mira el foro en otra pestaña')
   })
 
   it('mientras publica no deja enviar dos veces', async () => {
@@ -203,8 +219,15 @@ describe('ForumPage', () => {
     fireEvent.change(screen.getByLabelText('Detalle'), { target: { value: 'D' } })
     fireEvent.click(screen.getByRole('button', { name: 'Publicar pregunta' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo publicar la pregunta')
+    const alert = await screen.findByRole('alert')
+    expect(within(alert).getByRole('heading', { level: 3 })).toHaveTextContent('No se pudo publicar la pregunta')
     expect(screen.getByLabelText('Título')).toHaveValue('Mi duda')
+
+    // Al cancelar y volver a abrir, lo escrito sigue pero el error ya no.
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Hacer una pregunta' }))
+    expect(screen.getByLabelText('Título')).toHaveValue('Mi duda')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('puede asociar la pregunta a un recurso del curso', async () => {

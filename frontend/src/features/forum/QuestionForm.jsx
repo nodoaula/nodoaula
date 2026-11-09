@@ -30,7 +30,10 @@ function describeFailure(error) {
   }
   if (error.status === 401) return { general: 'Tu sesión terminó. Inicia sesión de nuevo para publicar.' }
   if (error.timedOut) {
-    return { general: 'El servidor tardó demasiado y no sabemos si se publicó; recarga la página para comprobarlo antes de volver a enviarla.' }
+    return {
+      general:
+        'El servidor tardó demasiado y no sabemos si se publicó. Antes de volver a enviarla, mira el foro en otra pestaña; lo que escribiste sigue aquí.',
+    }
   }
   return { general: 'Intenta de nuevo; lo que escribiste sigue aquí.' }
 }
@@ -87,6 +90,13 @@ export default function QuestionForm({ open, courseId, resources, onPublished, o
     } finally {
       setBusy(false)
     }
+  }
+
+  // Lo escrito se conserva al cancelar; los errores de ese intento, no.
+  function cancel() {
+    setFieldErrors({})
+    setGeneral(null)
+    onCancel()
   }
 
   const resourceError = fieldErrors.resourceId
@@ -168,7 +178,7 @@ export default function QuestionForm({ open, courseId, resources, onPublished, o
 
       {fieldErrors.courseId && <p className="text-label text-error">{fieldErrors.courseId}</p>}
       {general && (
-        <Notice title="No se pudo publicar la pregunta" role="alert">
+        <Notice title="No se pudo publicar la pregunta" role="alert" titleLevel={3}>
           {general}
         </Notice>
       )}
@@ -178,7 +188,7 @@ export default function QuestionForm({ open, courseId, resources, onPublished, o
           Detalle hasta {MAX_BODY} caracteres
         </span>
         <div className="flex gap-3">
-          <button type="button" onClick={onCancel} className={buttonClasses('secondary')}>
+          <button type="button" onClick={cancel} className={buttonClasses('secondary')}>
             Cancelar
           </button>
           {/* aria-disabled y no disabled: un botón deshabilitado pierde el foco. */}

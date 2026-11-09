@@ -38,11 +38,22 @@ describe('ServerWakeScreen', () => {
   it('pasados los tres minutos de siempre avisa de que tarda más de lo normal', () => {
     render(<ServerWakeScreen status={SERVER_STATUS.STARTING} onRetry={vi.fn()} />)
 
+    // La región ya existe vacía: un lector de pantalla solo anuncia un
+    // cambio dentro de una región que estaba antes.
     act(() => vi.advanceTimersByTime(179_000))
-    expect(screen.queryByText(/más de lo normal/)).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
     act(() => vi.advanceTimersByTime(1000))
     // Se anuncia una sola vez, a diferencia del reloj.
     expect(screen.getByRole('status')).toHaveTextContent('Está tardando más de lo normal')
+  })
+
+  it('al volver a intentarlo el foco pasa al título de la espera', () => {
+    const { rerender } = render(<ServerWakeScreen status={SERVER_STATUS.UNREACHABLE} onRetry={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a intentarlo' }))
+    rerender(<ServerWakeScreen status={SERVER_STATUS.STARTING} onRetry={vi.fn()} />)
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Despertando NodoAula' })).toHaveFocus()
   })
 
   it('si no responde lo avisa con una alerta y deja volver a intentarlo', () => {
