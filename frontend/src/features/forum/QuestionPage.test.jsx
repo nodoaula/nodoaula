@@ -334,7 +334,8 @@ describe('QuestionPage', () => {
     expect(await screen.findByText('Retiraste la pregunta')).toBeInTheDocument()
     expect(retireQuestion).toHaveBeenCalledWith(7)
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Foro de Física de Campos')
-    expect(screen.getByText('Retiraste la pregunta').closest('[tabindex="-1"]')).toHaveFocus()
+    // El foro aparece al llegar sus datos, y el foco se mueve después de pintarlo.
+    await waitFor(() => expect(screen.getByText('Retiraste la pregunta').closest('[tabindex="-1"]')).toHaveFocus())
   })
 
   it('una pregunta retirada dice que ya no está disponible y enlaza al foro de su curso', async () => {
