@@ -29,16 +29,19 @@ function describeFailure(error) {
     return { fieldErrors }
   }
   if (error.status === 401) return { general: 'Tu sesión terminó. Inicia sesión de nuevo para publicar.' }
-  if (error.timedOut) return { general: 'El servidor tardó demasiado. Revisa la lista antes de volver a enviar.' }
+  if (error.timedOut) {
+    return { general: 'El servidor tardó demasiado y no sabemos si se publicó; recarga la página para comprobarlo antes de volver a enviarla.' }
+  }
   return { general: 'Intenta de nuevo; lo que escribiste sigue aquí.' }
 }
 
 /**
- * Formulario para publicar una pregunta en el foro de un curso (HU401). Se
- * abre con el foco en el título. El recurso es opcional: sirve para preguntar
- * sobre un video o apunte concreto.
+ * Formulario para publicar una pregunta en el foro de un curso (HU401). Cada
+ * vez que se abre, el foco va al título; cerrado conserva lo escrito y al
+ * publicar se vacía. El recurso es opcional: sirve para preguntar sobre un
+ * video o apunte concreto.
  */
-export default function QuestionForm({ courseId, resources, onPublished, onCancel }) {
+export default function QuestionForm({ open, courseId, resources, onPublished, onCancel }) {
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [resourceId, setResourceId] = useState('')
@@ -48,7 +51,9 @@ export default function QuestionForm({ courseId, resources, onPublished, onCance
   const [formRef, focusFirstInvalid] = useFocusFirstInvalid()
   const titleRef = useRef(null)
 
-  useEffect(() => titleRef.current.focus(), [])
+  useEffect(() => {
+    if (open) titleRef.current.focus()
+  }, [open])
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -70,12 +75,16 @@ export default function QuestionForm({ courseId, resources, onPublished, onCance
         title: title.trim(),
         body: body.trim(),
       })
+      setTitle('')
+      setBody('')
+      setResourceId('')
       onPublished(question)
     } catch (error) {
       const failure = describeFailure(error)
       setFieldErrors(failure.fieldErrors ?? {})
       setGeneral(failure.general ?? null)
       if (failure.fieldErrors) focusFirstInvalid()
+    } finally {
       setBusy(false)
     }
   }

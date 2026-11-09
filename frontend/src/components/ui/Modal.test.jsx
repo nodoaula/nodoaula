@@ -26,13 +26,15 @@ describe('Modal', () => {
     return { ...utils, onConfirm, onDismiss }
   }
 
-  it('se abre como modal, nombrada por su título y con el foco en el botón principal', () => {
+  // Con una acción difícil de deshacer, como retirar, un Enter sin querer no
+  // debe confirmarla: el foco empieza en la opción que no cambia nada.
+  it('se abre como modal, nombrada por su título y con el foco en la opción que no cambia nada', () => {
     renderModal()
     const dialog = screen.getByRole('dialog', { name: 'Título de la ventana' })
 
     expect(dialog.open).toBe(true)
     expect(screen.getByText('Contenido')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Aceptar' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toHaveFocus()
   })
 
   it('cada botón llama a su acción', () => {

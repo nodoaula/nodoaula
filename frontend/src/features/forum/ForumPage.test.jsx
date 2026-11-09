@@ -134,7 +134,7 @@ describe('ForumPage', () => {
     expect(await screen.findByText('Pregunta publicada.')).toBeInTheDocument()
   })
 
-  it('el botón abre el formulario con el foco en el título y «Cancelar» lo cierra sin guardar lo escrito', async () => {
+  it('el botón abre el formulario con el foco en el título y «Cancelar» lo cierra conservando lo escrito', async () => {
     session = { status: 'ready', account: { id: 5 } }
     await openForm()
     expect(screen.getByLabelText('Título')).toHaveFocus()
@@ -147,7 +147,34 @@ describe('ForumPage', () => {
     const ask = screen.getByRole('button', { name: 'Hacer una pregunta' })
     expect(ask).toHaveFocus()
     fireEvent.click(ask)
+    expect(await screen.findByLabelText('Título')).toHaveValue('Borrador')
+    expect(screen.getByLabelText('Título')).toHaveFocus()
+  })
+
+  it('tras publicar, el formulario vuelve a abrirse vacío', async () => {
+    session = { status: 'ready', account: { id: 5 } }
+    createQuestion.mockResolvedValue({ ...QUESTION, id: 2, title: 'Otra duda' })
+    await openForm()
+
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'Otra duda' } })
+    fireEvent.change(screen.getByLabelText('Detalle'), { target: { value: 'D' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Publicar pregunta' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Hacer una pregunta' }))
+
     expect(await screen.findByLabelText('Título')).toHaveValue('')
+    expect(screen.getByLabelText('Detalle')).toHaveValue('')
+  })
+
+  it('si el envío agota el tiempo pide recargar para comprobar si se publicó', async () => {
+    session = { status: 'ready', account: { id: 5 } }
+    createQuestion.mockRejectedValue(new ApiError('x', { timedOut: true }))
+    await openForm()
+
+    fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'T' } })
+    fireEvent.change(screen.getByLabelText('Detalle'), { target: { value: 'D' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Publicar pregunta' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('recarga la página para comprobarlo')
   })
 
   it('mientras publica no deja enviar dos veces', async () => {

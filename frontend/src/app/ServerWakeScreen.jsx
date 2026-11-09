@@ -25,6 +25,10 @@ const curveTo = ([x1, y1], [x2, y2]) => `C${(x1 + x2) / 2} ${y1} ${(x1 + x2) / 2
 const edge = (from, to) => `M${from[0]} ${from[1]} ${curveTo(from, to)}`
 const route = (topic) => `${edge(ROOT, courseOf(topic))} ${curveTo(courseOf(topic), TOPICS[topic])}`
 
+// Lo que tardó el arranque en las medidas de producción: pasado eso, la
+// pantalla avisa de que va más lento de lo normal.
+const USUAL_WAKE_SECONDS = 180
+
 // La primera señal sale cuando el mapa ya terminó de dibujarse.
 const FIRST_SIGNAL_MS = 1300
 // Las que pueden estar en camino o con su tema encendido a la vez: la más
@@ -71,6 +75,9 @@ function Waking() {
       <p className="mt-4 font-mono text-label text-content-muted tabular-nums">
         Lleva {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, '0')}
       </p>
+      {seconds >= USUAL_WAKE_SECONDS && (
+        <p className="mt-2 text-label text-content-muted">Está tardando más de lo normal; seguimos esperando a que conteste.</p>
+      )}
     </div>
   )
 }

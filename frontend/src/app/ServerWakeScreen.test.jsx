@@ -32,6 +32,16 @@ describe('ServerWakeScreen', () => {
 
     act(() => vi.advanceTimersByTime(65_000))
     expect(screen.getByText('Lleva 1:05')).toBeInTheDocument()
+    expect(screen.queryByText(/más de lo normal/)).not.toBeInTheDocument()
+  })
+
+  it('pasados los tres minutos de siempre avisa de que tarda más de lo normal', () => {
+    render(<ServerWakeScreen status={SERVER_STATUS.STARTING} onRetry={vi.fn()} />)
+
+    act(() => vi.advanceTimersByTime(179_000))
+    expect(screen.queryByText(/más de lo normal/)).not.toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(1000))
+    expect(screen.getByText(/Está tardando más de lo normal/)).toBeInTheDocument()
   })
 
   it('si no responde lo avisa con una alerta y deja volver a intentarlo', () => {

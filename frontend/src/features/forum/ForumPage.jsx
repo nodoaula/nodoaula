@@ -157,12 +157,18 @@ function Forum({ courseId, questionRetired: arrivedFromRetirement, askOnArrival 
 
       {questionRetired && <RetiredQuestionNotice />}
 
-      {formOpen && (
-        <section aria-labelledby="ask-heading" className="mt-8 max-w-[72ch] rounded-2xl border border-border-strong p-6">
+      {/* Oculto y no desmontado: «Cancelar» guarda lo escrito para la próxima vez. */}
+      {account !== null && (
+        <section
+          hidden={!formOpen}
+          aria-labelledby="ask-heading"
+          className="mt-8 max-w-[72ch] rounded-2xl border border-border-strong p-6"
+        >
           <h2 id="ask-heading" className="mb-4 text-lead font-semibold text-content">
             Tu pregunta
           </h2>
           <QuestionForm
+            open={formOpen}
             courseId={courseId}
             resources={resources}
             onCancel={closeForm}

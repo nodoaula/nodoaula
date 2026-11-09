@@ -21,22 +21,29 @@ function preventCancel(event) {
  * @param {boolean} open si la ventana está abierta
  * @param {string} title título, que también la nombra para un lector de pantalla
  * @param {Array<{label: string, onClick: Function, primary?: boolean}>} actions
- *        botones del pie, en orden; el principal recibe el foco al abrir
+ *        botones del pie, en orden. El foco empieza en el primero que no es el
+ *        principal: confirmaciones como retirar no se deshacen, y un Enter sin
+ *        querer no debe aceptarlas.
  */
 export default function Modal({ open, title, children, actions }) {
   const dialogRef = useRef(null)
-  const primaryRef = useRef(null)
+  const safeRef = useRef(null)
   const titleId = useId()
 
   useEffect(() => {
     const dialog = dialogRef.current
     if (open && !dialog.open) {
       dialog.showModal()
-      primaryRef.current?.focus()
+      safeRef.current?.focus()
     } else if (!open && dialog.open) {
       dialog.close()
     }
   }, [open])
+
+  const safeIndex = Math.max(
+    actions.findIndex((action) => !action.primary),
+    0,
+  )
 
   function handleClose() {
     if (open) dialogRef.current.showModal()
@@ -59,10 +66,10 @@ export default function Modal({ open, title, children, actions }) {
         <div className="mt-2 overflow-y-auto text-body leading-relaxed text-content-muted">{children}</div>
 
         <div className="mt-6 flex flex-wrap justify-end gap-3">
-          {actions.map((action) => (
+          {actions.map((action, index) => (
             <button
               key={action.label}
-              ref={action.primary ? primaryRef : undefined}
+              ref={index === safeIndex ? safeRef : undefined}
               type="button"
               onClick={action.onClick}
               className={buttonClasses(action.primary ? 'primary' : 'secondary')}
