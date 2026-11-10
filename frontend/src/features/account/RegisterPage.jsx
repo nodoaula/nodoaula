@@ -15,6 +15,7 @@ import InstitutionPicker from './InstitutionPicker.jsx'
 import { useInstitutions } from './useInstitutions.js'
 import UserTypeField from './UserTypeField.jsx'
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, validateRegistration } from './validation.js'
+import { useDocumentTitle } from '../../lib/useDocumentTitle.js'
 
 const EMAIL_ALREADY_IN_USE = 'EMAIL_ALREADY_IN_USE'
 const VALIDATION_FAILED = 'VALIDATION_FAILED'
@@ -63,6 +64,7 @@ function describeFailure(error) {
  * inicio de sesión con el correo puesto.
  */
 export default function RegisterPage() {
+  useDocumentTitle('Crear una cuenta')
   const navigate = useNavigate()
   const from = useLocation().state?.from
   const { account, login } = useSession()

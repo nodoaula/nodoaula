@@ -1,3 +1,5 @@
+import { useDocumentTitle } from '../../lib/useDocumentTitle.js'
+
 const CONTACT_EMAIL = 'brahian.ocampo@udea.edu.co'
 
 function Section({ title, children }) {
@@ -34,6 +36,7 @@ function ContactEmail() {
  * indica qué versión aceptó.
  */
 export default function DataPolicyPage() {
+  useDocumentTitle('Política de datos')
   return (
     <main className="mx-auto max-w-page px-4 pt-9 pb-18 sm:px-6">
       <article className="max-w-140 text-body leading-relaxed text-pretty text-content">

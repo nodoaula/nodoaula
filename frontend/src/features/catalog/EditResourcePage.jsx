@@ -14,6 +14,7 @@ import { useSession } from '../../session/useSession.js'
 import { getResource, listCoursesWithResources, listTopicsWithResources, updateResource } from './api.js'
 import { formatDurationText, formatPublishedAt, formatResourceType } from './format.js'
 import { validateCorrection } from './validation.js'
+import { useDocumentTitle } from '../../lib/useDocumentTitle.js'
 
 // Orden de los campos en la página, con el elemento que recibe el foco.
 const FIELD_FOCUS = [
@@ -82,6 +83,7 @@ function formFrom(resource) {
  * La key reinicia la carga cuando cambia el identificador de la dirección.
  */
 export default function EditResourcePage() {
+  useDocumentTitle('Corregir los datos')
   const { resourceId } = useParams()
   return <EditResource key={resourceId} resourceId={resourceId} />
 }

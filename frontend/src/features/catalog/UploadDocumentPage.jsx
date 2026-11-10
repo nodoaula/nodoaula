@@ -17,6 +17,7 @@ import { createDocument, listCoursesWithResources, listTopicsWithResources } fro
 import { isPdf, MAX_DOCUMENT_BYTES, titleFromFileName } from './documentFile.js'
 import { formatFileSize } from './format.js'
 import { validateDescription, validateTitle } from './validation.js'
+import { useDocumentTitle } from '../../lib/useDocumentTitle.js'
 
 const RIGHTS_MESSAGE = 'Declara que el apunte es de tu autoría o que tienes permiso para compartirlo.'
 
@@ -80,6 +81,7 @@ function describeFailure(error) {
  * la página de ese curso. Al publicar se queda en la página.
  */
 export default function UploadDocumentPage() {
+  useDocumentTitle('Subir un apunte')
   const { status, account } = useSession()
   const [searchParams] = useSearchParams()
   const entryCourseId = Number(searchParams.get('courseId'))

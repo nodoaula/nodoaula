@@ -17,6 +17,7 @@ import { joinGroup, leaveGroup, listGroups, retireGroup } from './api.js'
 import { formatMemberCount } from './format.js'
 import GroupMembers from './GroupMembers.jsx'
 import StudyGroupForm from './StudyGroupForm.jsx'
+import { useDocumentTitle } from '../../lib/useDocumentTitle.js'
 
 const LIST_HEADING_ID = 'grupos-titulo'
 const groupElementId = (groupId) => `grupo-${groupId}`
@@ -109,6 +110,7 @@ function StudyGroups({ courseId, signedIn }) {
   const [resources, setResources] = useState(validId ? null : [])
   const [groups, setGroups] = useState(validId ? null : [])
   const [error, setError] = useState(null)
+  useDocumentTitle(resources?.[0]?.course ? `Grupos de ${resources[0].course}` : 'Grupos de estudio')
 
   useEffect(() => {
     if (!validId) return undefined

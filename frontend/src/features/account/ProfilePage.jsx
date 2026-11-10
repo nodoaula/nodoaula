@@ -9,6 +9,7 @@ import { useLogout } from '../../session/useLogout.js'
 import { useSession } from '../../session/useSession.js'
 import { fetchProfile } from './api.js'
 import { formatProfileDate, userTypeLabel } from './profile.js'
+import { useDocumentTitle } from '../../lib/useDocumentTitle.js'
 
 const NOT_AVAILABLE = 'No disponible'
 
@@ -43,6 +44,7 @@ function Row({ label, value, note }) {
  * otra. Un dato que la cuenta no tiene se muestra como «No disponible».
  */
 export default function ProfilePage() {
+  useDocumentTitle('Tu perfil')
   const { status, account } = useSession()
   const { loggingOut, logoutFailed, handleLogout } = useLogout()
   const [profile, setProfile] = useState(null)

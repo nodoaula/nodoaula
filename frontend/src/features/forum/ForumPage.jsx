@@ -14,6 +14,7 @@ import { listQuestions } from './api.js'
 import { formatAnswerCount, formatForumDate } from './format.js'
 import QuestionForm from './QuestionForm.jsx'
 import { questionElementId } from './threadIds.js'
+import { useDocumentTitle } from '../../lib/useDocumentTitle.js'
 
 /**
  * Foro de un curso (HU401): lista de preguntas, visible sin sesión, y
@@ -71,6 +72,7 @@ function Forum({ courseId, questionRetired: arrivedFromRetirement, askOnArrival 
   const [resources, setResources] = useState(validId ? null : [])
   const [questions, setQuestions] = useState(validId ? null : [])
   const [error, setError] = useState(null)
+  useDocumentTitle(resources?.[0]?.course ? `Foro de ${resources[0].course}` : 'Foro del curso')
 
   useEffect(() => {
     if (!validId) return undefined

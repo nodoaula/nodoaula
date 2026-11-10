@@ -14,6 +14,7 @@ import { AUTOFILLABLE_FIELDS, resolveEntryMethod } from './entryMethod.js'
 import { formatDuration, formatPublishedAt } from './format.js'
 import { isYouTubeLink, parseYouTubeInput } from './sourcePlatform.js'
 import { validateCreateResource, validateDescription } from './validation.js'
+import { useDocumentTitle } from '../../lib/useDocumentTitle.js'
 
 const VALIDATION_FAILED = 'VALIDATION_FAILED'
 
@@ -158,6 +159,7 @@ function withoutKeys(object, keys) {
  * formulario manual de siempre.
  */
 export default function CreateResourcePage() {
+  useDocumentTitle('Registrar un recurso')
   const navigate = useNavigate()
   const { status, account } = useSession()
   const [courses, setCourses] = useState([])

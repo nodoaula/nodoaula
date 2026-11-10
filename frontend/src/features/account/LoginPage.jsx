@@ -9,6 +9,7 @@ import { useFocusFirstInvalid } from '../../components/ui/useFocusFirstInvalid.j
 import { CSRF_ERROR_CODE } from '../../lib/apiClient.js'
 import { useSession } from '../../session/useSession.js'
 import { validateLogin } from './validation.js'
+import { useDocumentTitle } from '../../lib/useDocumentTitle.js'
 
 const INVALID_CREDENTIALS = 'INVALID_CREDENTIALS'
 const TOO_MANY_ATTEMPTS = 'TOO_MANY_LOGIN_ATTEMPTS'
@@ -44,6 +45,7 @@ function describeFailure(error) {
  * la que se venía, si la hay (`from`, por el mismo canal), o al catálogo.
  */
 export default function LoginPage() {
+  useDocumentTitle('Iniciar sesión')
   const location = useLocation()
   const justRegistered = location.state?.justRegistered === true
   const from = location.state?.from

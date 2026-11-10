@@ -33,6 +33,7 @@ import {
   THREAD_HEADING_ID,
   unmarkButtonId,
 } from './threadIds.js'
+import { useDocumentTitle } from '../../lib/useDocumentTitle.js'
 
 // 404 si la pregunta no existe y 400 si la dirección no trae un número, como
 // /foro/preguntas/abc. Para quien visita, las dos son lo mismo.
@@ -114,6 +115,7 @@ function Loading() {
 function QuestionLoader({ questionId, signedIn }) {
   const [loaded, setLoaded] = useState(null)
   const [error, setError] = useState(null)
+  useDocumentTitle(loaded && !loaded.question.retired ? loaded.question.title : 'Pregunta del foro')
 
   useEffect(() => {
     let active = true

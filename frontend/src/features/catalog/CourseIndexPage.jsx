@@ -10,6 +10,7 @@ import ResourceRow from './ResourceRow.jsx'
 import SearchBox from './SearchBox.jsx'
 import TopicGraph from './TopicGraph.jsx'
 import { useResourceSearch } from './useResourceSearch.js'
+import { useDocumentTitle } from '../../lib/useDocumentTitle.js'
 
 const VISIBLE_TOPICS = 3
 
@@ -19,6 +20,7 @@ const VISIBLE_TOPICS = 3
  * los resultados sustituyen a las tarjetas.
  */
 export default function CourseIndexPage() {
+  useDocumentTitle('Escoge tu curso')
   const [searchParams] = useSearchParams()
 
   // Antes, /catalogo?courseId= era el catálogo filtrado por curso; una
