@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 
 import { buttonClasses } from '../components/ui/button.js'
+import { useDocumentTitle } from '../lib/useDocumentTitle.js'
 
 /**
  * Página de una dirección que no existe: la nombra, deja buscar en el catálogo
@@ -9,6 +10,7 @@ import { buttonClasses } from '../components/ui/button.js'
  * columnas; en una sola no aporta nada que el texto no diga.
  */
 export default function NotFoundPage() {
+  useDocumentTitle('Página no encontrada')
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const [text, setText] = useState('')

@@ -17,6 +17,7 @@ import InstitutionPicker from './InstitutionPicker.jsx'
 import { useInstitutions } from './useInstitutions.js'
 import UserTypeField from './UserTypeField.jsx'
 import { validateProfileCompletion } from './validation.js'
+import { useDocumentTitle } from '../../lib/useDocumentTitle.js'
 
 const VALIDATION_FAILED = 'VALIDATION_FAILED'
 const PROFILE_ALREADY_COMPLETE = 'PROFILE_ALREADY_COMPLETE'
@@ -62,6 +63,7 @@ function describeFailure(error) {
  * RequireCompleteProfile, y al terminar vuelve a la página a la que iba.
  */
 export default function CompleteProfilePage() {
+  useDocumentTitle('Completa tu perfil')
   const from = useLocation().state?.from
   const { status, account, updateAccount } = useSession()
   const { institutions, failed: institutionsFailed } = useInstitutions()

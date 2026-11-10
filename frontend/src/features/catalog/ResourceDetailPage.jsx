@@ -23,6 +23,7 @@ import ResourcePlayer from './ResourcePlayer.jsx'
 import { RetiredNotice, RetireAction } from './ResourceRetirement.jsx'
 import { describeRetirementFailure, RETIREMENT_ACTION } from './retirement.js'
 import { getYouTubeVideoId, isWebUrl, sourceLinkLabel } from './sourcePlatform.js'
+import { useDocumentTitle } from '../../lib/useDocumentTitle.js'
 
 const RESOURCE_NOT_FOUND = 'RESOURCE_NOT_FOUND'
 
@@ -52,6 +53,7 @@ export default function ResourceDetailPage() {
 function ResourceDetail({ resourceId, corrected }) {
   const [resource, setResource] = useState(null)
   const [error, setError] = useState(null)
+  useDocumentTitle(resource?.title ?? 'Recurso')
   // Lo último que hizo quien ve la ficha (HU307): retirarlo o volver a
   // publicarlo. Mientras la petición está en curso, `busy` lo dice.
   const [outcome, setOutcome] = useState(null)

@@ -10,6 +10,7 @@ import { formatCourseSummary, summarizeCourses } from './courseSummary.js'
 import ResourceRow from './ResourceRow.jsx'
 import SearchBox from './SearchBox.jsx'
 import { useResourceSearch } from './useResourceSearch.js'
+import { useDocumentTitle } from '../../lib/useDocumentTitle.js'
 
 const ALL_TYPES = 'ALL'
 const TYPE_OPTIONS = [
@@ -35,6 +36,7 @@ function Course({ courseId }) {
   const validId = /^\d+$/.test(courseId)
   const [resources, setResources] = useState(validId ? null : [])
   const [error, setError] = useState(null)
+  useDocumentTitle(resources?.[0]?.course ?? 'Curso')
 
   useEffect(() => {
     if (!validId) return undefined
