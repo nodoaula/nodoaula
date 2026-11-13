@@ -44,16 +44,13 @@ export default function App() {
                 <Route path="recursos/:resourceId" element={<ResourceDetailPage />} />
                 <Route path="recursos/:resourceId/corregir" element={<EditResourcePage />} />
                 <Route path="subir-apunte" element={<UploadDocumentPage />} />
+                <Route path="registrar-recurso" element={<CreateResourcePage />} />
                 <Route path="registro" element={<RegisterPage />} />
                 <Route path="iniciar-sesion" element={<LoginPage />} />
                 <Route path="perfil" element={<ProfilePage />} />
                 <Route path="completar-perfil" element={<CompleteProfilePage />} />
                 <Route path="politica-de-datos" element={<DataPolicyPage />} />
                 <Route path="*" element={<NotFoundPage />} />
-              </Route>
-              {/* Pantallas aún sin rediseñar: cada una pasa al grupo de arriba cuando se rediseña. */}
-              <Route element={<AppLayout legacy />}>
-                <Route path="registrar-recurso" element={<CreateResourcePage />} />
               </Route>
             </Route>
           </Routes>

@@ -1,9 +1,10 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 
 import { buttonClasses } from '../../components/ui/button.js'
 import CoursePicker from '../../components/ui/CoursePicker.jsx'
 import NodePath from '../../components/ui/NodePath.jsx'
+import FormSection from '../../components/ui/FormSection.jsx'
 import Notice from '../../components/ui/Notice.jsx'
 import TextInput from '../../components/ui/TextInput.jsx'
 import TopicPicker from '../../components/ui/TopicPicker.jsx'
@@ -450,18 +451,5 @@ function FixedField({ label, children }) {
       <dt className="font-mono text-xs tracking-wider text-content-muted uppercase">{label}</dt>
       <dd className="text-content">{children}</dd>
     </div>
-  )
-}
-
-function FormSection({ title, intro, children }) {
-  const headingId = useId()
-  return (
-    <section aria-labelledby={headingId} className="flex min-w-0 flex-col gap-4">
-      <div>
-        <h2 id={headingId} className="text-lead font-semibold tracking-tight">{title}</h2>
-        {intro && <p className="mt-1 text-sm text-content-muted">{intro}</p>}
-      </div>
-      {children}
-    </section>
   )
 }
