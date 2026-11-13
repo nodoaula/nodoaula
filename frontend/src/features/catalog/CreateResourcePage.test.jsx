@@ -50,7 +50,7 @@ function renderPage() {
     <MemoryRouter initialEntries={['/registrar-recurso']}>
       <Routes>
         <Route path="/registrar-recurso" element={<CreateResourcePage />} />
-        <Route path="/catalogo" element={<p>Catálogo</p>} />
+        <Route path="/catalogo" element={<p>Página del catálogo</p>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -478,7 +478,7 @@ describe('CreateResourcePage - indexación desde YouTube (HU202)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Registrar recurso' }))
 
     expect(await screen.findByText('Este video ya está registrado en el catálogo.')).toBeInTheDocument()
-    expect(screen.queryByText('Catálogo')).not.toBeInTheDocument()
+    expect(screen.queryByText('Página del catálogo')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Registrar recurso' })).toBeEnabled()
   })
 })

@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 
+import { buttonClasses } from '../../components/ui/button.js'
 import CoursePicker from '../../components/ui/CoursePicker.jsx'
+import FormSection from '../../components/ui/FormSection.jsx'
 import Modal from '../../components/ui/Modal.jsx'
-import TextField from '../../components/ui/TextField.jsx'
+import NodePath from '../../components/ui/NodePath.jsx'
+import Notice from '../../components/ui/Notice.jsx'
+import TextInput from '../../components/ui/TextInput.jsx'
 import TopicPicker from '../../components/ui/TopicPicker.jsx'
 import { CSRF_ERROR_CODE } from '../../lib/apiClient.js'
 import { SESSION_STATUS } from '../../session/SessionContext.js'
@@ -264,8 +268,7 @@ export default function CreateResourcePage() {
     setFieldErrors((errors) => ({ ...errors, topics: undefined }))
   }
 
-  function handleUrlChange(event) {
-    const { value } = event.target
+  function handleUrlChange(value) {
     updateField('url', value)
 
     // Al pegar se consulta de inmediato; al escribir, tras una pausa.
@@ -427,108 +430,91 @@ export default function CreateResourcePage() {
     }
   }
 
-  // El mismo trato que TextField da a un campo con error o con aviso.
-  const descriptionNotice = noticeFor('description')
-  let descriptionStateClasses = 'border-slate-300 bg-white'
-  if (fieldErrors.description) descriptionStateClasses = 'border-red-500 bg-white'
-  else if (descriptionNotice) descriptionStateClasses = 'border-amber-500 bg-amber-50'
-
   return (
-    <main className="px-4 py-10">
-      <div className="mx-auto max-w-md">
-        <h1 className="text-2xl font-semibold text-slate-900">Registrar un recurso</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Se publica en el catálogo asociado a tu cuenta ({account.email}).
-        </p>
+    <main className="mx-auto max-w-page px-4 pt-9 pb-18 sm:px-6">
+      <NodePath label="Ubicación" items={[{ label: 'Catálogo', to: '/catalogo' }]} current="Registrar un recurso" />
+      <h1 className="mt-5 text-[1.875rem] leading-[1.08] font-semibold tracking-tight sm:text-display">Registrar un recurso</h1>
+      <p className="mt-2.5 max-w-[60ch] text-body text-content-muted">
+        Pega el enlace de un video de YouTube y se publica en el catálogo asociado a tu cuenta ({account.email}).
+      </p>
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit} noValidate>
-          <div>
-            <TextField
-              id="resource-url"
-              label="Enlace"
-              type="url"
-              placeholder="https://…"
-              hint="Pega el enlace o el identificador de un video de YouTube para completar sus datos automáticamente. También puedes usar un enlace de otra plataforma y llenar los campos a mano."
-              value={form.url}
-              onChange={handleUrlChange}
-              onPaste={() => {
-                pastedRef.current = true
-              }}
-              error={fieldErrors.url}
-            />
-            {lookingUp && (
-              <p className="mt-1 text-sm text-slate-600" role="status">
-                Consultando YouTube…
-              </p>
-            )}
-          </div>
+      <form className="mt-8 flex max-w-3xl flex-col gap-9" onSubmit={handleSubmit} noValidate>
+        <FormSection title="El enlace" intro="Con un enlace o el identificador de un video de YouTube, sus datos se completan solos.">
+          <TextInput
+            id="resource-url"
+            label="Enlace"
+            type="url"
+            placeholder="https://…"
+            hint="También puedes usar un enlace de otra plataforma y llenar los campos a mano."
+            value={form.url}
+            onChange={handleUrlChange}
+            onPaste={() => {
+              pastedRef.current = true
+            }}
+            error={fieldErrors.url}
+          />
+          {lookingUp && (
+            <p className="text-label text-content-muted" role="status">
+              Consultando YouTube…
+            </p>
+          )}
+        </FormSection>
 
-          <TextField
+        <FormSection title="Datos del video" intro="Lo primero que se lee en el catálogo. Corrígelos si hace falta.">
+          <TextInput
             id="resource-title"
             label="Título"
             value={form.title}
-            onChange={(event) => updateField('title', event.target.value)}
+            onChange={(value) => updateField('title', value)}
             error={fieldErrors.title}
             notice={noticeFor('title')}
           />
-
-          <div>
-            <label htmlFor="resource-description" className="block text-sm font-medium text-slate-700">
-              Descripción
-            </label>
-            <textarea
-              id="resource-description"
-              rows={3}
-              value={form.description}
-              placeholder={descriptionNotice}
-              onChange={(event) => updateField('description', event.target.value)}
-              aria-invalid={fieldErrors.description ? true : undefined}
-              aria-describedby={descriptionNotice ? 'resource-description-notice' : undefined}
-              className={`mt-1 block w-full rounded-md border px-3 py-2 text-sm ${descriptionStateClasses}`}
-            />
-            {descriptionNotice && (
-              <p id="resource-description-notice" className="sr-only">
-                {descriptionNotice}
-              </p>
-            )}
-            {fieldErrors.description && (
-              <p className="mt-1 text-sm text-red-700">{fieldErrors.description}</p>
-            )}
-          </div>
-
-          <TextField
+          <TextInput
+            id="resource-description"
+            label="Descripción"
+            multiline
+            rows={3}
+            value={form.description}
+            onChange={(value) => updateField('description', value)}
+            error={fieldErrors.description}
+            notice={noticeFor('description')}
+          />
+          <TextInput
             id="resource-published-at"
             label="Fecha de publicación"
             type="date"
+            className="scheme-dark"
             value={form.publishedAt}
-            onChange={(event) => updateField('publishedAt', event.target.value)}
+            onChange={(value) => updateField('publishedAt', value)}
             error={fieldErrors.publishedAt}
             notice={noticeFor('publishedAt')}
           />
-
-          <TextField
+          <TextInput
             id="resource-duration"
             label="Duración"
             type="number"
             min="1"
             step="1"
+            inputMode="numeric"
+            className="scheme-dark"
             hint="En segundos. Déjalo en blanco si no la sabes."
             value={form.durationSeconds}
-            onChange={(event) => updateField('durationSeconds', event.target.value)}
+            onChange={(value) => updateField('durationSeconds', value)}
             error={fieldErrors.durationSeconds}
             notice={noticeFor('durationSeconds')}
           />
-
-          <TextField
+          <TextInput
             id="resource-channel"
             label="Canal"
             hint="Opcional: quién publicó el recurso."
             value={form.channel}
-            onChange={(event) => updateField('channel', event.target.value)}
+            onChange={(value) => updateField('channel', value)}
             error={fieldErrors.channel}
             notice={noticeFor('channel')}
           />
+        </FormSection>
 
+        <FormSection title="Dónde va" intro="El curso y los temas por los que se encuentra en el catálogo.">
           <CoursePicker
             id="resource-course"
             label="Curso"
@@ -548,23 +534,17 @@ export default function CreateResourcePage() {
               error={fieldErrors.topics}
             />
           )}
-          {course === null && fieldErrors.topics && <p className="text-sm text-red-700">{fieldErrors.topics}</p>}
+          {course === null && fieldErrors.topics && <p className="text-label text-error">{fieldErrors.topics}</p>}
+        </FormSection>
 
-          {formError && (
-            <p className="text-sm text-red-700" role="alert">
-              {formError}
-            </p>
-          )}
+        {formError && <Notice role="alert" title="No se registró el recurso">{formError}</Notice>}
 
-          <button
-            type="submit"
-            disabled={submitting || lookingUp}
-            className="w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
-          >
+        <div className="flex flex-wrap items-center gap-4">
+          <button type="submit" disabled={submitting || lookingUp} className={buttonClasses('primary', 'lg')}>
             {submitting ? 'Registrando…' : 'Registrar recurso'}
           </button>
-        </form>
-      </div>
+        </div>
+      </form>
 
       <Modal
         open={pendingMetadata !== null}
